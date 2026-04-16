@@ -15,9 +15,15 @@ export function CartStatus() {
       className="focus-ring relative inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white transition hover:border-[var(--leaf)]"
       href="/cart"
     >
-      <span aria-hidden="true" className="text-lg leading-none">
-        Bag
-      </span>
+      <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M7 8h10l1 12H6L7 8Zm3 0V6a2 2 0 1 1 4 0v2"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.8"
+        />
+      </svg>
       <span className="absolute -right-2 -top-2 min-w-6 rounded-full bg-[var(--coral)] px-1.5 py-0.5 text-center text-xs font-bold text-white">
         {count}
       </span>

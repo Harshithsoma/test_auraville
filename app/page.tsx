@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Categories } from "@/components/sections/categories";
 import { FeaturedProducts } from "@/components/sections/featured-products";
 import { Hero } from "@/components/sections/hero";
 import { ShopCta } from "@/components/sections/shop-cta";
@@ -21,7 +20,6 @@ export default function HomePage() {
     <>
       <Hero />
       <FeaturedProducts />
-      <Categories />
       <TrustSection />
       <ShopCta />
     </>

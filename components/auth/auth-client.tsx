@@ -1,12 +1,16 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type AuthMode = "login" | "signup";
 
 export function AuthClient() {
+  const router = useRouter();
+  const login = useAuthStore((state) => state.login);
   const [mode, setMode] = useState<AuthMode>("login");
   const [step, setStep] = useState<"email" | "otp">("email");
   const [email, setEmail] = useState("");
@@ -37,7 +41,9 @@ export function AuthClient() {
       return;
     }
 
-    setMessage("Authentication UI complete. Connect this step to your identity provider.");
+    login({ email });
+    setMessage("You are signed in. Redirecting to your profile...");
+    router.push("/account");
   }
 
   return (

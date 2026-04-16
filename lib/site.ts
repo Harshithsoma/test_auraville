@@ -4,10 +4,9 @@ export const siteConfig = {
   description:
     "Palmyra sprout snacks and heritage foods made for modern everyday energy.",
   nav: [
-    { label: "Shop", href: "/products" },
-    { label: "Energy Bar", href: "/product/palmyra-sprout-energy-bar" },
-    { label: "Coming Soon", href: "/products?category=Cookies" },
-    { label: "Cart", href: "/cart" }
+    { label: "Orders", href: "/orders" },
+    { label: "About Us", href: "/about" },
+    { label: "Coming Soon", href: "/coming-soon" }
   ]
 };
 

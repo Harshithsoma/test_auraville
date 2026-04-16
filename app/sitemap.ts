@@ -4,7 +4,18 @@ import { absoluteUrl } from "@/lib/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  const routes = ["", "/products", "/cart", "/auth"].map((route) => ({
+  const routes = [
+    "",
+    "/products",
+    "/coming-soon",
+    "/offers",
+    "/about",
+    "/search",
+    "/cart",
+    "/auth",
+    "/orders",
+    "/account"
+  ].map((route) => ({
     url: absoluteUrl(route),
     lastModified: now,
     changeFrequency: "weekly" as const,

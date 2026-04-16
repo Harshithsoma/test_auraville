@@ -3,6 +3,8 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCartSubtotal, useCartStore } from "@/stores/cart-store";
+import { useAuthStore } from "@/stores/auth-store";
+import { useOrderStore } from "@/stores/order-store";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -31,6 +33,8 @@ export default function CheckoutClient() {
   const router = useRouter();
   const hasMounted = useHasMounted();
   const { items, clearCart } = useCartStore();
+  const user = useAuthStore((state) => state.user);
+  const addOrder = useOrderStore((state) => state.addOrder);
   const [errors, setErrors] = useState<CheckoutErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -53,14 +57,19 @@ export default function CheckoutClient() {
 
     setIsSubmitting(true);
     const orderId = `AUR-${Date.now().toString().slice(-8)}`;
+    const order = {
+      id: orderId,
+      email: user?.email ?? String(formData.get("email") ?? ""),
+      items,
+      total: summary.total,
+      status: "confirmed" as const,
+      createdAt: new Date().toISOString()
+    };
     sessionStorage.setItem(
       "auraville-last-order",
-      JSON.stringify({
-        id: orderId,
-        items,
-        total: summary.total
-      })
+      JSON.stringify(order)
     );
+    addOrder(order);
     clearCart();
     router.push(`/order-success?order=${orderId}`);
   }

@@ -1,5 +1,5 @@
 import { getFeaturedProducts } from "@/lib/products";
-import { ProductCard } from "@/components/product/product-card";
+import { ProductShelfCarousel } from "@/components/product/product-shelf-carousel";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Button } from "@/components/ui/button";
 
@@ -18,11 +18,7 @@ export function FeaturedProducts() {
           Shop range
         </Button>
       </div>
-      <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {featuredProducts.map((product, index) => (
-          <ProductCard key={product.id} priority={index < 2} product={product} />
-        ))}
-      </div>
+      <ProductShelfCarousel products={featuredProducts} />
     </section>
   );
 }
