@@ -1,0 +1,14 @@
+<svg width="1440" height="780" viewBox="0 0 1440 780" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1440" height="780" fill="#173D2A"/>
+  <rect x="775" y="190" width="480" height="365" rx="48" fill="#F7FFF8"/>
+  <circle cx="930" cy="370" r="86" fill="#D8AA2F"/>
+  <circle cx="1060" cy="390" r="92" fill="#C84F43"/>
+  <circle cx="1135" cy="320" r="72" fill="#E7B85C"/>
+  <circle cx="900" cy="340" r="8" fill="#173D2A"/>
+  <circle cx="1090" cy="365" r="8" fill="#173D2A"/>
+  <circle cx="1160" cy="310" r="7" fill="#173D2A"/>
+  <text x="100" y="220" fill="#FFD9DE" font-family="Avenir Next, Arial, sans-serif" font-size="28" font-weight="800">FESTIVE FORMAT</text>
+  <text x="100" y="335" fill="#FFFFFF" font-family="Avenir Next, Arial, sans-serif" font-size="78" font-weight="800">Palmyra Sprout</text>
+  <text x="100" y="425" fill="#FFFFFF" font-family="Avenir Next, Arial, sans-serif" font-size="78" font-weight="800">Laddu</text>
+  <text x="104" y="505" fill="#E7F7EA" font-family="Avenir Next, Arial, sans-serif" font-size="30" font-weight="600">Traditional sweetness, cleaner everyday bite.</text>
+</svg>

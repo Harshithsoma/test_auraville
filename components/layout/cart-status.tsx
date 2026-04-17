@@ -12,7 +12,7 @@ export function CartStatus() {
   return (
     <Link
       aria-label={`Cart with ${count} items`}
-      className="focus-ring relative inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white transition hover:border-[var(--leaf)]"
+      className="focus-ring relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--line)] bg-white transition active:scale-95 hover:border-[var(--leaf)] sm:h-11 sm:w-11"
       href="/cart"
     >
       <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none">
@@ -24,7 +24,7 @@ export function CartStatus() {
           strokeWidth="1.8"
         />
       </svg>
-      <span className="absolute -right-2 -top-2 min-w-6 rounded-full bg-[var(--coral)] px-1.5 py-0.5 text-center text-xs font-bold text-white">
+      <span className="absolute -right-2 -top-2 min-w-5 rounded-full bg-[var(--coral)] px-1 py-0.5 text-center text-[10px] font-bold text-white sm:min-w-6 sm:px-1.5 sm:text-xs">
         {count}
       </span>
     </Link>

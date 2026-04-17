@@ -36,7 +36,7 @@ export const products: Product[] = [
     ingredients: ["Palmyra sprout", "Dates", "Peanuts", "Pumpkin seeds", "Jaggery", "Cardamom"],
     benefits: ["Made with palmyra sprout", "No refined sugar", "Travel friendly"],
     variants: [
-      { id: "single", label: "Single bar", price: 149, unit: "bar" },
+      { id: "single", label: "40 g bar", price: 149, unit: "bar" },
       { id: "box-6", label: "Box of 6", price: 849, unit: "box" },
       { id: "box-12", label: "Box of 12", price: 1599, unit: "box" }
     ]

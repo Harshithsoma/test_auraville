@@ -24,7 +24,7 @@ export function Button({
   ...props
 }: ButtonProps) {
   const classes = clsx(
-    "focus-ring inline-flex min-h-11 items-center justify-center rounded-lg px-5 py-3 text-sm font-semibold transition",
+    "focus-ring inline-flex min-h-11 items-center justify-center rounded-lg px-5 py-3 text-sm font-semibold transition active:scale-[0.98]",
     styles[variant],
     className
   );

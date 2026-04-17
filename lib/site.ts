@@ -4,7 +4,6 @@ export const siteConfig = {
   description:
     "Palmyra sprout snacks and heritage foods made for modern everyday energy.",
   nav: [
-    { label: "Orders", href: "/orders" },
     { label: "About Us", href: "/about" },
     { label: "Coming Soon", href: "/coming-soon" }
   ]

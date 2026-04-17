@@ -1,0 +1,11 @@
+<svg width="1440" height="780" viewBox="0 0 1440 780" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1440" height="780" fill="#FFF9EF"/>
+  <rect x="810" y="140" width="395" height="490" rx="48" fill="#173D2A"/>
+  <rect x="850" y="190" width="315" height="390" rx="34" fill="#F7FFF8"/>
+  <circle cx="1008" cy="395" r="118" fill="#D8AA2F"/>
+  <path d="M910 395C962 348 1054 348 1105 395C1055 442 961 442 910 395Z" fill="#347A4F"/>
+  <text x="100" y="220" fill="#C84F43" font-family="Avenir Next, Arial, sans-serif" font-size="28" font-weight="800">BREAKFAST NEXT</text>
+  <text x="100" y="335" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="78" font-weight="800">Health Mix</text>
+  <text x="100" y="425" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="78" font-weight="800">with Palmyra</text>
+  <text x="104" y="505" fill="#607065" font-family="Avenir Next, Arial, sans-serif" font-size="30" font-weight="600">For porridge, malt, and family mornings.</text>
+</svg>

@@ -74,3 +74,28 @@ textarea {
 .soft-shadow {
   box-shadow: 0 24px 70px rgb(23 33 28 / 10%);
 }
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  animation: marquee 18s linear infinite;
+  width: max-content;
+}

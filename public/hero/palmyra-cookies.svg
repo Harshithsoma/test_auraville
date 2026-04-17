@@ -1,0 +1,15 @@
+<svg width="1440" height="780" viewBox="0 0 1440 780" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1440" height="780" fill="#F7FFF8"/>
+  <rect x="0" y="0" width="1440" height="780" fill="#E7F7EA"/>
+  <circle cx="1050" cy="355" r="225" fill="#D8AA2F"/>
+  <circle cx="965" cy="320" r="92" fill="#8F5F33"/>
+  <circle cx="1130" cy="390" r="105" fill="#B7783A"/>
+  <circle cx="1100" cy="285" r="58" fill="#F5D690"/>
+  <circle cx="930" cy="325" r="10" fill="#173D2A"/>
+  <circle cx="1010" cy="285" r="9" fill="#173D2A"/>
+  <circle cx="1140" cy="405" r="10" fill="#173D2A"/>
+  <text x="100" y="215" fill="#C84F43" font-family="Avenir Next, Arial, sans-serif" font-size="28" font-weight="800">COMING SOON</text>
+  <text x="100" y="330" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="78" font-weight="800">Palmyra Sprout</text>
+  <text x="100" y="420" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="78" font-weight="800">Cookies</text>
+  <text x="104" y="500" fill="#607065" font-family="Avenir Next, Arial, sans-serif" font-size="30" font-weight="600">Tea-time crunch with a lost ingredient.</text>
+</svg>

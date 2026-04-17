@@ -17,20 +17,20 @@ export function ProductShelfCarousel({ products }: { products: Product[] }) {
   return (
     <div className="relative">
       <div
-        className="mt-10 flex snap-x gap-5 overflow-x-auto scroll-smooth pb-4 [scrollbar-width:thin]"
+        className="grid auto-cols-[100%] grid-flow-col gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-4 [scrollbar-width:none] min-[520px]:auto-cols-[calc((100%-1rem)/2)] sm:auto-cols-[260px] lg:auto-cols-[250px]"
         ref={scrollerRef}
       >
         {products.map((product, index) => (
-          <div className="w-[82vw] shrink-0 snap-start sm:w-[360px] lg:w-[280px]" key={product.id}>
+          <div className="snap-start" key={product.id}>
             <ProductCard priority={index < 2} product={product} />
           </div>
         ))}
       </div>
-      {products.length > 3 ? (
-        <div className="mt-4 flex justify-end gap-3">
+      {products.length > 4 ? (
+        <>
           <button
             aria-label="Scroll products left"
-            className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white text-xl transition hover:border-[var(--leaf)]"
+            className="focus-ring absolute left-1 top-[38%] inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white/95 text-xl shadow-lg transition active:scale-90 hover:border-[var(--leaf)]"
             type="button"
             onClick={() => scrollBy("left")}
           >
@@ -38,13 +38,13 @@ export function ProductShelfCarousel({ products }: { products: Product[] }) {
           </button>
           <button
             aria-label="Scroll products right"
-            className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white text-xl transition hover:border-[var(--leaf)]"
+            className="focus-ring absolute right-1 top-[38%] inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white/95 text-xl shadow-lg transition active:scale-90 hover:border-[var(--leaf)]"
             type="button"
             onClick={() => scrollBy("right")}
           >
             ›
           </button>
-        </div>
+        </>
       ) : null}
     </div>
   );
