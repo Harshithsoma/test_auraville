@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { categories } from "@/lib/products";
 import { marketSpotlight } from "@/lib/promotions";
 
@@ -41,6 +42,7 @@ export function MobileMenu() {
   return (
     <div className="lg:hidden">
       <button
+        aria-controls="mobile-navigation-drawer"
         aria-expanded={isOpen}
         aria-label="Open menu"
         className="focus-ring inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white transition active:scale-95"
@@ -54,19 +56,21 @@ export function MobileMenu() {
         </span>
       </button>
 
-      {isOpen ? (
-        <div className="fixed inset-0 z-[80]">
+      {typeof document !== "undefined" && isOpen
+        ? createPortal(
+            <div className="fixed inset-0 z-[120]">
           <button
             aria-label="Close menu"
             className="absolute inset-0 z-0 bg-black/35"
             type="button"
             onClick={close}
           />
-          <aside className="relative z-10 flex h-full w-[86vw] max-w-sm animate-[slideIn_.22s_ease-out] flex-col overflow-y-auto bg-white p-5 shadow-2xl">
+          <aside
+            className="absolute left-0 top-0 z-10 flex h-dvh w-[88vw] max-w-sm animate-[slideIn_.22s_ease-out] flex-col overflow-y-auto border-r border-[var(--line)] bg-white p-5 shadow-2xl"
+            id="mobile-navigation-drawer"
+          >
             <div className="flex items-center justify-between gap-4">
-              <Link className="brand-mark focus-ring rounded-lg text-2xl font-bold" href="/" onClick={close}>
-                Auraville
-              </Link>
+              <p className="text-2xl font-bold">Menu</p>
               <button
                 aria-label="Close menu"
                 className="focus-ring inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--line)] text-xl active:scale-95"
@@ -83,10 +87,10 @@ export function MobileMenu() {
                 <div className="grid gap-2">
                   {primaryLinks.map((link) => (
                     <Link
-                      className={`focus-ring rounded-lg px-4 py-3 text-sm font-semibold ${
+                      className={`focus-ring block rounded-lg border px-4 py-3 text-sm font-semibold ${
                         link.label === "Launch Offer"
-                          ? "bg-[var(--mint)] font-bold text-[var(--leaf-deep)]"
-                          : "hover:bg-[var(--mint)]"
+                          ? "border-[var(--leaf)] bg-[var(--mint)] font-bold text-[var(--leaf-deep)]"
+                          : "border-[var(--line)] bg-white text-[var(--foreground)] hover:bg-[var(--mint)]"
                       }`}
                       href={link.href}
                       key={link.href}
@@ -100,13 +104,17 @@ export function MobileMenu() {
 
               <div>
                 <p className="mb-3 text-xs font-bold uppercase text-[var(--coral)]">Shop</p>
-                <div className="grid gap-2">
-                  <Link className="focus-ring rounded-lg px-4 py-3 text-sm font-semibold hover:bg-[var(--mint)]" href="/products" onClick={close}>
+                <div className="grid gap-2 rounded-lg bg-[var(--mint)] p-2">
+                  <Link
+                    className="focus-ring rounded-lg bg-white px-4 py-3 text-sm font-semibold text-[var(--foreground)] hover:bg-[#f7fff8]"
+                    href="/products"
+                    onClick={close}
+                  >
                     All Products
                   </Link>
                   {categories.map((category) => (
                     <Link
-                      className="focus-ring rounded-lg px-4 py-3 text-sm text-[var(--muted)] hover:bg-[var(--mint)] hover:text-[var(--foreground)]"
+                      className="focus-ring rounded-lg bg-white px-4 py-3 text-sm text-[var(--foreground)] hover:bg-[#f7fff8]"
                       href={`/products?category=${category}`}
                       key={category}
                       onClick={close}
@@ -118,8 +126,10 @@ export function MobileMenu() {
               </div>
             </nav>
           </aside>
-        </div>
-      ) : null}
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
