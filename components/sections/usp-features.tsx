@@ -25,7 +25,7 @@ const features = [
 
 export function UspFeatures() {
   return (
-    <section className="bg-[var(--mint)] py-5" aria-label="Product benefits">
+    <section className="bg-[var(--mint)] py-14 sm:py-16" aria-label="Product benefits">
       <div className="container-page flex snap-x gap-4 overflow-x-auto pb-1 sm:grid sm:grid-cols-5 sm:overflow-visible">
         {features.map((feature) => (
           <div

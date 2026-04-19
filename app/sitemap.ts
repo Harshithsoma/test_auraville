@@ -14,7 +14,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/cart",
     "/auth",
     "/orders",
-    "/account"
+    "/account",
+    "/privacy-policy",
+    "/shipping-policy",
+    "/cancellation-policy",
+    "/return-refund-policy",
+    "/cod-terms",
+    "/terms-conditions"
   ].map((route) => ({
     url: absoluteUrl(route),
     lastModified: now,

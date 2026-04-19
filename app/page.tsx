@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
+import { AnnouncementBar } from "@/components/sections/announcement-bar";
+import { BrandStoryImage } from "@/components/sections/brand-story-image";
+import { FaqSection } from "@/components/sections/faq-section";
+import { FeaturedCoreProduct } from "@/components/sections/featured-core-product";
 import { FeaturedProducts } from "@/components/sections/featured-products";
 import { Hero } from "@/components/sections/hero";
+import { ReviewsSlider } from "@/components/sections/reviews-slider";
 import { ScrollingBanner } from "@/components/sections/scrolling-banner";
-import { ShopCta } from "@/components/sections/shop-cta";
-import { TrustSection } from "@/components/sections/trust";
 import { UspFeatures } from "@/components/sections/usp-features";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 
@@ -24,8 +27,11 @@ export default function HomePage() {
       <ScrollingBanner />
       <UspFeatures />
       <FeaturedProducts />
-      <TrustSection />
-      <ShopCta />
+      <AnnouncementBar />
+      <FeaturedCoreProduct />
+      <ReviewsSlider />
+      <BrandStoryImage />
+      <FaqSection />
     </>
   );
 }

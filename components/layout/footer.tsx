@@ -11,6 +11,15 @@ const links = [
   { label: "Cart", href: "/cart" }
 ];
 
+const policyLinks = [
+  { label: "Privacy Policy", href: "/privacy-policy" },
+  { label: "Shipping Policy", href: "/shipping-policy" },
+  { label: "Cancellation Policy", href: "/cancellation-policy" },
+  { label: "Return & Refund Policy", href: "/return-refund-policy" },
+  { label: "COD Terms & Conditions", href: "/cod-terms" },
+  { label: "Terms & Conditions", href: "/terms-conditions" }
+];
+
 const socialLinks = [
   {
     label: "Instagram",
@@ -34,7 +43,7 @@ const socialLinks = [
 export function Footer() {
   return (
     <footer className="mt-24 border-t border-[var(--line)] bg-white">
-      <div className="container-page hidden gap-10 py-12 md:grid md:grid-cols-[1.25fr_0.8fr_0.95fr_1.1fr]">
+      <div className="container-page hidden gap-10 py-12 md:grid md:grid-cols-[1.2fr_0.8fr_0.85fr_0.95fr_1fr]">
         <div>
           <Link className="brand-mark focus-ring inline-block rounded-lg text-2xl font-bold" href="/">
             Auraville
@@ -90,6 +99,18 @@ export function Footer() {
               </a>
             ))}
           </div>
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold">Policies</h2>
+          <ul className="mt-4 space-y-3 text-sm text-[var(--muted)]">
+            {policyLinks.map((link) => (
+              <li key={link.href}>
+                <Link className="focus-ring rounded-lg transition hover:text-[var(--foreground)]" href={link.href}>
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
         <div>
           <h2 className="text-sm font-semibold">Reviews</h2>
@@ -155,6 +176,19 @@ export function Footer() {
                 </a>
               ))}
             </div>
+          </details>
+
+          <details className="rounded-lg border border-[var(--line)] bg-[var(--mint)] p-4">
+            <summary className="cursor-pointer list-none text-sm font-semibold">Policies</summary>
+            <ul className="mt-4 grid gap-3 text-sm text-[var(--muted)]">
+              {policyLinks.map((link) => (
+                <li key={link.href}>
+                  <Link className="focus-ring rounded-lg transition hover:text-[var(--foreground)]" href={link.href}>
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </details>
 
           <details className="rounded-lg border border-[var(--line)] bg-[var(--mint)] p-4">
