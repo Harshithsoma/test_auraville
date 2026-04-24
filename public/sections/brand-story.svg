@@ -1,13 +1,51 @@
-<svg width="1440" height="780" viewBox="0 0 1440 780" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1440" height="780" fill="#E7F7EA"/>
-  <circle cx="1150" cy="220" r="190" fill="#D8AA2F"/>
-  <circle cx="1240" cy="325" r="150" fill="#C84F43"/>
-  <circle cx="1030" cy="338" r="160" fill="#347A4F"/>
-  <rect x="95" y="130" width="760" height="520" rx="46" fill="#FFFFFF"/>
-  <text x="140" y="230" fill="#173D2A" font-family="Avenir Next, Arial, sans-serif" font-size="34" font-weight="800">WHY AURAVILLE</text>
-  <text x="140" y="320" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="62" font-weight="800">A lost ingredient,</text>
-  <text x="140" y="390" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="62" font-weight="800">made relevant again.</text>
-  <text x="146" y="468" fill="#607065" font-family="Avenir Next, Arial, sans-serif" font-size="28" font-weight="600">Auraville brings palmyra sprout back through</text>
-  <text x="146" y="510" fill="#607065" font-family="Avenir Next, Arial, sans-serif" font-size="28" font-weight="600">familiar formats people already love.</text>
-  <text x="146" y="552" fill="#607065" font-family="Avenir Next, Arial, sans-serif" font-size="28" font-weight="600">Clean recipes, honest launches, and real shelf value.</text>
+<svg width="1440" height="1560" viewBox="0 0 1440 1560" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1440" height="1560" fill="#E7F7EA"/>
+  <circle cx="1140" cy="286" r="214" fill="#D8AA2F"/>
+  <circle cx="1232" cy="416" r="166" fill="#C84F43"/>
+  <circle cx="1012" cy="444" r="178" fill="#347A4F"/>
+
+  <rect x="92" y="122" width="1256" height="650" rx="56" fill="#FFFFFF"/>
+  <text x="152" y="224" fill="#173D2A" font-family="Avenir Next, Arial, sans-serif" font-size="30" font-weight="600" letter-spacing="1.8">WHY AURAVILLE</text>
+  <text x="152" y="318" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="60" font-weight="600">Rooted in palmyra,</text>
+  <text x="152" y="388" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="60" font-weight="600">made for modern Indian wellness.</text>
+
+  <text x="152" y="478" fill="#415346" font-family="Avenir Next, Arial, sans-serif" font-size="31" font-weight="500">
+    Auraville began with one simple belief: daily nutrition should feel
+  </text>
+  <text x="152" y="524" fill="#415346" font-family="Avenir Next, Arial, sans-serif" font-size="31" font-weight="500">
+    natural, trustworthy, and easy to live with.
+  </text>
+  <text x="152" y="584" fill="#415346" font-family="Avenir Next, Arial, sans-serif" font-size="31" font-weight="500">
+    We start with palmyra sprout, then pair it with familiar Indian ingredients
+  </text>
+  <text x="152" y="630" fill="#415346" font-family="Avenir Next, Arial, sans-serif" font-size="31" font-weight="500">
+    like nuts, grains, seeds, and jaggery.
+  </text>
+  <text x="152" y="690" fill="#415346" font-family="Avenir Next, Arial, sans-serif" font-size="31" font-weight="500">
+    No unnecessary additives. No noisy labels. Just thoughtful food made right.
+  </text>
+
+  <rect x="92" y="838" width="1256" height="610" rx="56" fill="#FFFFFF"/>
+  <text x="152" y="944" fill="#173D2A" font-family="Avenir Next, Arial, sans-serif" font-size="30" font-weight="600" letter-spacing="1.8">THE AURAVILLE PROMISE</text>
+  <text x="152" y="1032" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="50" font-weight="600">
+    Palmyra sprout-first recipes.
+  </text>
+  <text x="152" y="1092" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="50" font-weight="600">
+    Clean everyday nutrition.
+  </text>
+  <text x="152" y="1152" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="50" font-weight="600">
+    Indian-rooted taste and trust.
+  </text>
+
+  <text x="152" y="1238" fill="#415346" font-family="Avenir Next, Arial, sans-serif" font-size="31" font-weight="500">
+    From your first bite to your family shelf, Auraville is built for
+  </text>
+  <text x="152" y="1284" fill="#415346" font-family="Avenir Next, Arial, sans-serif" font-size="31" font-weight="500">
+    steady energy, simple labels, and everyday confidence.
+  </text>
+
+  <circle cx="1098" cy="1122" r="186" fill="#173D2A"/>
+  <circle cx="1098" cy="1122" r="138" fill="#F7FFF8"/>
+  <circle cx="1098" cy="1122" r="84" fill="#347A4F"/>
+  <path d="M1054 1122C1072 1100 1122 1100 1140 1122C1122 1144 1072 1144 1054 1122Z" fill="#D8AA2F"/>
 </svg>

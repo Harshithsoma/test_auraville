@@ -32,7 +32,7 @@ function validate(formData: FormData): CheckoutErrors {
 export default function CheckoutClient() {
   const router = useRouter();
   const hasMounted = useHasMounted();
-  const { items, clearCart } = useCartStore();
+  const { items, clearCart, promoCode, promoDiscountPercent } = useCartStore();
   const user = useAuthStore((state) => state.user);
   const addOrder = useOrderStore((state) => state.addOrder);
   const [errors, setErrors] = useState<CheckoutErrors>({});
@@ -40,10 +40,12 @@ export default function CheckoutClient() {
 
   const summary = useMemo(() => {
     const subtotal = getCartSubtotal(items);
-    const tax = Math.round(subtotal * 0.05);
-    const shipping = subtotal >= 1499 || subtotal === 0 ? 0 : 99;
-    return { subtotal, tax, shipping, total: subtotal + tax + shipping };
-  }, [items]);
+    const promoDiscount = Math.round((subtotal * promoDiscountPercent) / 100);
+    const discountedSubtotal = Math.max(0, subtotal - promoDiscount);
+    const tax = Math.round(discountedSubtotal * 0.05);
+    const shipping = discountedSubtotal >= 1499 || discountedSubtotal === 0 ? 0 : 99;
+    return { subtotal, promoDiscount, discountedSubtotal, tax, shipping, total: discountedSubtotal + tax + shipping };
+  }, [items, promoDiscountPercent]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -152,6 +154,12 @@ export default function CheckoutClient() {
             <dt className="text-[var(--muted)]">Subtotal</dt>
             <dd className="font-semibold">{formatPrice(summary.subtotal)}</dd>
           </div>
+          {summary.promoDiscount > 0 ? (
+            <div className="flex justify-between">
+              <dt className="text-[var(--muted)]">Promo ({promoCode})</dt>
+              <dd className="font-semibold text-[var(--leaf-deep)]">- {formatPrice(summary.promoDiscount)}</dd>
+            </div>
+          ) : null}
           <div className="flex justify-between">
             <dt className="text-[var(--muted)]">GST</dt>
             <dd className="font-semibold">{formatPrice(summary.tax)}</dd>

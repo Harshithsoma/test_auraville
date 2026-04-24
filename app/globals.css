@@ -91,7 +91,7 @@ textarea {
     transform: translateX(0);
   }
   to {
-    transform: translateX(-50%);
+    transform: translateX(-25%);
   }
 }
 
@@ -115,6 +115,22 @@ textarea {
 }
 
 .marquee-track {
-  animation: marquee 18s linear infinite;
+  display: flex;
   width: max-content;
+  animation: marquee 24s linear infinite;
+  will-change: transform;
+}
+
+.marquee-content {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: none;
+  padding-right: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
 }

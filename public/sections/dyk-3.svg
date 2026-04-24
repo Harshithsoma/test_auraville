@@ -1,0 +1,13 @@
+<svg width="720" height="900" viewBox="0 0 720 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="900" fill="#F7FFF8"/>
+  <rect x="54" y="54" width="612" height="792" rx="40" fill="#173D2A"/>
+  <rect x="96" y="98" width="528" height="704" rx="30" fill="#FFFFFF"/>
+  <circle cx="500" cy="312" r="138" fill="#347A4F"/>
+  <circle cx="538" cy="364" r="90" fill="#D8AA2F"/>
+  <text x="126" y="192" fill="#173D2A" font-family="Avenir Next, Arial, sans-serif" font-size="38" font-weight="800">DO YOU KNOW?</text>
+  <text x="126" y="286" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="54" font-weight="800">Palmyra-first foods</text>
+  <text x="126" y="350" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="54" font-weight="800">can fit modern</text>
+  <text x="126" y="414" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="54" font-weight="800">busy routines.</text>
+  <text x="130" y="506" fill="#607065" font-family="Avenir Next, Arial, sans-serif" font-size="28" font-weight="600">Office desk. School bag.</text>
+  <text x="130" y="546" fill="#607065" font-family="Avenir Next, Arial, sans-serif" font-size="28" font-weight="600">Workout snack. Same intent.</text>
+</svg>

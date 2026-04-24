@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import type { Product } from "@/types/product";
 import { PriceWithCompare } from "@/components/ui/price";
+import { RatingStars } from "@/components/ui/rating-stars";
 import { useCartStore } from "@/stores/cart-store";
 
 type ProductCardProps = {
@@ -57,7 +58,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
 
   function increaseQuantity() {
     if (!variant) return;
-    addToCart();
+    addToCart(true);
   }
 
   function submitNotify(event: FormEvent<HTMLFormElement>) {
@@ -110,9 +111,9 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
         <Link className="focus-ring block rounded-lg" href={`/product/${product.slug}`}>
           <h3 className="line-clamp-2 min-h-9 text-xs font-bold leading-5 sm:text-sm">{product.name}</h3>
         </Link>
-        <div className="mt-2 flex items-center justify-between text-[11px] text-[var(--muted)] sm:text-xs">
+        <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-[var(--muted)] sm:text-xs">
           <span>{variant?.label ?? "Pack"}</span>
-          <span aria-label={`${product.rating.toFixed(1)} star rating`}>★ {product.rating.toFixed(1)}</span>
+          <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
         </div>
         <div className="mt-2 text-sm sm:text-base">
           {isAvailable ? (

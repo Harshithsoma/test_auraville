@@ -220,6 +220,18 @@ export function getProductBySlug(slug: string) {
   return products.find((product) => product.slug === slug);
 }
 
+export function getProductById(id: string) {
+  return products.find((product) => product.id === id);
+}
+
+export function getCompareAtUnitPrice(productId: string, unitPrice: number) {
+  const product = getProductById(productId);
+  if (!product?.compareAtPrice || product.compareAtPrice <= product.price) {
+    return unitPrice;
+  }
+  return Math.max(unitPrice, Math.round((unitPrice * product.compareAtPrice) / product.price));
+}
+
 export function getRelatedProducts(product: Product) {
   return products
     .filter((candidate) => candidate.category === product.category && candidate.id !== product.id)

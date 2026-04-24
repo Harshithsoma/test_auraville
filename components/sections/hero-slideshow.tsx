@@ -15,13 +15,13 @@ const slides = [
     title: "Palmyra sprout cookies coming soon.",
     image: "/hero/palmyra-cookies.svg",
     href: "/product/palmyra-sprout-cookies",
-    objectPosition: "54% 50%"
+    objectPosition: "50% 50%"
   },
   {
     title: "Palmyra health mix coming soon.",
     image: "/hero/palmyra-health-mix.svg",
     href: "/product/palmyra-sprout-health-mix",
-    objectPosition: "54% 50%"
+    objectPosition: "50% 50%"
   },
   {
     title: "Palmyra sprout laddu coming soon.",
@@ -39,6 +39,7 @@ export function HeroSlideshow() {
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
+  const [isPageVisible, setIsPageVisible] = useState(true);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const pointerIdRef = useRef<number | null>(null);
@@ -51,13 +52,38 @@ export function HeroSlideshow() {
   }, [position]);
 
   useEffect(() => {
-    if (isDragging || !isTransitionEnabled) return;
+    function normalizeToCoreSlides(next: number) {
+      const wrapped = ((next - 1) % slideCount + slideCount) % slideCount;
+      return wrapped + 1;
+    }
+
+    function handleVisibilityChange() {
+      const visible = document.visibilityState === "visible";
+      setIsPageVisible(visible);
+      if (visible) {
+        setPosition((current) => {
+          if (current <= 0 || current >= slideCount + 1) {
+            return normalizeToCoreSlides(current);
+          }
+          return current;
+        });
+      }
+    }
+
+    handleVisibilityChange();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [slideCount]);
+
+  useEffect(() => {
+    if (isDragging || !isTransitionEnabled || !isPageVisible) return;
     const timer = window.setInterval(() => {
-      setPosition((current) => current + 1);
+      setPosition((current) => (((current - 1) % slideCount + slideCount) % slideCount) + 2);
     }, 5500);
 
     return () => window.clearInterval(timer);
-  }, [isDragging, isTransitionEnabled]);
+  }, [isDragging, isPageVisible, isTransitionEnabled, slideCount]);
 
   function silentJump(nextPosition: number) {
     setIsTransitionEnabled(false);
@@ -134,9 +160,9 @@ export function HeroSlideshow() {
             if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
 
             const current = positionRef.current;
-            if (current === slideCount + 1) {
+            if (current >= slideCount + 1) {
               silentJump(1);
-            } else if (current === 0) {
+            } else if (current <= 0) {
               silentJump(slideCount);
             }
           }}

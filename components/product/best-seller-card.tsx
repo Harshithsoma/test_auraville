@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Product } from "@/types/product";
 import { PriceWithCompare } from "@/components/ui/price";
+import { RatingStars } from "@/components/ui/rating-stars";
 import { useCartStore } from "@/stores/cart-store";
 
 export function BestSellerCard({ product, priority = false }: { product: Product; priority?: boolean }) {
@@ -59,6 +60,10 @@ export function BestSellerCard({ product, priority = false }: { product: Product
         <Link className="focus-ring block rounded-lg" href={`/product/${product.slug}`}>
           <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5">{product.name}</h3>
         </Link>
+        <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-[var(--muted)] sm:text-xs">
+          <span>{variant?.label ?? "Pack"}</span>
+          <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
+        </div>
         <div className="mt-2 text-sm">
           <PriceWithCompare compareAtPrice={product.compareAtPrice} currency={product.currency} value={product.price} />
         </div>
@@ -96,7 +101,7 @@ export function BestSellerCard({ product, priority = false }: { product: Product
                 aria-label={`Increase ${product.name} quantity`}
                 className="focus-ring h-full w-10 rounded-r-lg text-lg font-semibold text-[var(--leaf-deep)] transition active:scale-95"
                 type="button"
-                onClick={() => addToCart()}
+                onClick={() => addToCart(true)}
               >
                 +
               </button>
