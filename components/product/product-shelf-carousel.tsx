@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Product } from "@/types/product";
+import { useSectionInView } from "@/hooks/use-section-in-view";
 import { ProductCard } from "@/components/product/product-card";
 
 function subscribeToViewport(callback: () => void) {
@@ -36,6 +37,8 @@ export function ProductShelfCarousel({ products }: { products: Product[] }) {
   const dragMovedRef = useRef(false);
   const suppressClickRef = useRef(false);
   const suppressTimerRef = useRef<number | null>(null);
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const isSectionInView = useSectionInView(sectionRef);
 
   const clampedIndex = Math.min(active, maxIndex);
 
@@ -101,7 +104,7 @@ export function ProductShelfCarousel({ products }: { products: Product[] }) {
   const canNavigate = maxIndex > 0;
 
   return (
-    <div className="relative">
+    <div className="relative" ref={sectionRef}>
       <div
         className="overflow-hidden"
         ref={viewportRef}
@@ -143,11 +146,11 @@ export function ProductShelfCarousel({ products }: { products: Product[] }) {
         </div>
       </div>
 
-      {canNavigate ? (
+      {canNavigate && isSectionInView ? (
         <>
           <button
             aria-label="Show previous products"
-            className="focus-ring absolute left-0 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-lg text-[var(--leaf-deep)] shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
+            className="focus-ring absolute -left-3 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-lg text-[var(--leaf-deep)] shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:-left-5"
             disabled={clampedIndex <= 0}
             type="button"
             onClick={() => setActive((current) => Math.max(0, Math.min(current, maxIndex) - 1))}
@@ -156,7 +159,7 @@ export function ProductShelfCarousel({ products }: { products: Product[] }) {
           </button>
           <button
             aria-label="Show next products"
-            className="focus-ring absolute right-0 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-lg text-[var(--leaf-deep)] shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
+            className="focus-ring absolute -right-3 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-lg text-[var(--leaf-deep)] shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:-right-5"
             disabled={clampedIndex >= maxIndex}
             type="button"
             onClick={() => setActive((current) => Math.min(maxIndex, Math.min(current, maxIndex) + 1))}

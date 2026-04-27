@@ -158,54 +158,81 @@ export function CartDrawer() {
             <div className="space-y-3">
               {enrichedItems.map((item) => (
                 <article className="rounded-lg border border-[var(--line)] bg-white p-3" key={`${item.productId}-${item.variantId}`}>
-                  <div className="grid grid-cols-[68px_1fr_auto] gap-3">
-                    <div className="relative aspect-square overflow-hidden rounded-md bg-[var(--mint)]">
-                      <Image alt={item.name} className="object-cover" fill sizes="68px" src={item.image} />
-                    </div>
-                    <div>
-                      <p className="line-clamp-2 text-sm font-semibold leading-5">{item.name}</p>
-                      <p className="mt-1 text-xs text-[var(--muted)]">{item.variantLabel}</p>
-                      <button
-                        className="focus-ring mt-3 rounded text-xs font-semibold text-[var(--coral)]"
-                        type="button"
-                        onClick={() => removeItem(item.productId, item.variantId)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold">{formatPrice(item.currentTotal)}</p>
-                      {item.compareAtTotal > item.currentTotal ? (
-                        <p className="text-xs text-[var(--muted)] line-through">{formatPrice(item.compareAtTotal)}</p>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="mt-3 inline-flex h-9 items-center rounded-lg border border-[var(--line)]">
-                    <button
-                      aria-label={`Decrease ${item.name}`}
-                      className="focus-ring h-full w-9 rounded-l-lg text-lg font-semibold text-[var(--leaf-deep)] transition active:scale-95"
-                      type="button"
-                      onClick={() => {
-                        if (item.quantity === 1) {
-                          removeItem(item.productId, item.variantId);
-                          return;
-                        }
-                        updateQuantity(item.productId, item.variantId, item.quantity - 1);
-                      }}
+                  <div className="grid grid-cols-[74px_1fr] gap-3 sm:grid-cols-[78px_1fr]">
+                    <Link
+                      className="focus-ring relative aspect-square overflow-hidden rounded-md bg-[var(--mint)]"
+                      href={`/product/${item.slug}`}
+                      onClick={closeDrawer}
                     >
-                      -
-                    </button>
-                    <span className="min-w-8 text-center text-xs font-semibold" aria-live="polite">
-                      {item.quantity}
-                    </span>
-                    <button
-                      aria-label={`Increase ${item.name}`}
-                      className="focus-ring h-full w-9 rounded-r-lg text-lg font-semibold text-[var(--leaf-deep)] transition active:scale-95"
-                      type="button"
-                      onClick={() => updateQuantity(item.productId, item.variantId, item.quantity + 1)}
-                    >
-                      +
-                    </button>
+                      <Image alt={item.name} className="object-cover" fill sizes="(min-width: 640px) 78px, 74px" src={item.image} />
+                    </Link>
+
+                    <div className="min-w-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <Link
+                          className="focus-ring line-clamp-2 rounded text-sm font-semibold leading-5"
+                          href={`/product/${item.slug}`}
+                          onClick={closeDrawer}
+                        >
+                          {item.name}
+                        </Link>
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-bold">{formatPrice(item.currentTotal)}</p>
+                          {item.compareAtTotal > item.currentTotal ? (
+                            <p className="text-xs text-[var(--muted)] line-through">{formatPrice(item.compareAtTotal)}</p>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <p className="mt-0.5 text-xs text-[var(--muted)]">{item.variantLabel}</p>
+
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="inline-flex h-9 items-center rounded-lg border border-[var(--line)]">
+                          <button
+                            aria-label={`Decrease ${item.name}`}
+                            className="focus-ring h-full w-9 rounded-l-lg text-lg font-semibold text-[var(--leaf-deep)] transition active:scale-95"
+                            type="button"
+                            onClick={() => {
+                              if (item.quantity === 1) {
+                                removeItem(item.productId, item.variantId);
+                                return;
+                              }
+                              updateQuantity(item.productId, item.variantId, item.quantity - 1);
+                            }}
+                          >
+                            -
+                          </button>
+                          <span className="min-w-8 text-center text-xs font-semibold" aria-live="polite">
+                            {item.quantity}
+                          </span>
+                          <button
+                            aria-label={`Increase ${item.name}`}
+                            className="focus-ring h-full w-9 rounded-r-lg text-lg font-semibold text-[var(--leaf-deep)] transition active:scale-95"
+                            type="button"
+                            onClick={() => updateQuantity(item.productId, item.variantId, item.quantity + 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <button
+                          aria-label={`Remove ${item.name}`}
+                          className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#e7c9c6] bg-[#fff7f7] text-[#b35e5a] transition hover:border-[#dbb3af] hover:bg-[#fdeeed] hover:text-[#a84843] active:scale-95"
+                          type="button"
+                          onClick={() => removeItem(item.productId, item.variantId)}
+                        >
+                          <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <path
+                              d="M4 7h16M9 7V5h6v2m-8 0 1 12h8l1-12M10 11v5m4-5v5"
+                              stroke="currentColor"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="1.7"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </article>
               ))}

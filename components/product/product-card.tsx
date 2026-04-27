@@ -51,9 +51,11 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
     if (!variant || quantity === 0) return;
     if (quantity === 1) {
       removeItem(product.id, variant.id);
+      openDrawer();
       return;
     }
     updateQuantity(product.id, variant.id, quantity - 1);
+    openDrawer();
   }
 
   function increaseQuantity() {

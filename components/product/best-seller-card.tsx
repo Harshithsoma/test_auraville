@@ -87,9 +87,11 @@ export function BestSellerCard({ product, priority = false }: { product: Product
                   if (!variant) return;
                   if (quantity === 1) {
                     removeItem(product.id, variant.id);
+                    openDrawer();
                     return;
                   }
                   updateQuantity(product.id, variant.id, quantity - 1);
+                  openDrawer();
                 }}
               >
                 -

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useSectionInView } from "@/hooks/use-section-in-view";
 
 const instagramPostUrl =
   "https://www.instagram.com/p/DT--hjFk77y/?utm_source=ig_web_copy_link&igsh=MzRlODBiNWFlZA==";
@@ -74,9 +75,11 @@ export function DoYouKnowSection() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const pointerIdRef = useRef<number | null>(null);
   const startXRef = useRef(0);
+  const sectionRef = useRef<HTMLDivElement>(null);
   const dragMovedRef = useRef(false);
   const suppressClickRef = useRef(false);
   const suppressTimerRef = useRef<number | null>(null);
+  const isSectionInView = useSectionInView(sectionRef);
 
   const clampedIndex = Math.min(active, maxIndex);
   const centerIndex = clampedIndex + Math.floor(visibleCards / 2);
@@ -148,7 +151,7 @@ export function DoYouKnowSection() {
         </h2>
       </div>
 
-      <div className="relative">
+      <div className="relative" ref={sectionRef}>
         <div
           className="overflow-hidden"
           ref={viewportRef}
@@ -188,50 +191,50 @@ export function DoYouKnowSection() {
                     }
                   }}
                 >
-                <Link
-                  className="focus-ring group block h-full overflow-hidden rounded-xl border border-[var(--line)] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]"
-                  href={instagramPostUrl}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  <div className="p-3.5">
-                    <div className="flex items-center gap-2.5">
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--leaf-deep)] text-xs font-semibold text-white">
-                        Au
-                      </span>
-                      <div>
-                        <p className="text-sm font-semibold text-[var(--leaf-deep)]">auraville.india</p>
-                        <p className="text-[11px] text-[var(--muted)]">{card.postedAt}</p>
+                  <Link
+                    className="focus-ring group block h-full overflow-hidden rounded-xl border border-[var(--line)] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]"
+                    href={instagramPostUrl}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    <div className="p-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--leaf-deep)] text-xs font-semibold text-white">
+                          Au
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--leaf-deep)]">auraville.india</p>
+                          <p className="text-[11px] text-[var(--muted)]">{card.postedAt}</p>
+                        </div>
                       </div>
+                      <div className="relative mt-3 aspect-[4/5] overflow-hidden rounded-lg bg-[var(--mint)]">
+                        <Image
+                          alt={card.title}
+                          className="object-cover transition duration-500 group-hover:scale-[1.04]"
+                          fill
+                          sizes="(min-width: 1280px) 22vw, (min-width: 1024px) 30vw, 48vw"
+                          src={card.image}
+                        />
+                      </div>
+                      <p className="mt-3 line-clamp-2 text-sm font-semibold leading-5 text-[var(--leaf-deep)]">{card.title}</p>
+                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--muted)]">{card.excerpt}</p>
+                      <span className="mt-3 inline-flex items-center text-xs font-semibold text-[var(--leaf)]">
+                        View on Instagram
+                        <span className="ml-1.5 text-sm">↗</span>
+                      </span>
                     </div>
-                    <div className="relative mt-3 aspect-[4/5] overflow-hidden rounded-lg bg-[var(--mint)]">
-                      <Image
-                        alt={card.title}
-                        className="object-cover transition duration-500 group-hover:scale-[1.04]"
-                        fill
-                        sizes="(min-width: 1280px) 22vw, (min-width: 1024px) 30vw, 48vw"
-                        src={card.image}
-                      />
-                    </div>
-                    <p className="mt-3 line-clamp-2 text-sm font-semibold leading-5 text-[var(--leaf-deep)]">{card.title}</p>
-                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--muted)]">{card.excerpt}</p>
-                    <span className="mt-3 inline-flex items-center text-xs font-semibold text-[var(--leaf)]">
-                      View on Instagram
-                      <span className="ml-1.5 text-sm">↗</span>
-                    </span>
-                  </div>
-                </Link>
+                  </Link>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {maxIndex > 0 ? (
+        {maxIndex > 0 && isSectionInView ? (
           <>
             <button
               aria-label="Show previous post cards"
-              className="focus-ring absolute left-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
+              className="focus-ring absolute -left-3 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:-left-5"
               disabled={active <= 0}
               type="button"
               onClick={() => setActive((current) => Math.max(0, current - 1))}
@@ -240,7 +243,7 @@ export function DoYouKnowSection() {
             </button>
             <button
               aria-label="Show next post cards"
-              className="focus-ring absolute right-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
+              className="focus-ring absolute -right-3 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:-right-5"
               disabled={active >= maxIndex}
               type="button"
               onClick={() => setActive((current) => Math.min(maxIndex, current + 1))}
