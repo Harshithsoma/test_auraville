@@ -55,7 +55,7 @@ function logDevOtp(params: { channel: "email" | "sms"; destination: string; purp
     params.channel === "email" ? maskEmail(params.destination) : maskPhone(params.destination);
 
   // eslint-disable-next-line no-console
-  console.log(`[OTP:${params.channel}] ${params.purpose} => ${maskedDestination} code=${params.otp}`);
+  console.log(`[OTP:${params.channel}] ${params.purpose} => ${maskedDestination} code=REDACTED`);
 }
 
 function getOtpExpiryMinutes(): number {
@@ -93,8 +93,28 @@ function assertBrevoEmailConfig(): void {
   }
 }
 
+function getEmailDomain(email: string): string {
+  const [, domain] = email.split("@");
+  return domain || "unknown";
+}
+
 async function sendEmailViaBrevo(params: SendEmailOtpParams): Promise<void> {
   assertBrevoEmailConfig();
+
+  const brevoUrl = "https://api.brevo.com/v3/smtp/email";
+  const recipientDomain = getEmailDomain(params.email);
+
+  // eslint-disable-next-line no-console
+  console.info("Brevo OTP send attempt started", {
+    otpDeliveryMode: env.OTP_DELIVERY_MODE,
+    otpEmailProvider: env.OTP_EMAIL_PROVIDER,
+    hasBrevoApiKey: Boolean(env.BREVO_API_KEY),
+    hasBrevoSenderEmail: Boolean(env.BREVO_SENDER_EMAIL),
+    brevoSenderEmail: env.BREVO_SENDER_EMAIL || "",
+    brevoSenderName: env.BREVO_SENDER_NAME || "Auraville",
+    recipientEmailDomain: recipientDomain,
+    brevoRequestUrl: brevoUrl
+  });
 
   const content = buildOtpEmailContent({
     otp: params.otp,
@@ -102,7 +122,7 @@ async function sendEmailViaBrevo(params: SendEmailOtpParams): Promise<void> {
     expiryMinutes: getOtpExpiryMinutes()
   });
 
-  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+  const response = await fetch(brevoUrl, {
     method: "POST",
     headers: {
       accept: "application/json",
@@ -126,8 +146,27 @@ async function sendEmailViaBrevo(params: SendEmailOtpParams): Promise<void> {
   });
 
   if (!response.ok) {
+    const responseBody = await response.text();
+    // eslint-disable-next-line no-console
+    console.error("Brevo OTP send failed", {
+      otpDeliveryMode: env.OTP_DELIVERY_MODE,
+      otpEmailProvider: env.OTP_EMAIL_PROVIDER,
+      recipientEmailDomain: recipientDomain,
+      brevoRequestUrl: brevoUrl,
+      brevoResponseStatus: response.status,
+      brevoResponseBody: responseBody
+    });
     throw new OtpDeliveryError("OTP_SEND_FAILED", "Email OTP delivery failed");
   }
+
+  // eslint-disable-next-line no-console
+  console.info("Brevo OTP send success", {
+    otpDeliveryMode: env.OTP_DELIVERY_MODE,
+    otpEmailProvider: env.OTP_EMAIL_PROVIDER,
+    recipientEmailDomain: recipientDomain,
+    brevoRequestUrl: brevoUrl,
+    brevoResponseStatus: response.status
+  });
 }
 
 export function isSmsOtpAvailable(): boolean {
