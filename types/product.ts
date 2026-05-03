@@ -1,9 +1,4 @@
-export type ProductCategory =
-  | "Energy Bars"
-  | "Cookies"
-  | "Health Mix"
-  | "Laddu"
-  | "Combos";
+export type ProductCategory = string;
 
 export type ProductVariant = {
   id: string;

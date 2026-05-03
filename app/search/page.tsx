@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SearchClient } from "@/components/search/search-client";
-import { products } from "@/lib/products";
+import { fetchProducts } from "@/lib/catalog-api";
+import { products as fallbackProducts } from "@/lib/products";
 import { absoluteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -15,7 +16,18 @@ export const metadata: Metadata = {
   }
 };
 
-export default function SearchPage() {
+export const dynamic = "force-dynamic";
+
+export default async function SearchPage() {
+  let initialProducts = fallbackProducts;
+
+  try {
+    const response = await fetchProducts({ page: 1, limit: 24, sort: "popular" });
+    initialProducts = response.data;
+  } catch {
+    // Fallback to bundled catalog if API is unavailable.
+  }
+
   return (
     <div className="container-page py-12 md:py-16">
       <div className="mb-10 max-w-2xl">
@@ -24,7 +36,7 @@ export default function SearchPage() {
           Find products and upcoming launches.
         </h1>
       </div>
-      <SearchClient products={products} />
+      <SearchClient initialProducts={initialProducts} />
     </div>
   );
 }

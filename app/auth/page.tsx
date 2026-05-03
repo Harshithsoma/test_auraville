@@ -4,7 +4,7 @@ import { absoluteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Login or Signup",
-  description: "Access your Auraville account with a simple email OTP flow.",
+  description: "Access your Auraville account with OTP or password login, and mobile-verified signup.",
   alternates: {
     canonical: absoluteUrl("/auth")
   },

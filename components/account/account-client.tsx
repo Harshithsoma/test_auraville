@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { useHasMounted } from "@/hooks/use-has-mounted";
@@ -8,9 +9,19 @@ import { Button } from "@/components/ui/button";
 export function AccountClient() {
   const router = useRouter();
   const hasMounted = useHasMounted();
-  const { user, logout } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
+  const isHydrating = useAuthStore((state) => state.isHydrating);
+  const logout = useAuthStore((state) => state.logout);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  if (!hasMounted) {
+  async function handleLogout() {
+    setIsLoggingOut(true);
+    await logout();
+    router.push("/");
+    router.refresh();
+  }
+
+  if (!hasMounted || isHydrating) {
     return <div className="rounded-lg border border-[var(--line)] bg-white p-8">Loading profile...</div>;
   }
 
@@ -40,15 +51,18 @@ export function AccountClient() {
         <Button href="/orders" variant="secondary">
           View orders
         </Button>
+        {user.role === "ADMIN" ? (
+          <Button href="/admin" variant="secondary">
+            Open admin dashboard
+          </Button>
+        ) : null}
         <Button
           type="button"
           variant="ghost"
-          onClick={() => {
-            logout();
-            router.push("/");
-          }}
+          disabled={isLoggingOut}
+          onClick={handleLogout}
         >
-          Logout
+          {isLoggingOut ? "Logging out..." : "Logout"}
         </Button>
       </div>
     </section>

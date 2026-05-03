@@ -1,29 +1,72 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { commerceApi, setAccessToken } from "@/services/api";
 
-type AuthUser = {
+export type AuthUser = {
+  id: string;
   email: string;
-  name?: string;
+  name: string | null;
+  phone: string | null;
+  role: "USER" | "ADMIN";
 };
 
 type AuthState = {
   user: AuthUser | null;
-  login: (user: AuthUser) => void;
-  logout: () => void;
+  isHydrating: boolean;
+  hasHydrated: boolean;
+  completeAuth: (params: { user: AuthUser; accessToken: string }) => void;
+  hydrateSession: () => Promise<void>;
+  logout: () => Promise<void>;
 };
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      login: (user) => set({ user }),
-      logout: () => set({ user: null })
-    }),
-    {
-      name: "auraville-auth",
-      partialize: (state) => ({ user: state.user })
+type AuthResponse = {
+  data: {
+    user: AuthUser;
+    accessToken: string;
+  };
+};
+
+let hydrationPromise: Promise<void> | null = null;
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  isHydrating: false,
+  hasHydrated: false,
+  completeAuth: ({ user, accessToken }) => {
+    setAccessToken(accessToken);
+    set({ user, hasHydrated: true, isHydrating: false });
+  },
+  hydrateSession: async () => {
+    if (hydrationPromise) {
+      await hydrationPromise;
+      return;
     }
-  )
-);
+
+    hydrationPromise = (async () => {
+      set({ isHydrating: true });
+      try {
+        const response = await commerceApi.auth.refresh<AuthResponse>();
+        setAccessToken(response.data.accessToken);
+        set({ user: response.data.user, hasHydrated: true, isHydrating: false });
+      } catch {
+        setAccessToken(null);
+        set({ user: null, hasHydrated: true, isHydrating: false });
+      }
+    })().finally(() => {
+      hydrationPromise = null;
+    });
+
+    await hydrationPromise;
+  },
+  logout: async () => {
+    try {
+      await commerceApi.auth.logout<{ data?: { ok?: boolean } }>();
+    } catch {
+      // Clear client session even if server logout fails.
+    } finally {
+      setAccessToken(null);
+      set({ user: null, hasHydrated: true, isHydrating: false });
+    }
+  }
+}));

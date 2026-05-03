@@ -1,9 +1,21 @@
 import { BestSellersCarousel } from "@/components/product/best-sellers-carousel";
-import { products } from "@/lib/products";
+import { fetchProducts } from "@/lib/catalog-api";
+import { products as fallbackProducts } from "@/lib/products";
 
-const bestSellers = [...products].sort((a, b) => b.popularity - a.popularity).slice(0, 6);
+export async function BestSellersSection() {
+  let bestSellers = [...fallbackProducts].sort((a, b) => b.popularity - a.popularity).slice(0, 6);
 
-export function BestSellersSection() {
+  try {
+    const response = await fetchProducts({
+      bestSeller: true,
+      sort: "popular",
+      limit: 12
+    });
+    bestSellers = response.data;
+  } catch {
+    // Fallback keeps homepage resilient when API is unavailable.
+  }
+
   return (
     <section className="container-page py-8 sm:py-12" aria-labelledby="best-sellers-title">
       <div className="mb-5 flex items-end justify-between gap-4 sm:mb-7">

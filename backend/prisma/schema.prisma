@@ -1,0 +1,415 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ProductAvailability {
+  available
+  coming_soon
+}
+
+enum OrderStatus {
+  pending
+  confirmed
+  packed
+  shipped
+  delivered
+  cancelled
+  payment_failed
+}
+
+enum PaymentStatus {
+  created
+  paid
+  failed
+  refunded
+}
+
+enum CouponType {
+  PERCENT
+  FLAT
+}
+
+enum AuthIdentifierType {
+  EMAIL
+  PHONE
+}
+
+enum OtpChannel {
+  EMAIL
+  SMS
+}
+
+enum OtpPurpose {
+  SIGNUP
+  LOGIN
+  PASSWORD_RESET
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  phone         String?
+  passwordHash  String?
+  phoneNormalized String?
+  passwordUpdatedAt DateTime?
+  lastLoginAt   DateTime?
+  isActive      Boolean        @default(true)
+  role          Role           @default(USER)
+  orders        Order[]
+  reviews       Review[]
+  refreshTokens RefreshToken[]
+  couponUsages  CouponUsage[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([role])
+  @@index([createdAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  familyId  String
+  revokedAt DateTime?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+model OtpCode {
+  id         String    @id @default(cuid())
+  email      String
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  @@index([email])
+  @@index([createdAt])
+  @@index([expiresAt])
+  @@index([consumedAt])
+}
+
+model OtpChallenge {
+  id             String             @id @default(cuid())
+  identifierType AuthIdentifierType
+  identifier     String
+  channel        OtpChannel
+  purpose        OtpPurpose
+  codeHash       String
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  attempts       Int                @default(0)
+  maxAttempts    Int
+  ipHash         String?
+  userAgent      String?
+  createdAt      DateTime           @default(now())
+
+  @@index([identifier, purpose, createdAt])
+  @@index([expiresAt])
+  @@index([consumedAt])
+}
+
+model PendingSignup {
+  id              String   @id @default(cuid())
+  email           String
+  phoneNormalized String
+  name            String
+  passwordHash    String
+  otpChallengeId  String   @unique
+  expiresAt       DateTime
+  consumedAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([email])
+  @@index([phoneNormalized])
+  @@index([expiresAt])
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([createdAt])
+}
+
+model Product {
+  id               String              @id
+  slug             String              @unique
+  name             String
+  tagline          String
+  description      String
+  longDescription  String
+  price            Int
+  compareAtPrice   Int?
+  promoLabel       String?
+  currency         String              @default("INR")
+  image            String
+  categoryId       String
+  availability     ProductAvailability @default(available)
+  releaseNote      String?
+  rating           Decimal             @default(0)
+  reviewCount      Int                 @default(0)
+  isFeatured       Boolean             @default(false)
+  isBestSeller     Boolean             @default(false)
+  isNew            Boolean             @default(false)
+  badgeLabel       String?
+  popularity       Int                 @default(0)
+  ingredients      String[]
+  benefits         String[]
+  isActive         Boolean             @default(true)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  category  Category         @relation(fields: [categoryId], references: [id])
+  variants  ProductVariant[]
+  images    ProductImage[]
+  reviews   Review[]
+  orderItems OrderItem[]
+
+  @@index([slug])
+  @@index([categoryId])
+  @@index([isFeatured])
+  @@index([isBestSeller])
+  @@index([isNew])
+  @@index([availability])
+  @@index([popularity])
+  @@index([isActive])
+}
+
+model ProductVariant {
+  id                String   @id @default(cuid())
+  productId         String
+  frontendVariantId String
+  label             String
+  price             Int
+  unit              String
+  stock             Int      @default(0)
+  sku               String?  @unique
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@unique([productId, frontendVariantId])
+  @@index([productId])
+  @@index([frontendVariantId])
+  @@index([isActive])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  alt       String?
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([position])
+}
+
+model Coupon {
+  id                String      @id @default(cuid())
+  code              String      @unique
+  type              CouponType
+  discountValue     Int
+  minOrderValue     Int?
+  maxDiscount       Int?
+  startsAt          DateTime?
+  expiresAt         DateTime?
+  usageLimit        Int?
+  usageLimitPerUser Int?
+  usedCount         Int         @default(0)
+  isActive          Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  usages CouponUsage[]
+
+  @@index([code])
+  @@index([isActive])
+  @@index([startsAt])
+  @@index([expiresAt])
+}
+
+model CouponUsage {
+  id        String   @id @default(cuid())
+  couponId  String
+  userId    String?
+  email     String?
+  orderId   String?
+  createdAt DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  order  Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([couponId])
+  @@index([userId])
+  @@index([email])
+  @@index([orderId])
+  @@index([createdAt])
+}
+
+model Order {
+  id               String      @id
+  userId           String?
+  email            String
+  name             String
+  phone            String
+  addressLine1     String
+  addressLine2     String?
+  city             String
+  state            String?
+  pincode          String
+  country          String      @default("India")
+  subtotal         Int
+  originalSubtotal Int
+  baseSavings      Int
+  couponCode       String?
+  couponDiscount   Int
+  gst              Int
+  shipping         Int
+  total            Int
+  status           OrderStatus @default(pending)
+  razorpayOrderId  String?     @unique
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items       OrderItem[]
+  payment     Payment?
+  couponUsages CouponUsage[]
+
+  @@index([email])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([razorpayOrderId])
+}
+
+model OrderItem {
+  id               String   @id @default(cuid())
+  orderId          String
+  productId        String
+  variantDbId      String
+  variantId        String
+  slug             String
+  name             String
+  image            String
+  variantLabel     String
+  unitPrice        Int
+  compareAtPrice   Int?
+  quantity         Int
+  lineTotal        Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product        @relation(fields: [productId], references: [id])
+  variant ProductVariant @relation(fields: [variantDbId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([variantDbId])
+  @@index([variantId])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String        @unique
+  razorpayOrderId   String        @unique
+  razorpayPaymentId String?       @unique
+  razorpaySignature String?
+  amount            Int
+  currency          String        @default("INR")
+  status            PaymentStatus @default(created)
+  rawPayload        Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PaymentWebhookEvent {
+  id              String   @id @default(cuid())
+  razorpayEventId String   @unique
+  eventType       String
+  payload         Json
+  processedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  productId  String?
+  userId     String?
+  name       String
+  email      String?
+  rating     Int
+  subject    String?
+  body       String
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([productId])
+  @@index([isApproved])
+  @@index([createdAt])
+}
+
+model HomepageSection {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  title     String?
+  subtitle  String?
+  body      String?
+  imageUrl  String?
+  linkUrl   String?
+  metadata  Json?
+  isActive  Boolean  @default(true)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([position])
+}

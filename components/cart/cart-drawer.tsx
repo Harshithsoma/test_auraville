@@ -2,14 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { getCompareAtUnitPrice } from "@/lib/products";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { getCartCount, useCartStore } from "@/stores/cart-store";
+import { useCartPricing } from "@/hooks/use-cart-pricing";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { formatPrice } from "@/components/ui/price";
-
-const freeShippingThreshold = 499;
 
 export function CartDrawer() {
   const hasMounted = useHasMounted();
@@ -21,46 +19,19 @@ export function CartDrawer() {
   const cartNoticeKey = useCartStore((state) => state.cartNoticeKey);
   const cartNoticePending = useCartStore((state) => state.cartNoticePending);
   const promoCode = useCartStore((state) => state.promoCode);
-  const promoDiscountPercent = useCartStore((state) => state.promoDiscountPercent);
   const closeDrawer = useCartStore((state) => state.closeDrawer);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
   const applyPromoCode = useCartStore((state) => state.applyPromoCode);
   const clearPromoCode = useCartStore((state) => state.clearPromoCode);
   const consumeCartNotice = useCartStore((state) => state.consumeCartNotice);
+  const { summary, enrichedItems, pricingError, isPricingLoading, isBackendPricing, shippingProgress } = useCartPricing();
 
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
   const [isSummaryOpen, setIsSummaryOpen] = useState(true);
 
-  const enrichedItems = useMemo(
-    () =>
-      items.map((item) => {
-        const compareAtUnitPrice = getCompareAtUnitPrice(item.productId, item.unitPrice);
-        const currentTotal = item.unitPrice * item.quantity;
-        const compareAtTotal = compareAtUnitPrice * item.quantity;
-        return {
-          ...item,
-          compareAtUnitPrice,
-          currentTotal,
-          compareAtTotal,
-          lineSavings: Math.max(0, compareAtTotal - currentTotal)
-        };
-      }),
-    [items]
-  );
-
   const count = getCartCount(items);
-  const subtotal = enrichedItems.reduce((sum, item) => sum + item.currentTotal, 0);
-  const originalSubtotal = enrichedItems.reduce((sum, item) => sum + item.compareAtTotal, 0);
-  const baseSavings = Math.max(0, originalSubtotal - subtotal);
-  const promoDiscount = Math.round((subtotal * promoDiscountPercent) / 100);
-  const discountedSubtotal = Math.max(0, subtotal - promoDiscount);
-  const shipping = discountedSubtotal >= freeShippingThreshold || discountedSubtotal === 0 ? 0 : 49;
-  const finalTotal = discountedSubtotal + shipping;
-  const totalSavings = baseSavings + promoDiscount;
-  const remainingForFreeShipping = Math.max(0, freeShippingThreshold - discountedSubtotal);
-  const shippingProgress = Math.min(100, Math.round((discountedSubtotal / freeShippingThreshold) * 100));
 
   useEffect(() => {
     if (!hasMounted || !isDrawerOpen) return;
@@ -111,7 +82,7 @@ export function CartDrawer() {
             </button>
           </div>
           <div className="bg-[var(--leaf)] px-4 py-2 text-center text-xs font-semibold text-white sm:px-5">
-            Free shipping above {formatPrice(freeShippingThreshold)}
+            Free shipping above {formatPrice(summary.freeShippingThreshold)}
           </div>
           {isDrawerOpen && cartNoticePending && cartNotice && cartNoticeKey > 0 ? (
             <div
@@ -128,11 +99,11 @@ export function CartDrawer() {
         <div className="border-b border-[var(--line)] px-4 py-3 sm:px-5">
           <div className="flex items-center justify-between gap-4 text-xs font-semibold">
             <p className="text-[var(--leaf-deep)]">
-              {remainingForFreeShipping === 0
+              {summary.remainingForFreeShipping === 0
                 ? "Free shipping unlocked"
-                : `Add ${formatPrice(remainingForFreeShipping)} more for free shipping`}
+                : `Add ${formatPrice(summary.remainingForFreeShipping)} more for free shipping`}
             </p>
-            {remainingForFreeShipping === 0 ? (
+            {summary.remainingForFreeShipping === 0 ? (
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--leaf)] text-white">✓</span>
             ) : null}
           </div>
@@ -177,14 +148,17 @@ export function CartDrawer() {
                           {item.name}
                         </Link>
                         <div className="shrink-0 text-right">
-                          <p className="text-sm font-bold">{formatPrice(item.currentTotal)}</p>
-                          {item.compareAtTotal > item.currentTotal ? (
+                          <p className="text-sm font-bold">{formatPrice(item.lineTotal)}</p>
+                          {item.compareAtTotal > item.lineTotal ? (
                             <p className="text-xs text-[var(--muted)] line-through">{formatPrice(item.compareAtTotal)}</p>
                           ) : null}
                         </div>
                       </div>
 
                       <p className="mt-0.5 text-xs text-[var(--muted)]">{item.variantLabel}</p>
+                      {!item.available ? (
+                        <p className="mt-1 text-xs font-semibold text-[var(--coral)]">Currently unavailable</p>
+                      ) : null}
 
                       <div className="mt-2 flex items-center gap-2">
                         <div className="inline-flex h-9 items-center rounded-lg border border-[var(--line)]">
@@ -246,9 +220,15 @@ export function CartDrawer() {
             {promoCode ? (
               <div className="flex items-center justify-between rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 py-2">
                 <p className="text-sm font-semibold">
-                  {promoCode} applied ({promoDiscountPercent}% off)
+                  {promoCode} applied
                 </p>
-                <button className="focus-ring rounded text-xs font-semibold text-[var(--coral)]" type="button" onClick={clearPromoCode}>
+                <button
+                  className="focus-ring rounded text-xs font-semibold text-[var(--coral)]"
+                  type="button"
+                  onClick={() => {
+                    void clearPromoCode();
+                  }}
+                >
                   Remove
                 </button>
               </div>
@@ -267,8 +247,8 @@ export function CartDrawer() {
                 <button
                   className="focus-ring inline-flex h-10 items-center justify-center rounded-lg border border-[var(--leaf)] px-3 text-xs font-semibold text-[var(--leaf-deep)] transition active:scale-95"
                   type="button"
-                  onClick={() => {
-                    const result = applyPromoCode(promoInput);
+                  onClick={async () => {
+                    const result = await applyPromoCode(promoInput);
                     if (!result.ok) {
                       setPromoError(result.message);
                       return;
@@ -277,11 +257,12 @@ export function CartDrawer() {
                     setPromoError("");
                   }}
                 >
-                  Apply
+                  {isPricingLoading ? "..." : "Apply"}
                 </button>
               </div>
             )}
             {promoError ? <p className="mt-2 text-xs font-semibold text-[var(--coral)]">{promoError}</p> : null}
+            {pricingError ? <p className="mt-2 text-xs font-semibold text-[var(--coral)]">{pricingError}</p> : null}
           </div>
 
           <button
@@ -292,7 +273,7 @@ export function CartDrawer() {
           >
             <span>Estimated total</span>
             <span className="flex items-center gap-2">
-              {formatPrice(finalTotal)}
+              {formatPrice(summary.total)}
               <span className={`text-base transition ${isSummaryOpen ? "rotate-180" : ""}`}>⌃</span>
             </span>
           </button>
@@ -301,29 +282,38 @@ export function CartDrawer() {
             <div className="space-y-2 rounded-lg border border-[var(--line)] bg-[#f8fbf9] px-3 py-3 text-xs">
               <div className="flex justify-between">
                 <span className="text-[var(--muted)]">Original total</span>
-                <span className={originalSubtotal > subtotal ? "line-through text-[var(--muted)]" : ""}>
-                  {formatPrice(originalSubtotal)}
+                <span className={summary.originalSubtotal > summary.subtotal ? "line-through text-[var(--muted)]" : ""}>
+                  {formatPrice(summary.originalSubtotal)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[var(--muted)]">Discounted subtotal</span>
-                <span className="font-semibold">{formatPrice(subtotal)}</span>
+                <span className="font-semibold">{formatPrice(summary.subtotal)}</span>
               </div>
-              {promoDiscount > 0 ? (
+              {summary.promoDiscount > 0 ? (
                 <div className="flex justify-between">
                   <span className="text-[var(--muted)]">Promo discount</span>
-                  <span className="font-semibold text-[var(--leaf-deep)]">- {formatPrice(promoDiscount)}</span>
+                  <span className="font-semibold text-[var(--leaf-deep)]">- {formatPrice(summary.promoDiscount)}</span>
                 </div>
               ) : null}
               <div className="flex justify-between">
+                <span className="text-[var(--muted)]">GST</span>
+                <span className="font-semibold">{formatPrice(summary.gst)}</span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-[var(--muted)]">Shipping</span>
-                <span className="font-semibold">{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
+                <span className="font-semibold">{summary.shipping === 0 ? "Free" : formatPrice(summary.shipping)}</span>
               </div>
               <div className="flex justify-between border-t border-[var(--line)] pt-2 text-sm font-semibold">
                 <span>Final total</span>
-                <span>{formatPrice(finalTotal)}</span>
+                <span>{formatPrice(summary.total)}</span>
               </div>
-              {totalSavings > 0 ? <p className="text-[var(--leaf)]">You saved {formatPrice(totalSavings)}</p> : null}
+              {summary.totalSavings > 0 ? <p className="text-[var(--leaf)]">You saved {formatPrice(summary.totalSavings)}</p> : null}
+              {!isBackendPricing ? (
+                <div className="rounded border border-[var(--line)] bg-white px-2 py-1 text-[11px] text-[var(--muted)]">
+                  Live pricing unavailable. Showing local estimate.
+                </div>
+              ) : null}
             </div>
           ) : null}
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { ProductGridClient } from "@/components/product/product-grid-client";
-import { getPriceRange, products } from "@/lib/products";
+import { categories as fallbackCategories, products as fallbackProducts } from "@/lib/products";
+import { fetchCategories, fetchProducts } from "@/lib/catalog-api";
 import { absoluteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -19,10 +19,34 @@ export const metadata: Metadata = {
   }
 };
 
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
-export default function ProductsPage() {
-  const priceRange = getPriceRange();
+export default async function ProductsPage() {
+  let initialProducts = fallbackProducts;
+  let initialCategories = fallbackCategories;
+  let initialTotalPages = 1;
+  let initialTotal = fallbackProducts.length;
+
+  try {
+    const [productsResponse, categoriesResponse] = await Promise.all([
+      fetchProducts({ page: 1, limit: 12, sort: "popular" }),
+      fetchCategories()
+    ]);
+
+    initialProducts = productsResponse.data;
+    initialTotalPages = productsResponse.pagination.totalPages;
+    initialTotal = productsResponse.pagination.total;
+
+    if (categoriesResponse.data.length > 0) {
+      initialCategories = categoriesResponse.data;
+    }
+  } catch {
+    // Fallback to bundled catalog if API is unavailable.
+  }
+
+  const prices = initialProducts.map((product) => product.price);
+  const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+  const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
 
   return (
     <div className="container-page py-12 md:py-16">
@@ -36,9 +60,14 @@ export default function ProductsPage() {
         </p>
       </div>
       <div className="mt-10">
-        <Suspense fallback={<div className="rounded-lg border border-[var(--line)] bg-white p-8">Loading products...</div>}>
-          <ProductGridClient maxPrice={priceRange.max} minPrice={priceRange.min} products={products} />
-        </Suspense>
+        <ProductGridClient
+          initialCategories={initialCategories}
+          initialProducts={initialProducts}
+          initialTotal={initialTotal}
+          initialTotalPages={initialTotalPages}
+          maxPrice={maxPrice}
+          minPrice={minPrice}
+        />
       </div>
     </div>
   );

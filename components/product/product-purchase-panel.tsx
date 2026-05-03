@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import type { Product } from "@/types/product";
 import { useCartStore } from "@/stores/cart-store";
 import { Button } from "@/components/ui/button";
@@ -20,11 +19,21 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
     () => product.variants.find((variant) => variant.id === variantId) ?? product.variants[0],
     [product.variants, variantId]
   );
+
   const compareAtForVariant = useMemo(() => {
+    if (!selectedVariant) return undefined;
     if (!product.compareAtPrice || product.compareAtPrice <= product.price) return undefined;
     const ratio = product.compareAtPrice / product.price;
     return Math.round(selectedVariant.price * ratio);
-  }, [product.compareAtPrice, product.price, selectedVariant.price]);
+  }, [product.compareAtPrice, product.price, selectedVariant]);
+
+  if (!selectedVariant) {
+    return (
+      <div className="rounded-2xl border border-[var(--line)] bg-white p-4 shadow-[0_18px_45px_rgb(23_33_28_/_8%)] sm:p-5">
+        <p className="text-sm text-[var(--muted)]">Variants will be listed here shortly.</p>
+      </div>
+    );
+  }
 
   function addToCart() {
     if (!isAvailable) {
@@ -47,23 +56,15 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
   }
 
   return (
-    <div className="rounded-lg border border-[var(--line)] bg-white p-5 md:p-6">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-[var(--mint)]">
-        <Image
-          alt={`${product.name} package detail`}
-          className="object-cover"
-          fill
-          sizes="(min-width: 1024px) 38vw, 100vw"
-          src={product.gallery[1] ?? product.image}
-        />
-      </div>
-
-      <fieldset className="mt-6">
-        <legend className="text-sm font-semibold">{isAvailable ? "Choose size" : "Planned sizes"}</legend>
-        <div className="mt-3 grid grid-cols-2 gap-3">
+    <div className="rounded-2xl border border-[var(--line)] bg-white p-4 shadow-[0_18px_45px_rgb(23_33_28_/_8%)] sm:p-5">
+      <fieldset>
+        <legend className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+          {isAvailable ? "Select Variant" : "Planned Variants"}
+        </legend>
+        <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
           {product.variants.map((variant) => (
             <label
-              className="cursor-pointer rounded-lg border border-[var(--line)] bg-[var(--background)] p-4 transition has-[:checked]:border-[var(--leaf)] has-[:checked]:bg-[var(--mint)]"
+              className="cursor-pointer rounded-xl border border-[var(--line)] bg-[var(--background)] p-3.5 transition has-[:checked]:border-[var(--leaf)] has-[:checked]:bg-[var(--mint)] has-[:checked]:shadow-[inset_0_0_0_1px_var(--leaf)]"
               key={variant.id}
             >
               <input
@@ -75,18 +76,19 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
                 value={variant.id}
                 onChange={() => setVariantId(variant.id)}
               />
-              <span className="block text-sm font-semibold">{variant.label}</span>
-              <span className="mt-1 block text-sm text-[var(--muted)]">
-                <Price currency={product.currency} value={variant.price} /> / {variant.unit}
+              <span className="block text-sm font-semibold text-[var(--foreground)]">{variant.label}</span>
+              <span className="mt-1 block text-xs text-[var(--muted)]">{variant.unit}</span>
+              <span className="mt-2 block text-sm font-semibold text-[var(--leaf-deep)]">
+                <Price currency={product.currency} value={variant.price} />
               </span>
             </label>
           ))}
         </div>
       </fieldset>
 
-      <div className="mt-6 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-[var(--muted)]">Quantity</p>
+      <div className="mt-5 flex items-center justify-between gap-4 rounded-xl border border-[var(--line)] bg-[var(--mint)]/45 px-3.5 py-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Quantity</p>
           <div className="mt-2">
             {isAvailable ? (
               <QuantityStepper value={quantity} onChange={setQuantity} />
@@ -97,24 +99,34 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
             )}
           </div>
         </div>
-        <div className="text-2xl">
+        <div className="text-right">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Total</p>
           {isAvailable ? (
-            <PriceWithCompare
-              compareAtPrice={compareAtForVariant ? compareAtForVariant * quantity : undefined}
-              currency={product.currency}
-              showSavingsPill={false}
-              value={selectedVariant.price * quantity}
-            />
+            <div className="mt-1 text-lg font-semibold sm:text-xl">
+              <PriceWithCompare
+                compareAtPrice={compareAtForVariant ? compareAtForVariant * quantity : undefined}
+                currency={product.currency}
+                showSavingsPill={false}
+                value={selectedVariant.price * quantity}
+              />
+            </div>
           ) : (
-            <p className="font-semibold">Coming soon</p>
+            <p className="mt-1 text-base font-semibold">Coming soon</p>
           )}
         </div>
       </div>
 
-      <Button className="mt-6 w-full" disabled={!isAvailable} type="button" onClick={addToCart}>
-        {isAvailable ? "Add to cart" : "Coming soon"}
-      </Button>
-      <p className="mt-3 min-h-6 text-sm text-[var(--leaf-deep)]" role="status" aria-live="polite">
+      <div className="mt-5 rounded-xl bg-[var(--leaf-deep)] p-1.5">
+        <Button
+          className="w-full rounded-[10px] border border-transparent bg-[var(--leaf-deep)] text-base font-bold tracking-wide text-white hover:bg-[var(--leaf)]"
+          disabled={!isAvailable}
+          type="button"
+          onClick={addToCart}
+        >
+          {isAvailable ? "Add to Cart" : "Coming Soon"}
+        </Button>
+      </div>
+      <p className="mt-3 min-h-6 text-sm font-semibold text-[var(--leaf-deep)]" role="status" aria-live="polite">
         {status}
       </p>
     </div>

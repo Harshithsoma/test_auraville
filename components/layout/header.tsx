@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { siteConfig } from "@/lib/site";
-import { categories } from "@/lib/products";
+import { categories as fallbackCategories } from "@/lib/products";
+import { ApiError } from "@/services/api";
+import { fetchCategories } from "@/lib/catalog-api";
 import { marketSpotlight } from "@/lib/promotions";
 import { CartStatus } from "@/components/layout/cart-status";
 import { IconLink } from "@/components/layout/icon-link";
@@ -11,9 +14,14 @@ import { MobileMenu } from "@/components/layout/mobile-menu";
 import { ProfileStatus } from "@/components/layout/profile-status";
 
 export function Header() {
+  const pathname = usePathname();
   const [isShopOpen, setIsShopOpen] = useState(false);
+  const [categories, setCategories] = useState<string[]>(fallbackCategories);
+  const [currentHash, setCurrentHash] = useState("");
   const closeTimerRef = useRef<number | null>(null);
   const shopContainerRef = useRef<HTMLDivElement>(null);
+
+  const shopActive = pathname.startsWith("/products") || pathname.startsWith("/product/");
 
   function clearCloseTimer() {
     if (closeTimerRef.current) {
@@ -33,6 +41,19 @@ export function Header() {
       setIsShopOpen(false);
     }, 160);
   }
+
+  useEffect(() => {
+    function syncHash() {
+      setCurrentHash(window.location.hash);
+    }
+
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+
+    return () => {
+      window.removeEventListener("hashchange", syncHash);
+    };
+  }, []);
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -57,11 +78,57 @@ export function Header() {
     };
   }, []);
 
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadCategories() {
+      try {
+        const response = await fetchCategories();
+        if (!isCancelled && response.data.length > 0) {
+          setCategories(response.data);
+        }
+      } catch (error) {
+        if (!isCancelled && error instanceof ApiError) {
+          // Keep fallback categories when API call fails.
+          setCategories(fallbackCategories);
+        }
+      }
+    }
+
+    void loadCategories();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  function isRouteActive(href: string): boolean {
+    const [basePath, hash] = href.split("#");
+    if (hash) {
+      const expected = `#${hash}`;
+      return pathname === (basePath || pathname) && currentHash === expected;
+    }
+
+    if (basePath === "/") {
+      return pathname === "/";
+    }
+
+    return pathname === basePath || pathname.startsWith(`${basePath}/`);
+  }
+
+  function navLinkClass(active: boolean): string {
+    return `focus-ring relative rounded-lg px-1 py-1 text-sm font-medium transition after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:origin-left after:rounded-full after:bg-[var(--leaf)] after:transition-transform ${
+      active
+        ? "font-semibold text-[var(--leaf-deep)] after:scale-x-100"
+        : "text-[var(--muted)] hover:text-[var(--foreground)] after:scale-x-0 hover:after:scale-x-100"
+    }`;
+  }
+
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[rgba(251,255,252,0.9)] backdrop-blur">
       <div className="container-page flex h-20 items-center justify-between gap-2 sm:gap-4">
         <div className="flex items-center gap-2 sm:gap-3">
-          <MobileMenu />
+          <MobileMenu categories={categories} />
           <Link className="brand-mark focus-ring rounded-lg text-lg font-bold sm:text-2xl" href="/" aria-label="Auraville home">
             Auraville
           </Link>
@@ -69,7 +136,7 @@ export function Header() {
 
         <nav aria-label="Primary navigation" className="hidden items-center gap-6 lg:flex">
           <Link
-            className="focus-ring rounded-lg text-sm font-bold text-[var(--coral)] transition hover:text-[var(--foreground)]"
+            className={navLinkClass(isRouteActive(marketSpotlight.href))}
             href={marketSpotlight.href}
           >
             {marketSpotlight.label}
@@ -84,7 +151,11 @@ export function Header() {
             <button
               aria-expanded={isShopOpen}
               aria-haspopup="menu"
-              className="focus-ring inline-flex items-center gap-1 rounded-lg text-sm font-medium text-[var(--muted)] transition hover:text-[var(--foreground)]"
+              className={`focus-ring relative inline-flex items-center gap-1 rounded-lg px-1 py-1 text-sm font-medium transition after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:origin-left after:rounded-full after:bg-[var(--leaf)] after:transition-transform ${
+                shopActive
+                  ? "font-semibold text-[var(--leaf-deep)] after:scale-x-100"
+                  : "text-[var(--muted)] hover:text-[var(--foreground)] after:scale-x-0 hover:after:scale-x-100"
+              }`}
               type="button"
               onClick={() => setIsShopOpen((current) => !current)}
             >
@@ -120,7 +191,7 @@ export function Header() {
           </div>
 
           <Link
-            className="focus-ring rounded-lg text-sm font-medium text-[var(--muted)] transition hover:text-[var(--foreground)]"
+            className={navLinkClass(isRouteActive("/product/palmyra-sprout-energy-bar"))}
             href="/product/palmyra-sprout-energy-bar"
           >
             Best Selling
@@ -128,7 +199,7 @@ export function Header() {
 
           {siteConfig.nav.map((item) => (
             <Link
-              className="focus-ring rounded-lg text-sm font-medium text-[var(--muted)] transition hover:text-[var(--foreground)]"
+              className={navLinkClass(isRouteActive(item.href))}
               href={item.href}
               key={item.href}
             >

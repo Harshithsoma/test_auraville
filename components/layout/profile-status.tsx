@@ -7,7 +7,8 @@ import { IconLink } from "@/components/layout/icon-link";
 export function ProfileStatus() {
   const hasMounted = useHasMounted();
   const user = useAuthStore((state) => state.user);
-  const href = hasMounted && user ? "/account" : "/auth";
+  const isHydrating = useAuthStore((state) => state.isHydrating);
+  const href = hasMounted && !isHydrating && user ? "/account" : "/auth";
 
   return (
     <IconLink href={href} label={hasMounted && user ? "Open profile" : "Login or signup"}>

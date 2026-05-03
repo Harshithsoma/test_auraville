@@ -2,35 +2,20 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { getCompareAtUnitPrice } from "@/lib/products";
-import { getCartSubtotal, useCartStore } from "@/stores/cart-store";
+import { useCartPricing } from "@/hooks/use-cart-pricing";
+import { useCartStore } from "@/stores/cart-store";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/components/ui/price";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 
-const shippingThreshold = 1499;
-
 export default function CartClient() {
   const hasMounted = useHasMounted();
-  const { items, removeItem, updateQuantity, promoCode, promoDiscountPercent } = useCartStore();
-
-  const enrichedItems = items.map((item) => {
-    const compareAtUnitPrice = getCompareAtUnitPrice(item.productId, item.unitPrice);
-    const currentTotal = item.unitPrice * item.quantity;
-    const compareAtTotal = compareAtUnitPrice * item.quantity;
-    return { ...item, compareAtUnitPrice, currentTotal, compareAtTotal };
-  });
-
-  const subtotal = getCartSubtotal(items);
-  const originalSubtotal = enrichedItems.reduce((sum, item) => sum + item.compareAtTotal, 0);
-  const baseSavings = Math.max(0, originalSubtotal - subtotal);
-  const promoDiscount = Math.round((subtotal * promoDiscountPercent) / 100);
-  const discountedSubtotal = Math.max(0, subtotal - promoDiscount);
-  const shipping = discountedSubtotal >= shippingThreshold || discountedSubtotal === 0 ? 0 : 99;
-  const tax = Math.round(discountedSubtotal * 0.05);
-  const total = discountedSubtotal + shipping + tax;
-  const totalSavings = baseSavings + promoDiscount;
+  const items = useCartStore((state) => state.items);
+  const removeItem = useCartStore((state) => state.removeItem);
+  const updateQuantity = useCartStore((state) => state.updateQuantity);
+  const promoCode = useCartStore((state) => state.promoCode);
+  const { summary, enrichedItems, pricingError, isBackendPricing, isPricingLoading } = useCartPricing();
 
   if (!hasMounted) {
     return (
@@ -84,9 +69,12 @@ export default function CartClient() {
               <p className="mt-1 text-sm text-[var(--muted)]">
                 {item.variantLabel}
               </p>
+              {!item.available ? (
+                <p className="mt-1 text-xs font-semibold text-[var(--coral)]">Currently unavailable</p>
+              ) : null}
               <div className="mt-3 text-sm">
-                <p className="font-semibold">{formatPrice(item.currentTotal)}</p>
-                {item.compareAtTotal > item.currentTotal ? (
+                <p className="font-semibold">{formatPrice(item.lineTotal)}</p>
+                {item.compareAtTotal > item.lineTotal ? (
                   <p className="text-xs text-[var(--muted)] line-through">{formatPrice(item.compareAtTotal)}</p>
                 ) : null}
               </div>
@@ -112,46 +100,57 @@ export default function CartClient() {
 
       <aside className="h-fit rounded-lg border border-[var(--line)] bg-white p-6 lg:sticky lg:top-28">
         <h2 className="text-xl font-semibold">Price breakdown</h2>
+        {isPricingLoading ? <p className="mt-3 text-xs text-[var(--muted)]">Refreshing live pricing...</p> : null}
+        {pricingError ? (
+          <p className="mt-3 rounded-lg border border-[#e7c9c6] bg-[#fff7f7] px-3 py-2 text-xs font-semibold text-[var(--coral)]">
+            {pricingError}
+          </p>
+        ) : null}
+        {!isBackendPricing ? (
+          <p className="mt-3 rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 py-2 text-xs text-[var(--muted)]">
+            Live backend pricing is unavailable. Showing local estimate.
+          </p>
+        ) : null}
         <dl className="mt-6 space-y-4 text-sm">
           <div className="flex justify-between">
             <dt className="text-[var(--muted)]">Original subtotal</dt>
-            <dd className={originalSubtotal > subtotal ? "font-semibold line-through text-[var(--muted)]" : "font-semibold"}>
-              {formatPrice(originalSubtotal)}
+            <dd className={summary.originalSubtotal > summary.subtotal ? "font-semibold line-through text-[var(--muted)]" : "font-semibold"}>
+              {formatPrice(summary.originalSubtotal)}
             </dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-[var(--muted)]">Discounted subtotal</dt>
-            <dd className="font-semibold">{formatPrice(subtotal)}</dd>
+            <dd className="font-semibold">{formatPrice(summary.subtotal)}</dd>
           </div>
-          {promoDiscount > 0 ? (
+          {summary.promoDiscount > 0 ? (
             <div className="flex justify-between">
               <dt className="text-[var(--muted)]">Promo ({promoCode})</dt>
-              <dd className="font-semibold text-[var(--leaf-deep)]">- {formatPrice(promoDiscount)}</dd>
+              <dd className="font-semibold text-[var(--leaf-deep)]">- {formatPrice(summary.promoDiscount)}</dd>
             </div>
           ) : null}
           <div className="flex justify-between">
             <dt className="text-[var(--muted)]">Estimated GST</dt>
-            <dd className="font-semibold">{formatPrice(tax)}</dd>
+            <dd className="font-semibold">{formatPrice(summary.gst)}</dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-[var(--muted)]">Shipping</dt>
             <dd className="font-semibold">
-              {shipping ? formatPrice(shipping) : "Free"}
+              {summary.shipping ? formatPrice(summary.shipping) : "Free"}
             </dd>
           </div>
           <div className="flex justify-between border-t border-[var(--line)] pt-4 text-base">
             <dt className="font-semibold">Total</dt>
-            <dd className="font-semibold">{formatPrice(total)}</dd>
+            <dd className="font-semibold">{formatPrice(summary.total)}</dd>
           </div>
         </dl>
-        {totalSavings > 0 ? (
-          <p className="mt-4 text-xs font-semibold text-[var(--leaf)]">You saved {formatPrice(totalSavings)}</p>
+        {summary.totalSavings > 0 ? (
+          <p className="mt-4 text-xs font-semibold text-[var(--leaf)]">You saved {formatPrice(summary.totalSavings)}</p>
         ) : null}
         <Button className="mt-6 w-full" href="/checkout">
           Checkout
         </Button>
         <p className="mt-4 text-xs leading-5 text-[var(--muted)]">
-          Free shipping above {formatPrice(shippingThreshold)}. Razorpay payment
+          Free shipping above {formatPrice(summary.freeShippingThreshold)}. Razorpay payment
           handoff is ready for backend wiring.
         </p>
       </aside>

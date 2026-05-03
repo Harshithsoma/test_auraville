@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
-import { categories } from "@/lib/products";
 import { marketSpotlight } from "@/lib/promotions";
 
 const primaryLinks = [
@@ -14,12 +14,31 @@ const primaryLinks = [
   { label: "Coming Soon", href: "/coming-soon" }
 ];
 
-export function MobileMenu() {
+type MobileMenuProps = {
+  categories: string[];
+};
+
+export function MobileMenu({ categories }: MobileMenuProps) {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [currentHash, setCurrentHash] = useState("");
+  const shopActive = pathname.startsWith("/products") || pathname.startsWith("/product/");
 
   function close() {
     setIsOpen(false);
   }
+
+  useEffect(() => {
+    function syncHash() {
+      setCurrentHash(window.location.hash);
+    }
+
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    return () => {
+      window.removeEventListener("hashchange", syncHash);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -38,6 +57,33 @@ export function MobileMenu() {
       window.removeEventListener("keydown", handleEscape);
     };
   }, [isOpen]);
+
+  function isRouteActive(href: string): boolean {
+    const [basePath, hash] = href.split("#");
+    if (hash) {
+      const expected = `#${hash}`;
+      return pathname === (basePath || pathname) && currentHash === expected;
+    }
+
+    if (basePath === "/") {
+      return pathname === "/";
+    }
+
+    return pathname === basePath || pathname.startsWith(`${basePath}/`);
+  }
+
+  function navItemClass(href: string, emphasize = false): string {
+    const active = isRouteActive(href);
+    if (active) {
+      return "focus-ring block rounded-lg border border-[var(--leaf)] bg-[var(--mint)] px-4 py-3 text-sm font-semibold text-[var(--leaf-deep)]";
+    }
+
+    return `focus-ring block rounded-lg border px-4 py-3 text-sm ${
+      emphasize
+        ? "border-[var(--line)] bg-white font-semibold text-[var(--foreground)] hover:bg-[var(--mint)]"
+        : "border-[var(--line)] bg-white text-[var(--foreground)] hover:bg-[var(--mint)]"
+    }`;
+  }
 
   return (
     <div className="lg:hidden">
@@ -87,11 +133,7 @@ export function MobileMenu() {
                 <div className="grid gap-2">
                   {primaryLinks.map((link) => (
                     <Link
-                      className={`focus-ring block rounded-lg border px-4 py-3 text-sm font-semibold ${
-                        link.label === "Launch Offer"
-                          ? "border-[var(--leaf)] bg-[var(--mint)] font-bold text-[var(--leaf-deep)]"
-                          : "border-[var(--line)] bg-white text-[var(--foreground)] hover:bg-[var(--mint)]"
-                      }`}
+                      className={navItemClass(link.href, true)}
                       href={link.href}
                       key={link.href}
                       onClick={close}
@@ -106,7 +148,11 @@ export function MobileMenu() {
                 <p className="mb-3 text-xs font-bold uppercase text-[var(--coral)]">Shop</p>
                 <div className="grid gap-2 rounded-lg bg-[var(--mint)] p-2">
                   <Link
-                    className="focus-ring rounded-lg bg-white px-4 py-3 text-sm font-semibold text-[var(--foreground)] hover:bg-[#f7fff8]"
+                    className={`focus-ring rounded-lg px-4 py-3 text-sm font-semibold ${
+                      shopActive
+                        ? "border border-[var(--leaf)] bg-[var(--mint)] text-[var(--leaf-deep)]"
+                        : "bg-white text-[var(--foreground)] hover:bg-[#f7fff8]"
+                    }`}
                     href="/products"
                     onClick={close}
                   >
