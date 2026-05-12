@@ -1,0 +1,13 @@
+<svg width="720" height="900" viewBox="0 0 720 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="900" fill="#FFF9EF"/>
+  <rect x="54" y="54" width="612" height="792" rx="40" fill="#FFFFFF"/>
+  <circle cx="190" cy="248" r="126" fill="#C84F43"/>
+  <circle cx="240" cy="286" r="88" fill="#D8AA2F"/>
+  <rect x="92" y="98" width="536" height="704" rx="30" fill="#E7F7EA"/>
+  <text x="124" y="194" fill="#173D2A" font-family="Avenir Next, Arial, sans-serif" font-size="38" font-weight="800">DO YOU KNOW?</text>
+  <text x="124" y="286" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="54" font-weight="800">We launch honestly:</text>
+  <text x="124" y="350" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="54" font-weight="800">one product live,</text>
+  <text x="124" y="414" fill="#15231B" font-family="Avenir Next, Arial, sans-serif" font-size="54" font-weight="800">more on the way.</text>
+  <text x="128" y="504" fill="#607065" font-family="Avenir Next, Arial, sans-serif" font-size="28" font-weight="600">Quality first. Clear coming-soon</text>
+  <text x="128" y="544" fill="#607065" font-family="Avenir Next, Arial, sans-serif" font-size="28" font-weight="600">signals. No confusing shelves.</text>
+</svg>

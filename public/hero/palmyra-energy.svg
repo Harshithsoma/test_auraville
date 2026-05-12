@@ -1,0 +1,15 @@
+<svg width="1440" height="780" viewBox="0 0 1440 780" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1440" height="780" fill="#173D2A"/>
+  <circle cx="1120" cy="230" r="250" fill="#347A4F"/>
+  <circle cx="1160" cy="260" r="182" fill="#E7F7EA"/>
+  <rect x="820" y="275" width="380" height="145" rx="26" fill="#C84F43"/>
+  <rect x="850" y="300" width="320" height="95" rx="18" fill="#F7FFF8"/>
+  <path d="M920 504C1008 458 1110 461 1212 510" stroke="#D8AA2F" stroke-width="28" stroke-linecap="round"/>
+  <path d="M920 554C1020 512 1118 514 1214 562" stroke="#F7FFF8" stroke-width="20" stroke-linecap="round"/>
+  <text x="100" y="225" fill="#FFD9DE" font-family="Avenir Next, Arial, sans-serif" font-size="28" font-weight="800">NOW LIVE</text>
+  <text x="100" y="330" fill="#FFFFFF" font-family="Avenir Next, Arial, sans-serif" font-size="78" font-weight="800">Palmyra Sprout</text>
+  <text x="100" y="420" fill="#FFFFFF" font-family="Avenir Next, Arial, sans-serif" font-size="78" font-weight="800">Energy Bar</text>
+  <text x="104" y="495" fill="#E7F7EA" font-family="Avenir Next, Arial, sans-serif" font-size="30" font-weight="600">Heritage ingredient. Modern snack.</text>
+  <rect x="104" y="545" width="260" height="60" rx="12" fill="#FFFFFF"/>
+  <text x="142" y="584" fill="#173D2A" font-family="Avenir Next, Arial, sans-serif" font-size="22" font-weight="800">Shop Now</text>
+</svg>
