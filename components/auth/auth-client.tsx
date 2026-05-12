@@ -251,6 +251,20 @@ export function AuthClient() {
     setLoginNotFoundIdentifier(null);
   }
 
+  function switchToSignupWithIdentifier(identifier: string): void {
+    const nextMode = detectIdentifierMode(identifier);
+    if (nextMode === "email") {
+      setSignupEmail(normalizeEmail(identifier));
+    } else {
+      setSignupPhone(identifier);
+    }
+    setMode("signup");
+    setSignupStep("form");
+    setLoginStep("identifier");
+    setMessage("");
+    setLoginNotFoundIdentifier(null);
+  }
+
   function getPostAuthRedirect(role: AuthUser["role"]): string {
     if (role === "ADMIN" && redirectPath === "/account") {
       return "/admin";
@@ -404,6 +418,8 @@ export function AuthClient() {
     } catch (error) {
       if (error instanceof ApiError && error.code === "USER_NOT_FOUND") {
         setLoginNotFoundIdentifier(loginIdentifierNormalized);
+        setMessage("");
+        return;
       }
       setFriendlyAuthError(error, "Unable to send login OTP right now. Please try again.");
     } finally {
@@ -684,25 +700,35 @@ export function AuthClient() {
             Use password instead
           </button>
           {loginNotFoundIdentifier ? (
-            <button
-              className="focus-ring rounded-lg text-left text-sm font-semibold text-[var(--leaf-deep)] underline underline-offset-2"
-              type="button"
-              onClick={() => {
-                const nextMode = detectIdentifierMode(loginNotFoundIdentifier);
-                if (nextMode === "email") {
-                  setSignupEmail(normalizeEmail(loginNotFoundIdentifier));
-                } else {
-                  setSignupPhone(loginNotFoundIdentifier);
-                }
-                setMode("signup");
-                setSignupStep("form");
-                setLoginStep("identifier");
-                setMessage("");
-                setLoginNotFoundIdentifier(null);
-              }}
-            >
-              Create account
-            </button>
+            <div className="rounded-xl border border-[var(--line)] bg-[#fcfffc] p-4">
+              <p className="text-sm font-semibold text-[var(--ink-soft)]">
+                No account found with this email/phone.
+              </p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Create an account to save addresses, track orders, and checkout faster.
+              </p>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <Button
+                  className="w-full sm:w-auto sm:flex-1"
+                  type="button"
+                  onClick={() => switchToSignupWithIdentifier(loginNotFoundIdentifier)}
+                >
+                  Create account
+                </Button>
+                <Button
+                  className="w-full sm:w-auto sm:flex-1"
+                  variant="secondary"
+                  type="button"
+                  onClick={() => {
+                    setLoginNotFoundIdentifier(null);
+                    setLoginIdentifierRaw("");
+                    setMessage("");
+                  }}
+                >
+                  Try another email/phone
+                </Button>
+              </div>
+            </div>
           ) : null}
         </form>
       ) : null}

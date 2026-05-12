@@ -31,8 +31,10 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
 
   const selectedVariantStock =
     selectedVariant ? getAvailableStock(product.id, selectedVariant.id) ?? selectedVariant.stock ?? null : null;
+  const isOutOfStock = typeof selectedVariantStock === "number" && selectedVariantStock <= 0;
+  const hasLimitedStock = typeof selectedVariantStock === "number" && selectedVariantStock > 0;
   const effectiveQuantity =
-    typeof selectedVariantStock === "number" && selectedVariantStock > 0
+    hasLimitedStock
       ? Math.min(quantity, selectedVariantStock)
       : quantity;
 
@@ -50,14 +52,14 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
       return;
     }
 
-    if (typeof selectedVariantStock === "number" && selectedVariantStock <= 0) {
+    if (isOutOfStock) {
       const notice = "No more quantity available.";
       setStatus(notice);
       pushCartNotice(notice);
       return;
     }
 
-    if (typeof selectedVariantStock === "number" && effectiveQuantity > selectedVariantStock) {
+    if (hasLimitedStock && effectiveQuantity > selectedVariantStock) {
       const notice =
         selectedVariantStock === 1
           ? "Only 1 left in stock."
@@ -116,7 +118,7 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Quantity</p>
           <div className="mt-2">
-            {isAvailable ? (
+            {isAvailable && !isOutOfStock ? (
               <QuantityStepper
                 value={quantity}
                 max={typeof selectedVariantStock === "number" ? Math.max(1, selectedVariantStock) : undefined}
@@ -130,7 +132,7 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
               />
             ) : (
               <span className="inline-flex h-11 items-center rounded-lg border border-[var(--line)] bg-[var(--mint)] px-4 text-sm font-semibold text-[var(--leaf-deep)]">
-                Launching soon
+                {isAvailable ? "Out of stock" : "Launching soon"}
               </span>
             )}
           </div>
@@ -155,13 +157,22 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
       <div className="mt-5 rounded-xl bg-[var(--leaf-deep)] p-1.5">
         <Button
           className="w-full rounded-[10px] border border-transparent bg-[var(--leaf-deep)] text-base font-bold tracking-wide text-white hover:bg-[var(--leaf)]"
-          disabled={!isAvailable}
+          disabled={!isAvailable || isOutOfStock}
           type="button"
           onClick={addToCart}
         >
-          {isAvailable ? "Add to Cart" : "Coming Soon"}
+          {isAvailable ? (isOutOfStock ? "Out of Stock" : "Add to Cart") : "Coming Soon"}
         </Button>
       </div>
+      <p className="mt-2 min-h-5 text-xs font-medium text-[var(--muted)]" aria-live="polite">
+        {isOutOfStock
+          ? "This pack is currently unavailable."
+          : hasLimitedStock && selectedVariantStock <= 5
+            ? selectedVariantStock === 1
+              ? "Only 1 left in stock."
+              : `Only ${selectedVariantStock} left in stock.`
+            : ""}
+      </p>
       <p className="mt-3 min-h-6 text-sm font-semibold text-[var(--leaf-deep)]" role="status" aria-live="polite">
         {status}
       </p>

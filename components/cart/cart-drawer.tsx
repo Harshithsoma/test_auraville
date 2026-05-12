@@ -32,6 +32,9 @@ export function CartDrawer() {
   const [isSummaryOpen, setIsSummaryOpen] = useState(true);
 
   const count = getCartCount(items);
+  const hasUnavailableItems =
+    isBackendPricing &&
+    enrichedItems.some((item) => !item.available || item.stock <= 0 || item.quantity > item.stock);
 
   useEffect(() => {
     if (!hasMounted || !isDrawerOpen) return;
@@ -158,6 +161,13 @@ export function CartDrawer() {
                       <p className="mt-0.5 text-xs text-[var(--muted)]">{item.variantLabel}</p>
                       {!item.available ? (
                         <p className="mt-1 text-xs font-semibold text-[var(--coral)]">Currently unavailable</p>
+                      ) : null}
+                      {item.available && item.stock > 0 && item.quantity >= item.stock ? (
+                        <p className="mt-1 text-xs font-semibold text-[var(--coral)]">
+                          {item.stock === 1
+                            ? "Only 1 available for this pack."
+                            : `Only ${item.stock} available for this pack.`}
+                        </p>
                       ) : null}
 
                       <div className="mt-2 flex items-center gap-2">
@@ -296,15 +306,26 @@ export function CartDrawer() {
 
           <Link
             className={`focus-ring mt-4 inline-flex h-12 w-full items-center justify-center rounded-lg text-sm font-semibold transition active:scale-[0.98] ${
-              items.length === 0
+              items.length === 0 || hasUnavailableItems
                 ? "pointer-events-none border border-[var(--line)] bg-[var(--mint)] text-[var(--muted)]"
                 : "bg-[var(--leaf-deep)] text-white hover:bg-[var(--leaf)]"
             }`}
             href={user ? "/checkout" : "/auth"}
             onClick={closeDrawer}
           >
-            {items.length === 0 ? "Add products to continue" : user ? "Checkout" : "Login to Checkout"}
+            {items.length === 0
+              ? "Add products to continue"
+              : hasUnavailableItems
+                ? "Update cart to continue"
+                : user
+                  ? "Checkout"
+                  : "Login to Checkout"}
           </Link>
+          {hasUnavailableItems ? (
+            <p className="mt-2 text-xs font-semibold text-[var(--coral)]">
+              One or more items are unavailable or exceed stock. Update your cart before checkout.
+            </p>
+          ) : null}
         </div>
       </aside>
     </div>

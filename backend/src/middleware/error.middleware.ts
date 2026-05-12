@@ -3,6 +3,8 @@ import { ZodError } from "zod";
 import { env } from "../config/env";
 import { HttpError } from "../utils/http-error";
 
+const PRODUCTION_SAFE_ERROR_CODES = new Set(["PAYMENT_PROVIDER_UNAVAILABLE"]);
+
 export const errorMiddleware: ErrorRequestHandler = (error, _req, res, _next) => {
   if (error instanceof ZodError) {
     res.status(400).json({
@@ -30,7 +32,9 @@ export const errorMiddleware: ErrorRequestHandler = (error, _req, res, _next) =>
       error: {
         code: error.errorCode,
         message:
-          env.NODE_ENV === "production" && error.statusCode >= 500
+          env.NODE_ENV === "production" &&
+          error.statusCode >= 500 &&
+          !PRODUCTION_SAFE_ERROR_CODES.has(error.errorCode)
             ? "Internal server error"
             : error.message,
         ...(shouldExposeDetails ? { details: error.details } : {})

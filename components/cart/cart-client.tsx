@@ -75,6 +75,18 @@ export default function CartClient() {
               {!item.available ? (
                 <p className="mt-1 text-xs font-semibold text-[var(--coral)]">Currently unavailable</p>
               ) : null}
+              {item.available && item.stock > 0 && item.quantity >= item.stock ? (
+                <p className="mt-1 text-xs font-semibold text-[var(--coral)]">
+                  {item.stock === 1
+                    ? "Only 1 available for this pack."
+                    : `Only ${item.stock} available for this pack.`}
+                </p>
+              ) : null}
+              {item.available && item.stock > 0 && item.stock <= 5 ? (
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  {item.stock === 1 ? "Only 1 left in stock." : `Only ${item.stock} left in stock.`}
+                </p>
+              ) : null}
               <div className="mt-3 text-sm">
                 <p className="font-semibold">{formatPrice(item.lineTotal)}</p>
                 {item.compareAtTotal > item.lineTotal ? (

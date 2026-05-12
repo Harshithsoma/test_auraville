@@ -339,9 +339,14 @@ export default function CheckoutClient() {
   const focusRecoveryTimeoutRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
 
+  const hasUnavailableItems = useMemo(
+    () => enrichedItems.some((item) => !item.available || item.stock <= 0 || item.quantity > item.stock),
+    [enrichedItems]
+  );
+
   const canSubmit = useMemo(() => {
-    return items.length > 0 && !isSubmitting && !isPaymentModalOpen;
-  }, [isSubmitting, isPaymentModalOpen, items.length]);
+    return items.length > 0 && !isSubmitting && !isPaymentModalOpen && !hasUnavailableItems;
+  }, [hasUnavailableItems, isSubmitting, isPaymentModalOpen, items.length]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -534,6 +539,11 @@ export default function CheckoutClient() {
 
     if (!isBackendPricing) {
       setCheckoutError("Live cart pricing is required before payment. Please retry in a moment.");
+      return;
+    }
+
+    if (hasUnavailableItems) {
+      setCheckoutError("Some items are unavailable or exceed stock. Please update your cart before checkout.");
       return;
     }
 
@@ -1005,6 +1015,9 @@ export default function CheckoutClient() {
               <li className="flex justify-between gap-4 text-sm" key={`${item.productId}-${item.variantId}`}>
                 <span className="text-[var(--muted)]">
                   {item.quantity} x {item.name} ({item.variantLabel})
+                  {!item.available || item.stock <= 0 || item.quantity > item.stock ? (
+                    <span className="ml-2 font-semibold text-[var(--coral)]">(Unavailable)</span>
+                  ) : null}
                 </span>
                 <span className="font-semibold">{formatPrice(item.lineTotal)}</span>
               </li>

@@ -248,14 +248,52 @@ export async function createCheckoutOrder(params: {
   const orderId = await createUniqueOrderId();
   const amountInPaise = total * 100;
 
-  const razorpayOrder = await createRazorpayOrder({
-    amountInPaise,
-    currency: "INR",
-    receipt: orderId,
-    notes: {
-      orderId
+  if (env.NODE_ENV !== "test") {
+    // eslint-disable-next-line no-console
+    console.info("checkout.order.create.started", {
+      endpoint: "POST /checkout/orders",
+      cartTotal: total,
+      hasRazorpayKey: Boolean(env.RAZORPAY_KEY_ID?.trim())
+    });
+  }
+
+  let razorpayOrder: Awaited<ReturnType<typeof createRazorpayOrder>>;
+  try {
+    razorpayOrder = await createRazorpayOrder({
+      amountInPaise,
+      currency: "INR",
+      receipt: orderId,
+      notes: {
+        orderId
+      }
+    });
+    if (env.NODE_ENV !== "test") {
+      // eslint-disable-next-line no-console
+      console.info("checkout.order.create.razorpay.success", {
+        endpoint: "POST /checkout/orders",
+        status: razorpayOrder.status
+      });
     }
-  });
+  } catch (error) {
+    if (env.NODE_ENV !== "test") {
+      // eslint-disable-next-line no-console
+      console.error("checkout.order.create.razorpay.failure", {
+        endpoint: "POST /checkout/orders",
+        cartTotal: total,
+        hasRazorpayKey: Boolean(env.RAZORPAY_KEY_ID?.trim()),
+        errorCode: error instanceof HttpError ? error.errorCode : "UNKNOWN_ERROR",
+        statusCode: error instanceof HttpError ? error.statusCode : 500,
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+
+    throw new HttpError(
+      503,
+      "Online payment is temporarily unavailable. Please try again later.",
+      undefined,
+      "PAYMENT_PROVIDER_UNAVAILABLE"
+    );
+  }
 
   const createdOrder = await prisma.order.create({
     data: {
