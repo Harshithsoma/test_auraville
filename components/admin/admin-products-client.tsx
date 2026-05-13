@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, commerceApi } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/input";
@@ -372,6 +372,7 @@ export function AdminProductsClient() {
   const [isUploadingGalleryImage, setIsUploadingGalleryImage] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
+  const formCardRef = useRef<HTMLFormElement | null>(null);
 
   async function loadCategories() {
     try {
@@ -436,6 +437,9 @@ export function AdminProductsClient() {
       const response = await commerceApi.admin.products.byId<GetProductResponse>(productId);
       setFormState(productToForm(response.data));
       setIsSlugManuallyEdited(true);
+      requestAnimationFrame(() => {
+        formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     } catch (error) {
       if (error instanceof ApiError) {
         setFormError(error.message);
@@ -1371,7 +1375,11 @@ export function AdminProductsClient() {
         )}
       </div>
 
-      <form className="rounded-lg border border-[var(--line)] bg-white p-5 md:p-7" onSubmit={(event) => void saveProduct(event)}>
+      <form
+        className="rounded-lg border border-[var(--line)] bg-white p-5 md:p-7"
+        onSubmit={(event) => void saveProduct(event)}
+        ref={formCardRef}
+      >
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold">{mode === "create" ? "Create product" : "Edit product"}</h2>
@@ -1393,6 +1401,29 @@ export function AdminProductsClient() {
               <p className="mt-1 text-xs text-[var(--muted)]">
                 URL slug: {formState.slug.trim() || slugifyName(formState.name) || "auto-generated from name"}
               </p>
+            ) : null}
+            {mode === "edit" ? (
+              <div className="mt-3 rounded-lg border border-[var(--line)] bg-[var(--mint)] p-3">
+                <p className="text-sm font-semibold text-[var(--leaf-deep)]">Editing: {formState.name || "Selected product"}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                  <span
+                    className={`rounded px-2 py-1 font-semibold ${
+                      formState.isActive ? "bg-[#dff4e6] text-[var(--leaf-deep)]" : "bg-[#fff3f2] text-[var(--coral)]"
+                    }`}
+                  >
+                    {formState.isActive ? "Active" : "Inactive"}
+                  </span>
+                  {formState.isFeatured ? (
+                    <span className="rounded bg-[#e8f4ec] px-2 py-1 font-semibold text-[var(--leaf-deep)]">Featured</span>
+                  ) : null}
+                  {formState.isBestSeller ? (
+                    <span className="rounded bg-[#e8f4ec] px-2 py-1 font-semibold text-[var(--leaf-deep)]">Best Seller</span>
+                  ) : null}
+                  {formState.isNew ? (
+                    <span className="rounded bg-[#e8f4ec] px-2 py-1 font-semibold text-[var(--leaf-deep)]">New</span>
+                  ) : null}
+                </div>
+              </div>
             ) : null}
           </div>
           {mode === "edit" ? (

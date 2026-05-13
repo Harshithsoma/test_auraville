@@ -13,6 +13,7 @@ type Review = {
   subject: string;
   text: string;
   rating: number;
+  productId: string | null;
 };
 
 type ReviewsListResponse = {
@@ -49,42 +50,48 @@ const baseReviews: Review[] = [
     name: "Anika R.",
     subject: "Balanced sweetness",
     rating: 5,
-    text: "The energy bar feels clean and filling without being too sweet. Easy daily snack."
+    text: "The energy bar feels clean and filling without being too sweet. Easy daily snack.",
+    productId: null
   },
   {
     id: "dev",
     name: "Dev M.",
     subject: "Honest launch",
     rating: 4,
-    text: "Good ingredient profile and honest launch approach. Looking forward to the cookies."
+    text: "Good ingredient profile and honest launch approach. Looking forward to the cookies.",
+    productId: null
   },
   {
     id: "meera",
     name: "Meera S.",
     subject: "Great ingredient story",
     rating: 5,
-    text: "Palmyra sprout in a modern format is exactly what I wanted for office snacking."
+    text: "Palmyra sprout in a modern format is exactly what I wanted for office snacking.",
+    productId: null
   },
   {
     id: "pranav",
     name: "Pranav K.",
     subject: "Works on busy days",
     rating: 4,
-    text: "Texture is solid and travel-friendly. Works well for pre-workout days."
+    text: "Texture is solid and travel-friendly. Works well for pre-workout days.",
+    productId: null
   },
   {
     id: "ishita",
     name: "Ishita N.",
     subject: "Clean label",
     rating: 5,
-    text: "Loved the taste and clean label. The brand story also feels meaningful."
+    text: "Loved the taste and clean label. The brand story also feels meaningful.",
+    productId: null
   },
   {
     id: "harish",
     name: "Harish V.",
     subject: "Reliable quality",
     rating: 4,
-    text: "Simple product, good quality, and straightforward checkout experience."
+    text: "Simple product, good quality, and straightforward checkout experience.",
+    productId: null
   }
 ];
 
@@ -103,8 +110,13 @@ function mapBackendReviews(response: ReviewsListResponse): Review[] {
     name: item.user.name?.trim() || "Verified Customer",
     subject: item.subject,
     text: item.body,
-    rating: item.rating
+    rating: item.rating,
+    productId: item.productId
   }));
+}
+
+function needsReadMore(text: string): boolean {
+  return text.trim().length > 180;
 }
 
 export function ReviewsSlider({
@@ -126,6 +138,7 @@ export function ReviewsSlider({
   const [rating, setRating] = useState(0);
   const [formMessage, setFormMessage] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [expandedReview, setExpandedReview] = useState<Review | null>(null);
 
   const cloneCount = Math.min(visibleCards, reviews.length);
   const loopReviews = useMemo(() => {
@@ -208,6 +221,17 @@ export function ReviewsSlider({
     window.addEventListener("keydown", onEscape);
     return () => window.removeEventListener("keydown", onEscape);
   }, [isComposerOpen]);
+
+  useEffect(() => {
+    if (!expandedReview) return;
+    function onEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setExpandedReview(null);
+      }
+    }
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [expandedReview]);
 
   function silentJump(nextOffset: number) {
     setIsTransitionEnabled(false);
@@ -369,7 +393,7 @@ export function ReviewsSlider({
                   className="shrink-0 basis-full px-2 lg:basis-1/3 lg:px-2.5"
                   key={`${review.id}-${loopIndex}`}
                 >
-                  <div className="h-full rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
+                  <div className="h-full min-h-[230px] rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-bold">{review.name}</p>
@@ -379,7 +403,16 @@ export function ReviewsSlider({
                       </div>
                       <p className="text-sm font-semibold text-[var(--leaf-deep)]">{"★".repeat(review.rating)}</p>
                     </div>
-                    <p className="mt-4 text-sm leading-6 text-[var(--muted)]">{review.text}</p>
+                    <p className="mt-4 line-clamp-4 text-sm leading-6 text-[var(--muted)]">{review.text}</p>
+                    {needsReadMore(review.text) ? (
+                      <button
+                        className="focus-ring mt-3 rounded text-xs font-semibold text-[var(--leaf-deep)] underline"
+                        type="button"
+                        onClick={() => setExpandedReview(review)}
+                      >
+                        Read more
+                      </button>
+                    ) : null}
                   </div>
                 </article>
               ))}
@@ -482,6 +515,42 @@ export function ReviewsSlider({
               </div>
             )}
           </div>
+        </div>
+      ) : null}
+
+      {expandedReview ? (
+        <div className="fixed inset-0 z-[145] flex items-end justify-center bg-black/40 p-4 sm:items-center">
+          <button
+            aria-label="Close full review"
+            className="absolute inset-0"
+            type="button"
+            onClick={() => setExpandedReview(null)}
+          />
+          <article className="relative z-10 w-full max-w-xl rounded-2xl border border-[var(--line)] bg-white p-5 shadow-lg sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-lg font-semibold">{expandedReview.subject}</p>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                  {expandedReview.name}
+                </p>
+              </div>
+              <button
+                aria-label="Close full review"
+                className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--line)] text-lg"
+                type="button"
+                onClick={() => setExpandedReview(null)}
+              >
+                ×
+              </button>
+            </div>
+            <p className="mt-4 text-sm font-semibold text-[var(--leaf-deep)]">
+              {"★".repeat(expandedReview.rating)}
+            </p>
+            {expandedReview.productId ? (
+              <p className="mt-1 text-xs text-[var(--muted)]">Product: {expandedReview.productId}</p>
+            ) : null}
+            <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">{expandedReview.text}</p>
+          </article>
         </div>
       ) : null}
 

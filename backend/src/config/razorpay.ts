@@ -18,9 +18,8 @@ export async function createRazorpayOrder(params: {
     "base64"
   );
   const normalizedBaseUrl = env.RAZORPAY_API_BASE_URL.replace(/\/+$/, "");
-  const apiBaseWithVersion = /\/v1$/i.test(normalizedBaseUrl)
-    ? normalizedBaseUrl
-    : `${normalizedBaseUrl}/v1`;
+  const baseWithoutVersion = normalizedBaseUrl.replace(/(?:\/v1)+$/i, "");
+  const apiBaseWithVersion = `${baseWithoutVersion}/v1`;
   const ordersUrl = `${apiBaseWithVersion}/orders`;
 
   const abortController = new AbortController();
