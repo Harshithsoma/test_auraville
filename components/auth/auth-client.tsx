@@ -828,6 +828,22 @@ export function AuthClient() {
           >
             Use password instead
           </button>
+          <button
+            className="focus-ring rounded-lg text-left text-sm font-semibold text-[var(--leaf-deep)]"
+            type="button"
+            onClick={() => {
+              setForgotStep("identifier");
+              setForgotOtp("");
+              setForgotNewPassword("");
+              setForgotConfirmPassword("");
+              setForgotContextIdentifier(null);
+              setForgotNotFoundIdentifier(null);
+              setLoginStep("forgot");
+              setMessage("");
+            }}
+          >
+            Forgot password?
+          </button>
           {loginNotFoundIdentifier ? (
             <div className="rounded-xl border border-[var(--line)] bg-[#fcfffc] p-4">
               <p className="text-sm font-semibold text-[var(--ink-soft)]">
