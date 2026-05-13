@@ -1,21 +1,33 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Product } from "@/types/product";
 import { useCartStore } from "@/stores/cart-store";
+import { useAuthStore } from "@/stores/auth-store";
+import { useNotifyMe } from "@/hooks/use-notify-me";
 import { Button } from "@/components/ui/button";
 import { Price, PriceWithCompare } from "@/components/ui/price";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 
 export function ProductPurchasePanel({ product }: { product: Product }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const user = useAuthStore((state) => state.user);
+  const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const isAvailable = product.availability === "available";
   const [variantId, setVariantId] = useState(product.variants[0]?.id ?? "");
   const [quantity, setQuantity] = useState(1);
   const [status, setStatus] = useState("");
+  const attemptedAutoNotifyRef = useRef(false);
   const addItem = useCartStore((state) => state.addItem);
   const openDrawer = useCartStore((state) => state.openDrawer);
   const getAvailableStock = useCartStore((state) => state.getAvailableStock);
   const pushCartNotice = useCartStore((state) => state.pushCartNotice);
+  const { notify, isSubmitting: isNotifySubmitting } = useNotifyMe({
+    onSuccess: (message) => setStatus(message),
+    onError: (message) => setStatus(message)
+  });
 
   const selectedVariant = useMemo(
     () => product.variants.find((variant) => variant.id === variantId) ?? product.variants[0],
@@ -37,6 +49,37 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
     hasLimitedStock
       ? Math.min(quantity, selectedVariantStock)
       : quantity;
+
+  useEffect(() => {
+    if (attemptedAutoNotifyRef.current) {
+      return;
+    }
+
+    const shouldAutoNotify = searchParams.get("notify") === "1";
+    if (!shouldAutoNotify) {
+      return;
+    }
+
+    const requestedProductId = searchParams.get("notifyProductId");
+    if (requestedProductId && requestedProductId !== product.id) {
+      return;
+    }
+
+    if (!hasHydrated || !user) {
+      return;
+    }
+
+    attemptedAutoNotifyRef.current = true;
+    void notify(
+      {
+        id: product.id,
+        slug: product.slug
+      },
+      { redirectGuest: false }
+    ).finally(() => {
+      router.replace(`/product/${product.slug}`, { scroll: false });
+    });
+  }, [hasHydrated, notify, product.id, product.slug, router, searchParams, user]);
 
   if (!selectedVariant) {
     return (
@@ -164,6 +207,19 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
           {isAvailable ? (isOutOfStock ? "Out of Stock" : "Add to Cart") : "Coming Soon"}
         </Button>
       </div>
+      {!isAvailable || isOutOfStock ? (
+        <Button
+          className="mt-3 w-full rounded-xl border border-[var(--line)] bg-[var(--mint)] text-sm font-semibold text-[var(--leaf-deep)] hover:bg-[var(--mint)]/80"
+          disabled={isNotifySubmitting}
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            void notify({ id: product.id, slug: product.slug });
+          }}
+        >
+          {isNotifySubmitting ? "Saving..." : "Notify Me"}
+        </Button>
+      ) : null}
       <p className="mt-2 min-h-5 text-xs font-medium text-[var(--muted)]" aria-live="polite">
         {isOutOfStock
           ? "This pack is currently unavailable."

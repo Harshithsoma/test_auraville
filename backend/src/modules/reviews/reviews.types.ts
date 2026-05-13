@@ -38,3 +38,27 @@ export type ListReviewsResponse = {
     totalPages: number;
   };
 };
+
+export type VerifiedRateRequest = {
+  orderId: string;
+  orderItemId: string;
+  productId: string;
+  rating: number;
+};
+
+export type VerifiedReviewTextRequest = {
+  reviewId: string;
+  subject?: string;
+  body?: string;
+};
+
+export type VerifiedReviewPromptResponse = {
+  data: {
+    productId: string;
+    productName: string;
+    productSlug: string;
+    productImage: string;
+    orderId: string;
+    orderItemId: string;
+  } | null;
+};

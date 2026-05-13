@@ -9,6 +9,8 @@ import {
 } from "../../utils/cookies";
 import { HttpError } from "../../utils/http-error";
 import {
+  forgotPasswordOtpSend,
+  forgotPasswordReset,
   getMe,
   loginOtpSend,
   loginOtpVerify,
@@ -21,6 +23,8 @@ import {
   verifyOtp
 } from "./auth.service";
 import type {
+  ForgotPasswordResetValidatedInput,
+  ForgotPasswordSendValidatedInput,
   LoginOtpSendValidatedInput,
   LoginOtpVerifyValidatedInput,
   LoginPasswordValidatedInput,
@@ -135,6 +139,28 @@ export const loginPasswordController: RequestHandler = async (req, res, next) =>
     res.status(200).json({
       data: result.data
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forgotPasswordSendController: RequestHandler = async (req, res, next) => {
+  try {
+    const { body } = req as unknown as ForgotPasswordSendValidatedInput;
+    const result = await forgotPasswordOtpSend(body);
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forgotPasswordResetController: RequestHandler = async (req, res, next) => {
+  try {
+    const { body } = req as unknown as ForgotPasswordResetValidatedInput;
+    const result = await forgotPasswordReset(body);
+
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }

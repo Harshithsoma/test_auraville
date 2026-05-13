@@ -123,7 +123,7 @@ export function ReviewsSlider({
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState(0);
   const [formMessage, setFormMessage] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
@@ -265,6 +265,11 @@ export function ReviewsSlider({
       return;
     }
 
+    if (rating < 1 || rating > 5) {
+      setFormMessage("Please select a rating before submitting.");
+      return;
+    }
+
     setIsSubmittingReview(true);
     setFormMessage("");
 
@@ -285,7 +290,7 @@ export function ReviewsSlider({
 
       setSubject("");
       setBody("");
-      setRating(5);
+      setRating(0);
       setFormMessage(response.data.message || "Review submitted for approval.");
       setIsComposerOpen(false);
     } catch (error) {
@@ -444,13 +449,13 @@ export function ReviewsSlider({
 
                 <div>
                   <p className="text-sm font-semibold">Rating</p>
-                  <div className="mt-2 flex items-center gap-1">
+                  <div className="mt-2 flex items-center gap-2 sm:gap-3">
                     {Array.from({ length: 5 }).map((_, idx) => {
                       const nextRating = idx + 1;
                       return (
                         <button
                           aria-label={`Rate ${nextRating} stars`}
-                          className={`focus-ring text-2xl leading-none transition ${
+                          className={`focus-ring text-3xl leading-none transition sm:text-4xl ${
                             nextRating <= rating ? "text-[var(--gold)]" : "text-[var(--line)]"
                           }`}
                           key={nextRating}

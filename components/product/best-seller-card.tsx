@@ -1,14 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Product } from "@/types/product";
 import { PriceWithCompare } from "@/components/ui/price";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { useCartStore } from "@/stores/cart-store";
+import { selectCardDisplayVariant } from "@/components/product/card-variant";
+import { useNotifyMe } from "@/hooks/use-notify-me";
 
 export function BestSellerCard({ product, priority = false }: { product: Product; priority?: boolean }) {
   const isAvailable = product.availability === "available";
+  const [status, setStatus] = useState("");
   const items = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
@@ -17,15 +21,25 @@ export function BestSellerCard({ product, priority = false }: { product: Product
   const getAvailableStock = useCartStore((state) => state.getAvailableStock);
   const pushCartNotice = useCartStore((state) => state.pushCartNotice);
 
-  const variant = product.variants[0];
+  const { variant, isOutOfStock, compareAtPrice } = selectCardDisplayVariant(product);
+  const { notify, isSubmitting: isNotifySubmitting } = useNotifyMe({
+    onSuccess: (message) => setStatus(message),
+    onError: (message) => setStatus(message)
+  });
   const cartItem = variant
     ? items.find((item) => item.productId === product.id && item.variantId === variant.id)
     : undefined;
   const quantity = cartItem?.quantity ?? 0;
+  const displayPrice = variant?.price ?? product.price;
   const availableStock = variant ? getAvailableStock(product.id, variant.id) ?? variant.stock ?? null : null;
+  const canPurchase = isAvailable && Boolean(variant) && !isOutOfStock;
 
   function addToCart(openCart = false) {
     if (!isAvailable || !variant) return;
+    if (isOutOfStock) {
+      pushCartNotice("No more quantity available.");
+      return;
+    }
     if (typeof availableStock === "number" && availableStock <= 0) {
       pushCartNotice("No more quantity available.");
       return;
@@ -76,11 +90,20 @@ export function BestSellerCard({ product, priority = false }: { product: Product
           <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
         </div>
         <div className="mt-2 text-sm">
-          <PriceWithCompare compareAtPrice={product.compareAtPrice} currency={product.currency} value={product.price} />
+          {canPurchase ? (
+            <PriceWithCompare compareAtPrice={compareAtPrice} currency={product.currency} value={displayPrice} />
+          ) : (
+            <p className="font-bold">{isAvailable ? "Out of Stock" : "Coming Soon"}</p>
+          )}
         </div>
+        {canPurchase && typeof availableStock === "number" && availableStock > 0 && availableStock <= 5 ? (
+          <p className="mt-1 text-[11px] font-semibold text-[var(--coral)]">
+            {availableStock === 1 ? "Only 1 left" : `Only ${availableStock} left`}
+          </p>
+        ) : null}
 
         <div className="mt-auto">
-          {isAvailable ? (
+          {canPurchase ? (
             quantity === 0 ? (
               <button
                 className="focus-ring mt-3 inline-flex h-10 w-full items-center justify-center rounded-lg border border-[var(--leaf)] bg-[var(--leaf)] px-3 text-sm font-semibold text-white transition active:scale-95"
@@ -123,13 +146,24 @@ export function BestSellerCard({ product, priority = false }: { product: Product
               </div>
             )
           ) : (
-            <Link
+            <button
               className="focus-ring mt-3 inline-flex h-10 w-full items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 text-sm font-semibold text-[var(--leaf-deep)]"
-              href={`/product/${product.slug}`}
+              type="button"
+              disabled={isNotifySubmitting}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void notify({ id: product.id, slug: product.slug });
+              }}
             >
-              Notify Me
-            </Link>
+              {isNotifySubmitting ? "Saving..." : "Notify Me"}
+            </button>
           )}
+          {status ? (
+            <p className="mt-2 text-[11px] font-medium text-[var(--leaf-deep)]" aria-live="polite">
+              {status}
+            </p>
+          ) : null}
         </div>
       </div>
     </article>

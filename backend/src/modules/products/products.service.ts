@@ -1,5 +1,7 @@
 import { HttpError } from "../../utils/http-error";
 import { prisma } from "../../prisma/prisma.service";
+import { env } from "../../config/env";
+import { NotifyDeliveryError, sendBackInStockEmail } from "../../utils/notify-delivery";
 import type { ProductApiResponse, ProductListQuery, ProductListResult } from "./products.types";
 
 const PRODUCTS_LIST_CACHE_TTL_MS = 45_000;
@@ -308,4 +310,192 @@ export async function getProductBySlug(slug: string): Promise<ProductApiResponse
       stock: variant.stock
     }))
   });
+}
+
+function maskEmail(email: string): string {
+  const [localPart, domain] = email.split("@");
+  if (!localPart || !domain) {
+    return "***";
+  }
+
+  const visiblePrefix = localPart.slice(0, 2);
+  return `${visiblePrefix}${"*".repeat(Math.max(localPart.length - 2, 1))}@${domain}`;
+}
+
+export async function registerProductNotifyRequest(params: {
+  productId: string;
+  user: { id: string; email: string };
+}): Promise<{ message: string }> {
+  const normalizedEmail = params.user.email.trim().toLowerCase();
+
+  const product = await prisma.product.findUnique({
+    where: {
+      id: params.productId
+    },
+    select: {
+      id: true,
+      isActive: true,
+      availability: true,
+      variants: {
+        where: {
+          isActive: true,
+          stock: {
+            gt: 0
+          }
+        },
+        select: {
+          id: true
+        },
+        take: 1
+      }
+    }
+  });
+
+  if (!product || !product.isActive) {
+    throw new HttpError(404, "Product not found", undefined, "PRODUCT_NOT_FOUND");
+  }
+
+  if (product.availability === "available" && product.variants.length > 0) {
+    throw new HttpError(409, "Product is already in stock", undefined, "PRODUCT_ALREADY_IN_STOCK");
+  }
+
+  const existingActive = await prisma.productNotifyRequest.findUnique({
+    where: {
+      productId_email_isActive: {
+        productId: params.productId,
+        email: normalizedEmail,
+        isActive: true
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (existingActive) {
+    return {
+      message: "You're already on this waitlist. We'll notify you when it's back in stock."
+    };
+  }
+
+  const existingInactive = await prisma.productNotifyRequest.findUnique({
+    where: {
+      productId_email_isActive: {
+        productId: params.productId,
+        email: normalizedEmail,
+        isActive: false
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (existingInactive) {
+    await prisma.productNotifyRequest.update({
+      where: {
+        id: existingInactive.id
+      },
+      data: {
+        isActive: true,
+        userId: params.user.id,
+        requestedAt: new Date(),
+        notifiedAt: null
+      }
+    });
+  } else {
+    await prisma.productNotifyRequest.create({
+      data: {
+        productId: params.productId,
+        userId: params.user.id,
+        email: normalizedEmail,
+        isActive: true
+      }
+    });
+  }
+
+  return {
+    message: "You'll be notified when this product is back in stock."
+  };
+}
+
+export async function dispatchBackInStockNotifications(productId: string): Promise<void> {
+  const product = await prisma.product.findUnique({
+    where: {
+      id: productId
+    },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      image: true,
+      isActive: true,
+      availability: true,
+      variants: {
+        where: {
+          isActive: true,
+          stock: {
+            gt: 0
+          }
+        },
+        select: {
+          id: true
+        },
+        take: 1
+      }
+    }
+  });
+
+  if (!product || !product.isActive || product.availability !== "available" || product.variants.length === 0) {
+    return;
+  }
+
+  const pendingRequests = await prisma.productNotifyRequest.findMany({
+    where: {
+      productId: product.id,
+      isActive: true,
+      notifiedAt: null
+    },
+    select: {
+      id: true,
+      email: true
+    }
+  });
+
+  if (pendingRequests.length === 0) {
+    return;
+  }
+
+  const productUrl = `${env.FRONTEND_URL.replace(/\/+$/, "")}/product/${product.slug}`;
+
+  for (const request of pendingRequests) {
+    try {
+      await sendBackInStockEmail({
+        email: request.email,
+        productName: product.name,
+        productImage: product.image,
+        productUrl
+      });
+
+      await prisma.productNotifyRequest.update({
+        where: {
+          id: request.id
+        },
+        data: {
+          isActive: false,
+          notifiedAt: new Date()
+        }
+      });
+    } catch (error) {
+      if (env.NODE_ENV !== "test") {
+        const code = error instanceof NotifyDeliveryError ? error.code : "NOTIFY_SEND_FAILED";
+        // eslint-disable-next-line no-console
+        console.error("Back-in-stock email send failed", {
+          productId: product.id,
+          code,
+          recipient: maskEmail(request.email)
+        });
+      }
+    }
+  }
 }

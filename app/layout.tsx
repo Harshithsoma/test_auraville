@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthSessionBootstrap } from "@/components/auth/auth-session-bootstrap";
 import { CartDrawer } from "@/components/cart/cart-drawer";
+import { DeliveryReviewPrompt } from "@/components/layout/delivery-review-prompt";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { fetchHomepageSections, sectionMap } from "@/lib/homepage-cms";
@@ -55,6 +56,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body>
         <AuthSessionBootstrap />
         <Header />
+        <DeliveryReviewPrompt />
         <main>{children}</main>
         <Footer brandBlurb={footerSection?.body ?? undefined} hidden={footerSection ? !footerSection.isActive : false} />
         <CartDrawer />

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ApiError, commerceApi } from "@/services/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function AccountClient() {
   const router = useRouter();
@@ -14,12 +16,58 @@ export function AccountClient() {
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const logout = useAuthStore((state) => state.logout);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   async function handleLogout() {
     setIsLoggingOut(true);
     await logout();
     router.push("/");
     router.refresh();
+  }
+
+  async function handlePasswordUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isUpdatingPassword) return;
+    setPasswordMessage("");
+
+    if (newPassword.length < 5) {
+      setPasswordMessage("New password must be at least 5 characters.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage("Confirm password must match.");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const response = await commerceApi.account.updatePassword<{ data: { message: string } }, {
+        currentPassword: string;
+        newPassword: string;
+        confirmPassword: string;
+      }>({
+        currentPassword,
+        newPassword,
+        confirmPassword
+      });
+      setPasswordMessage(response.data.message);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setPasswordMessage(error.message);
+      } else {
+        setPasswordMessage("Unable to update password right now.");
+      }
+    } finally {
+      setIsUpdatingPassword(false);
+    }
   }
 
   if (!hasMounted || isHydrating || !hasHydrated) {
@@ -99,6 +147,48 @@ export function AccountClient() {
               {isLoggingOut ? "Logging out..." : "Logout"}
             </Button>
           </div>
+
+          <form className="mt-6 border-t border-[var(--line)] pt-5" onSubmit={handlePasswordUpdate}>
+            <h3 className="text-base font-semibold">Update Password</h3>
+            <div className="mt-3 space-y-3">
+              <label className="block">
+                <span className="text-sm font-semibold">Current password</span>
+                <Input
+                  className="mt-2"
+                  type="password"
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold">New password</span>
+                <Input
+                  className="mt-2"
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold">Confirm new password</span>
+                <Input
+                  className="mt-2"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                />
+              </label>
+            </div>
+            <Button className="mt-4 w-full sm:w-auto" type="submit" disabled={isUpdatingPassword}>
+              {isUpdatingPassword ? "Updating..." : "Update Password"}
+            </Button>
+            <p className="mt-3 min-h-5 text-sm font-medium text-[var(--leaf-deep)]" role="status" aria-live="polite">
+              {passwordMessage}
+            </p>
+          </form>
         </div>
 
         <div className="rounded-lg border border-[var(--line)] bg-white p-6">

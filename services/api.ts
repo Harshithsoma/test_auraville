@@ -328,6 +328,10 @@ export const commerceApi = {
     bySlug: <TResponse>(slug: string) =>
       request<TResponse>(`/products/${encodeURIComponent(slug)}`, {
         cache: "no-store"
+      }),
+    notifyMe: <TResponse>(productId: string) =>
+      request<TResponse>(`/products/${encodeURIComponent(productId)}/notify-me`, {
+        method: "POST"
       })
   },
   categories: {
@@ -405,6 +409,18 @@ export const commerceApi = {
         body: payload,
         retryOn401: false
       }),
+    forgotPasswordSend: <TResponse, TBody>(payload: TBody) =>
+      request<TResponse, TBody>("/auth/password/forgot/send", {
+        method: "POST",
+        body: payload,
+        retryOn401: false
+      }),
+    forgotPasswordReset: <TResponse, TBody>(payload: TBody) =>
+      request<TResponse, TBody>("/auth/password/forgot/reset", {
+        method: "POST",
+        body: payload,
+        retryOn401: false
+      }),
     refresh: <TResponse>() =>
       request<TResponse>("/auth/refresh", {
         method: "POST",
@@ -462,7 +478,12 @@ export const commerceApi = {
         request<TResponse>(`/account/addresses/${encodeURIComponent(id)}/default`, {
           method: "PATCH"
         })
-    }
+    },
+    updatePassword: <TResponse, TBody>(payload: TBody) =>
+      request<TResponse, TBody>("/account/password", {
+        method: "PATCH",
+        body: payload
+      })
   },
   admin: {
     homepage: {
@@ -642,6 +663,28 @@ export const commerceApi = {
     create: <TResponse, TBody>(payload: TBody) =>
       request<TResponse, TBody>("/reviews", {
         method: "POST",
+        body: payload
+      }),
+    verifiedPrompt: <TResponse>() =>
+      request<TResponse>("/reviews/verified/prompt"),
+    verifiedRate: <TResponse, TBody>(payload: TBody) =>
+      request<TResponse, TBody>("/reviews/verified/rate", {
+        method: "POST",
+        body: payload
+      }),
+    verifiedText: <TResponse, TBody>(payload: TBody) =>
+      request<TResponse, TBody>("/reviews/verified/text", {
+        method: "PATCH",
+        body: payload
+      }),
+    verifiedFromLink: <TResponse, TBody>(payload: TBody) =>
+      request<TResponse, TBody>("/reviews/verified/from-link", {
+        method: "POST",
+        body: payload
+      }),
+    verifiedFromLinkText: <TResponse, TBody>(payload: TBody) =>
+      request<TResponse, TBody>("/reviews/verified/from-link/text", {
+        method: "PATCH",
         body: payload
       })
   }

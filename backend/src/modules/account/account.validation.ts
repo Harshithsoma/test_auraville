@@ -49,8 +49,24 @@ export const setDefaultAccountAddressSchema = z.object({
   params: addressParamsSchema
 });
 
+export const updateAccountPasswordSchema = z.object({
+  params: z.object({}).passthrough(),
+  query: z.object({}).passthrough(),
+  body: z
+    .object({
+      currentPassword: z.string().min(1),
+      newPassword: z.string().min(5, "Password must be at least 5 characters"),
+      confirmPassword: z.string().min(1)
+    })
+    .refine((value) => value.newPassword === value.confirmPassword, {
+      message: "Passwords do not match",
+      path: ["confirmPassword"]
+    })
+});
+
 export type ListAccountAddressesValidatedInput = z.infer<typeof listAccountAddressesSchema>;
 export type CreateAccountAddressValidatedInput = z.infer<typeof createAccountAddressSchema>;
 export type PatchAccountAddressValidatedInput = z.infer<typeof patchAccountAddressSchema>;
 export type DeleteAccountAddressValidatedInput = z.infer<typeof deleteAccountAddressSchema>;
 export type SetDefaultAccountAddressValidatedInput = z.infer<typeof setDefaultAccountAddressSchema>;
+export type UpdateAccountPasswordValidatedInput = z.infer<typeof updateAccountPasswordSchema>;

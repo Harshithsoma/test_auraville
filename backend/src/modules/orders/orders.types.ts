@@ -1,4 +1,5 @@
 export type OrderItemView = {
+  id: string;
   productId: string;
   slug: string;
   name: string;
@@ -7,6 +8,13 @@ export type OrderItemView = {
   variantLabel: string;
   unitPrice: number;
   quantity: number;
+  canRate: boolean;
+  verifiedReview: {
+    reviewId: string;
+    rating: number;
+    subject: string | null;
+    body: string;
+  } | null;
 };
 
 export type OrderStatusView =

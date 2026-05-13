@@ -83,6 +83,30 @@ export const loginPasswordSchema = z.object({
   })
 });
 
+export const forgotPasswordSendSchema = z.object({
+  params: z.object({}).passthrough(),
+  query: z.object({}).passthrough(),
+  body: z.object({
+    identifier: z.string().trim().min(3).max(255)
+  })
+});
+
+export const forgotPasswordResetSchema = z.object({
+  params: z.object({}).passthrough(),
+  query: z.object({}).passthrough(),
+  body: z
+    .object({
+      identifier: z.string().trim().min(3).max(255),
+      otp: otpSchema,
+      newPassword: signupPasswordSchema,
+      confirmPassword: z.string().min(1)
+    })
+    .refine((value) => value.newPassword === value.confirmPassword, {
+      message: "Passwords do not match",
+      path: ["confirmPassword"]
+    })
+});
+
 export const refreshSchema = z.object({
   params: z.object({}).passthrough(),
   query: z.object({}).passthrough(),
@@ -108,5 +132,7 @@ export type SignupOtpVerifyValidatedInput = z.infer<typeof signupOtpVerifySchema
 export type LoginOtpSendValidatedInput = z.infer<typeof loginOtpSendSchema>;
 export type LoginOtpVerifyValidatedInput = z.infer<typeof loginOtpVerifySchema>;
 export type LoginPasswordValidatedInput = z.infer<typeof loginPasswordSchema>;
+export type ForgotPasswordSendValidatedInput = z.infer<typeof forgotPasswordSendSchema>;
+export type ForgotPasswordResetValidatedInput = z.infer<typeof forgotPasswordResetSchema>;
 export type RefreshValidatedInput = z.infer<typeof refreshSchema>;
 export type LogoutValidatedInput = z.infer<typeof logoutSchema>;

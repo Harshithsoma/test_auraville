@@ -6,14 +6,16 @@ import {
   deleteUserAddressController,
   listUserAddressesController,
   patchUserAddressController,
-  setDefaultUserAddressController
+  setDefaultUserAddressController,
+  updateUserPasswordController
 } from "./account.controller";
 import {
   createAccountAddressSchema,
   deleteAccountAddressSchema,
   listAccountAddressesSchema,
   patchAccountAddressSchema,
-  setDefaultAccountAddressSchema
+  setDefaultAccountAddressSchema,
+  updateAccountPasswordSchema
 } from "./account.validation";
 
 export const accountRouter = Router();
@@ -47,4 +49,10 @@ accountRouter.patch(
   validateRequest(setDefaultAccountAddressSchema),
   requireAuth,
   setDefaultUserAddressController
+);
+accountRouter.patch(
+  "/account/password",
+  validateRequest(updateAccountPasswordSchema),
+  requireAuth,
+  updateUserPasswordController
 );

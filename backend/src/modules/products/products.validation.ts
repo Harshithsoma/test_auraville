@@ -31,5 +31,14 @@ export const getProductBySlugSchema = z.object({
   })
 });
 
+export const notifyMeSchema = z.object({
+  body: z.object({}).passthrough(),
+  query: z.object({}).passthrough(),
+  params: z.object({
+    id: z.string().trim().min(1)
+  })
+});
+
 export type ListProductsValidatedInput = z.infer<typeof listProductsSchema>;
 export type GetProductBySlugValidatedInput = z.infer<typeof getProductBySlugSchema>;
+export type NotifyMeValidatedInput = z.infer<typeof notifyMeSchema>;

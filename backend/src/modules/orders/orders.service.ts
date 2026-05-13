@@ -4,6 +4,7 @@ import type { OrderDetailResponse, OrderItemView, OrdersListQuery, OrdersListRes
 
 function mapOrderItems(
   items: Array<{
+    id: string;
     productId: string;
     slug: string;
     name: string;
@@ -12,9 +13,11 @@ function mapOrderItems(
     variantLabel: string;
     unitPrice: number;
     quantity: number;
-  }>
+  }>,
+  reviewsByOrderItemId: Map<string, { id: string; rating: number; subject: string | null; body: string }>
 ): OrderItemView[] {
   return items.map((item) => ({
+    id: item.id,
     productId: item.productId,
     slug: item.slug,
     name: item.name,
@@ -22,7 +25,16 @@ function mapOrderItems(
     variantId: item.variantId,
     variantLabel: item.variantLabel,
     unitPrice: item.unitPrice,
-    quantity: item.quantity
+    quantity: item.quantity,
+    canRate: true,
+    verifiedReview: reviewsByOrderItemId.has(item.id)
+      ? {
+          reviewId: reviewsByOrderItemId.get(item.id)!.id,
+          rating: reviewsByOrderItemId.get(item.id)!.rating,
+          subject: reviewsByOrderItemId.get(item.id)!.subject,
+          body: reviewsByOrderItemId.get(item.id)!.body
+        }
+      : null
   }));
 }
 
@@ -48,6 +60,7 @@ export async function listUserOrders(params: {
         createdAt: true,
         items: {
           select: {
+            id: true,
             productId: true,
             slug: true,
             name: true,
@@ -70,31 +83,75 @@ export async function listUserOrders(params: {
     })
   ]);
 
+  const deliveredOrderItemIds = orders
+    .filter((order) => order.status === "delivered")
+    .flatMap((order) => order.items.map((item) => item.id));
+
+  const verifiedReviews = deliveredOrderItemIds.length
+    ? await prisma.review.findMany({
+        where: {
+          userId,
+          isVerifiedPurchase: true,
+          orderItemId: {
+            in: deliveredOrderItemIds
+          }
+        },
+        select: {
+          id: true,
+          orderItemId: true,
+          rating: true,
+          subject: true,
+          body: true
+        }
+      })
+    : [];
+
+  const reviewsByOrderItemId = new Map(
+    verifiedReviews
+      .filter((review) => Boolean(review.orderItemId))
+      .map((review) => [
+        review.orderItemId as string,
+        {
+          id: review.id,
+          rating: review.rating,
+          subject: review.subject,
+          body: review.body
+        }
+      ])
+  );
+
   return {
     data: orders.map((order: {
       id: string;
       email: string;
       total: number;
       status: "pending" | "confirmed" | "packed" | "shipped" | "delivered" | "cancelled" | "payment_failed";
-      createdAt: Date;
-      items: Array<{
-        productId: string;
-        slug: string;
-        name: string;
-        image: string;
-        variantId: string;
-        variantLabel: string;
-        unitPrice: number;
-        quantity: number;
-      }>;
-    }) => ({
-      id: order.id,
-      email: order.email,
-      items: mapOrderItems(order.items),
-      total: order.total,
-      status: order.status,
-      createdAt: order.createdAt.toISOString()
-    })),
+          createdAt: Date;
+          items: Array<{
+            id: string;
+            productId: string;
+            slug: string;
+            name: string;
+            image: string;
+            variantId: string;
+            variantLabel: string;
+            unitPrice: number;
+            quantity: number;
+          }>;
+        }) => ({
+          id: order.id,
+          email: order.email,
+          items: mapOrderItems(
+            order.items,
+            order.status === "delivered" ? reviewsByOrderItemId : new Map()
+          ).map((item) => ({
+            ...item,
+            canRate: order.status === "delivered"
+          })),
+          total: order.total,
+          status: order.status,
+          createdAt: order.createdAt.toISOString()
+        })),
     pagination: {
       page: query.page,
       limit: query.limit,
@@ -127,6 +184,7 @@ export async function getUserOrderById(params: {
       createdAt: true,
       items: {
         select: {
+          id: true,
           productId: true,
           slug: true,
           name: true,
@@ -147,11 +205,50 @@ export async function getUserOrderById(params: {
     throw new HttpError(404, "Order not found", undefined, "ORDER_NOT_FOUND");
   }
 
+  const itemIds = order.items.map((item) => item.id);
+  const verifiedReviews = itemIds.length
+    ? await prisma.review.findMany({
+        where: {
+          userId,
+          isVerifiedPurchase: true,
+          orderItemId: {
+            in: itemIds
+          }
+        },
+        select: {
+          id: true,
+          orderItemId: true,
+          rating: true,
+          subject: true,
+          body: true
+        }
+      })
+    : [];
+  const reviewsByOrderItemId = new Map(
+    verifiedReviews
+      .filter((review) => Boolean(review.orderItemId))
+      .map((review) => [
+        review.orderItemId as string,
+        {
+          id: review.id,
+          rating: review.rating,
+          subject: review.subject,
+          body: review.body
+        }
+      ])
+  );
+
   return {
     data: {
       id: order.id,
       email: order.email,
-      items: mapOrderItems(order.items),
+      items: mapOrderItems(
+        order.items,
+        order.status === "delivered" ? reviewsByOrderItemId : new Map()
+      ).map((item) => ({
+        ...item,
+        canRate: order.status === "delivered"
+      })),
       pricing: {
         subtotal: order.subtotal,
         promoDiscount: order.couponDiscount,

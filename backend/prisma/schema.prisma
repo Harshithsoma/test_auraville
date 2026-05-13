@@ -69,8 +69,10 @@ model User {
   addresses     UserAddress[]
   orders        Order[]
   reviews       Review[]
+  reviewRequestTokens ReviewRequestToken[]
   refreshTokens RefreshToken[]
   couponUsages  CouponUsage[]
+  notifyRequests ProductNotifyRequest[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -214,6 +216,8 @@ model Product {
   images    ProductImage[]
   reviews   Review[]
   orderItems OrderItem[]
+  notifyRequests ProductNotifyRequest[]
+  reviewRequestTokens ReviewRequestToken[]
 
   @@index([slug])
   @@index([categoryId])
@@ -223,6 +227,29 @@ model Product {
   @@index([availability])
   @@index([popularity])
   @@index([isActive])
+}
+
+model ProductNotifyRequest {
+  id         String   @id @default(cuid())
+  productId  String
+  userId     String?
+  email      String
+  isActive   Boolean  @default(true)
+  requestedAt DateTime @default(now())
+  notifiedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([productId])
+  @@index([userId])
+  @@index([email])
+  @@index([isActive])
+  @@index([notifiedAt])
+  @@index([requestedAt])
+  @@unique([productId, email, isActive])
 }
 
 model ProductVariant {
@@ -336,6 +363,8 @@ model Order {
   items       OrderItem[]
   payment     Payment?
   couponUsages CouponUsage[]
+  reviews      Review[]
+  reviewRequestTokens ReviewRequestToken[]
 
   @@index([email])
   @@index([userId])
@@ -365,6 +394,8 @@ model OrderItem {
   order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product        @relation(fields: [productId], references: [id])
   variant ProductVariant @relation(fields: [variantDbId], references: [id])
+  reviews Review[]
+  reviewRequestTokens ReviewRequestToken[]
 
   @@index([orderId])
   @@index([productId])
@@ -407,21 +438,56 @@ model Review {
   id         String   @id @default(cuid())
   productId  String?
   userId     String?
+  orderId    String?
+  orderItemId String?
   name       String
   email      String?
   rating     Int
   subject    String?
   body       String
+  isVerifiedPurchase Boolean @default(false)
   isApproved Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
   user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  order   Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderItem OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
 
   @@index([productId])
   @@index([isApproved])
+  @@index([isVerifiedPurchase])
+  @@index([orderId])
+  @@index([orderItemId])
   @@index([createdAt])
+  @@unique([orderItemId])
+}
+
+model ReviewRequestToken {
+  id           String   @id @default(cuid())
+  tokenHash    String   @unique
+  userId       String
+  productId    String
+  orderId      String
+  orderItemId  String
+  email        String
+  suggestedRating Int?
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([productId])
+  @@index([orderId])
+  @@index([orderItemId])
+  @@index([expiresAt])
+  @@index([usedAt])
 }
 
 model HomepageSection {

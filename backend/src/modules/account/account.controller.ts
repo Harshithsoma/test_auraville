@@ -4,13 +4,15 @@ import {
   deleteUserAddress,
   listUserAddresses,
   patchUserAddress,
-  setDefaultUserAddress
+  setDefaultUserAddress,
+  updateUserPassword
 } from "./account.service";
 import type {
   CreateAccountAddressValidatedInput,
   DeleteAccountAddressValidatedInput,
   PatchAccountAddressValidatedInput,
-  SetDefaultAccountAddressValidatedInput
+  SetDefaultAccountAddressValidatedInput,
+  UpdateAccountPasswordValidatedInput
 } from "./account.validation";
 
 export const listUserAddressesController: RequestHandler = async (req, res, next) => {
@@ -68,6 +70,20 @@ export const setDefaultUserAddressController: RequestHandler = async (req, res, 
     const result = await setDefaultUserAddress({
       userId: req.authUser!.id,
       addressId: params.id
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateUserPasswordController: RequestHandler = async (req, res, next) => {
+  try {
+    const { body } = req as unknown as UpdateAccountPasswordValidatedInput;
+    const result = await updateUserPassword({
+      userId: req.authUser!.id,
+      currentPassword: body.currentPassword,
+      newPassword: body.newPassword
     });
     res.status(200).json(result);
   } catch (error) {

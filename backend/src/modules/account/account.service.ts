@@ -1,5 +1,6 @@
 import { prisma } from "../../prisma/prisma.service";
 import { HttpError } from "../../utils/http-error";
+import { passwordHash, verifyPassword } from "../../utils/password";
 import type { UserAddressResponse, UserAddressesListResponse } from "./account.types";
 import type {
   CreateAccountAddressValidatedInput,
@@ -201,5 +202,53 @@ export async function setDefaultUserAddress(params: {
 
   return {
     data: mapAddress(updated)
+  };
+}
+
+export async function updateUserPassword(params: {
+  userId: string;
+  currentPassword: string;
+  newPassword: string;
+}): Promise<{ data: { message: string } }> {
+  const user = await prisma.user.findUnique({
+    where: { id: params.userId },
+    select: {
+      id: true,
+      isActive: true,
+      passwordHash: true
+    }
+  });
+
+  if (!user || !user.isActive) {
+    throw new HttpError(401, "Unauthorized");
+  }
+
+  if (!user.passwordHash) {
+    throw new HttpError(
+      400,
+      "Password login is not set for this account yet. Use forgot password to set one.",
+      undefined,
+      "PASSWORD_NOT_SET"
+    );
+  }
+
+  const isValidCurrentPassword = await verifyPassword(params.currentPassword, user.passwordHash);
+  if (!isValidCurrentPassword) {
+    throw new HttpError(400, "Current password is incorrect.", undefined, "INVALID_CURRENT_PASSWORD");
+  }
+
+  const nextPasswordHash = await passwordHash(params.newPassword);
+  await prisma.user.update({
+    where: { id: params.userId },
+    data: {
+      passwordHash: nextPasswordHash,
+      passwordUpdatedAt: new Date()
+    }
+  });
+
+  return {
+    data: {
+      message: "Password updated successfully."
+    }
   };
 }

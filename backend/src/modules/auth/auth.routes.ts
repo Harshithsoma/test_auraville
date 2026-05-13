@@ -16,6 +16,8 @@ import {
 } from "../../middleware/rate-limit.middleware";
 import { validateRequest } from "../../middleware/validate.middleware";
 import {
+  forgotPasswordResetController,
+  forgotPasswordSendController,
   loginOtpSendController,
   loginOtpVerifyController,
   loginPasswordController,
@@ -28,6 +30,8 @@ import {
   verifyOtpController
 } from "./auth.controller";
 import {
+  forgotPasswordResetSchema,
+  forgotPasswordSendSchema,
   loginOtpSendSchema,
   loginOtpVerifySchema,
   loginPasswordSchema,
@@ -82,6 +86,18 @@ authRouter.post(
   passwordLoginRateLimiter,
   validateRequest(loginPasswordSchema),
   loginPasswordController
+);
+authRouter.post(
+  "/auth/password/forgot/send",
+  loginOtpSendRateLimiter,
+  validateRequest(forgotPasswordSendSchema),
+  forgotPasswordSendController
+);
+authRouter.post(
+  "/auth/password/forgot/reset",
+  signupOtpVerifyRateLimiter,
+  validateRequest(forgotPasswordResetSchema),
+  forgotPasswordResetController
 );
 
 authRouter.post(

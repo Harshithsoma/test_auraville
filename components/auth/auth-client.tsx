@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type AuthMode = "login" | "signup";
-type LoginStep = "identifier" | "otp" | "password";
+type LoginStep = "identifier" | "otp" | "password" | "forgot";
 type SignupStep = "form" | "otp";
+type ForgotStep = "identifier" | "reset";
 type IdentifierMode = "email" | "phone";
 
 type AuthUser = {
@@ -114,6 +115,7 @@ export function AuthClient() {
     email: string;
     payload: SignupPayload;
   } | null>(null);
+  const [signupExistingIdentifier, setSignupExistingIdentifier] = useState<string | null>(null);
 
   const [loginIdentifierRaw, setLoginIdentifierRaw] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -121,6 +123,12 @@ export function AuthClient() {
   const [loginResendSeconds, setLoginResendSeconds] = useState(0);
   const [loginOtpContext, setLoginOtpContext] = useState<string | null>(null);
   const [loginNotFoundIdentifier, setLoginNotFoundIdentifier] = useState<string | null>(null);
+  const [forgotStep, setForgotStep] = useState<ForgotStep>("identifier");
+  const [forgotOtp, setForgotOtp] = useState("");
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+  const [forgotContextIdentifier, setForgotContextIdentifier] = useState<string | null>(null);
+  const [forgotNotFoundIdentifier, setForgotNotFoundIdentifier] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -220,6 +228,13 @@ export function AuthClient() {
     /^\d{6}$/.test(loginOtp) && !isSubmitting && Boolean(loginOtpContext);
   const canSubmitLoginPassword =
     loginIdentifierValid && loginPassword.length > 0 && !isSubmitting;
+  const canSubmitForgotSend = loginIdentifierValid && !isSubmitting;
+  const canSubmitForgotReset =
+    Boolean(forgotContextIdentifier) &&
+    /^\d{6}$/.test(forgotOtp) &&
+    forgotNewPassword.length >= 5 &&
+    forgotNewPassword === forgotConfirmPassword &&
+    !isSubmitting;
 
   function beginSubmit(): boolean {
     if (submitLockRef.current) {
@@ -244,11 +259,18 @@ export function AuthClient() {
     setIsSubmitting(false);
     setSignupOtp("");
     setLoginOtp("");
+    setForgotOtp("");
+    setForgotNewPassword("");
+    setForgotConfirmPassword("");
     setSignupOtpContext(null);
     setLoginOtpContext(null);
+    setForgotContextIdentifier(null);
     setSignupResendSeconds(0);
     setLoginResendSeconds(0);
+    setForgotStep("identifier");
+    setSignupExistingIdentifier(null);
     setLoginNotFoundIdentifier(null);
+    setForgotNotFoundIdentifier(null);
   }
 
   function switchToSignupWithIdentifier(identifier: string): void {
@@ -263,6 +285,21 @@ export function AuthClient() {
     setLoginStep("identifier");
     setMessage("");
     setLoginNotFoundIdentifier(null);
+  }
+
+  function switchToLoginWithIdentifier(identifier: string): void {
+    const nextMode = detectIdentifierMode(identifier);
+    if (nextMode === "email") {
+      setLoginIdentifierRaw(normalizeEmail(identifier));
+    } else {
+      setLoginIdentifierRaw(sanitizePhone(identifier));
+    }
+    setMode("login");
+    setSignupStep("form");
+    setLoginStep("identifier");
+    setMessage("");
+    setSignupExistingIdentifier(null);
+    setForgotNotFoundIdentifier(null);
   }
 
   function getPostAuthRedirect(role: AuthUser["role"]): string {
@@ -303,6 +340,7 @@ export function AuthClient() {
 
   function handleLoginIdentifierChange(value: string): void {
     setLoginNotFoundIdentifier(null);
+    setForgotNotFoundIdentifier(null);
     if (/[A-Za-z@]/.test(value)) {
       setLoginIdentifierRaw(value);
       return;
@@ -318,6 +356,7 @@ export function AuthClient() {
     }
 
     setMessage("");
+    setSignupExistingIdentifier(null);
 
     try {
       const payload: SignupPayload = {
@@ -337,6 +376,15 @@ export function AuthClient() {
       setSignupResendSeconds(RESEND_COOLDOWN_SECONDS);
       setMessage("We sent a verification code to your email.");
     } catch (error) {
+      if (error instanceof ApiError && error.code === "ACCOUNT_EXISTS") {
+        const details = (error.details as { emailExists?: boolean; phoneExists?: boolean } | undefined) ?? {};
+        const identifierForLogin = details.phoneExists && !details.emailExists
+          ? signupValidation.normalizedPhone
+          : signupValidation.normalizedEmail;
+        setSignupExistingIdentifier(identifierForLogin);
+        setMessage("");
+        return;
+      }
       setFriendlyAuthError(error, "Unable to send signup OTP right now. Please try again.");
     } finally {
       endSubmit();
@@ -508,6 +556,68 @@ export function AuthClient() {
     }
   }
 
+  async function onForgotPasswordSend(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canSubmitForgotSend || !beginSubmit()) {
+      return;
+    }
+
+    setMessage("");
+    setForgotNotFoundIdentifier(null);
+
+    try {
+      await commerceApi.auth.forgotPasswordSend<AuthMessageResponse, { identifier: string }>({
+        identifier: loginIdentifierNormalized
+      });
+      setForgotContextIdentifier(loginIdentifierNormalized);
+      setForgotStep("reset");
+      setMessage("We sent a password reset code.");
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "USER_NOT_FOUND") {
+        setForgotNotFoundIdentifier(loginIdentifierNormalized);
+        setMessage("");
+        return;
+      }
+      setFriendlyAuthError(error, "Unable to send reset OTP right now. Please try again.");
+    } finally {
+      endSubmit();
+    }
+  }
+
+  async function onForgotPasswordReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canSubmitForgotReset || !forgotContextIdentifier || !beginSubmit()) {
+      return;
+    }
+
+    setMessage("");
+    try {
+      const response = await commerceApi.auth.forgotPasswordReset<
+        AuthMessageResponse,
+        {
+          identifier: string;
+          otp: string;
+          newPassword: string;
+          confirmPassword: string;
+        }
+      >({
+        identifier: forgotContextIdentifier,
+        otp: forgotOtp,
+        newPassword: forgotNewPassword,
+        confirmPassword: forgotConfirmPassword
+      });
+      setMessage(response.data.message);
+      setForgotOtp("");
+      setForgotNewPassword("");
+      setForgotConfirmPassword("");
+      setLoginStep("password");
+    } catch (error) {
+      setFriendlyAuthError(error, "Unable to reset password right now. Please try again.");
+    } finally {
+      endSubmit();
+    }
+  }
+
   const signupChecks = signupValidation.checks;
 
   return (
@@ -609,6 +719,25 @@ export function AuthClient() {
           <Button className="mt-2 w-full" type="submit" disabled={!canSubmitSignup}>
             {isSubmitting ? "Sending OTP..." : "Create account"}
           </Button>
+          {signupExistingIdentifier ? (
+            <div className="rounded-xl border border-[var(--line)] bg-[#fcfffc] p-4">
+              <p className="text-sm font-semibold text-[var(--ink-soft)]">
+                An account already exists with this email/phone.
+              </p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Please login to continue.
+              </p>
+              <div className="mt-3">
+                <Button
+                  className="w-full"
+                  type="button"
+                  onClick={() => switchToLoginWithIdentifier(signupExistingIdentifier)}
+                >
+                  Login
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </form>
       ) : null}
 
@@ -826,6 +955,144 @@ export function AuthClient() {
             }}
           >
             Use OTP instead
+          </button>
+          <button
+            className="focus-ring rounded-lg text-left text-sm font-semibold text-[var(--leaf-deep)]"
+            type="button"
+            onClick={() => {
+              setForgotStep("identifier");
+              setForgotOtp("");
+              setForgotNewPassword("");
+              setForgotConfirmPassword("");
+              setForgotContextIdentifier(null);
+              setForgotNotFoundIdentifier(null);
+              setLoginStep("forgot");
+              setMessage("");
+            }}
+          >
+            Forgot password?
+          </button>
+        </form>
+      ) : null}
+
+      {mode === "login" && loginStep === "forgot" && forgotStep === "identifier" ? (
+        <form className="mt-7 space-y-4" onSubmit={onForgotPasswordSend}>
+          <h2 className="text-xl font-semibold text-[var(--ink-soft)]">Reset password</h2>
+          <label className="block">
+            <span className="text-sm font-semibold">Email or mobile</span>
+            <Input
+              className="mt-2"
+              name="identifier"
+              autoComplete="username"
+              placeholder="you@example.com or +919876543210"
+              value={loginIdentifierRaw}
+              onChange={(event) => handleLoginIdentifierChange(event.target.value)}
+            />
+          </label>
+          <Button className="w-full" type="submit" disabled={!canSubmitForgotSend}>
+            {isSubmitting ? "Sending OTP..." : "Send reset OTP"}
+          </Button>
+          <button
+            className="focus-ring rounded-lg text-sm font-semibold text-[var(--leaf-deep)]"
+            type="button"
+            onClick={() => {
+              setLoginStep("password");
+              setMessage("");
+            }}
+          >
+            Back to login
+          </button>
+          {forgotNotFoundIdentifier ? (
+            <div className="rounded-xl border border-[var(--line)] bg-[#fcfffc] p-4">
+              <p className="text-sm font-semibold text-[var(--ink-soft)]">
+                No account found. Create an account.
+              </p>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <Button
+                  className="w-full sm:w-auto sm:flex-1"
+                  type="button"
+                  onClick={() => switchToSignupWithIdentifier(forgotNotFoundIdentifier)}
+                >
+                  Create account
+                </Button>
+                <Button
+                  className="w-full sm:w-auto sm:flex-1"
+                  variant="secondary"
+                  type="button"
+                  onClick={() => {
+                    setForgotNotFoundIdentifier(null);
+                    setLoginIdentifierRaw("");
+                    setMessage("");
+                  }}
+                >
+                  Try another email/phone
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </form>
+      ) : null}
+
+      {mode === "login" && loginStep === "forgot" && forgotStep === "reset" && forgotContextIdentifier ? (
+        <form className="mt-7 space-y-4" onSubmit={onForgotPasswordReset}>
+          <h2 className="text-xl font-semibold text-[var(--ink-soft)]">Set new password</h2>
+          <p className="text-sm text-[var(--muted)]">
+            Code sent to{" "}
+            <span className="font-semibold text-[var(--foreground)]">
+              {detectIdentifierMode(forgotContextIdentifier) === "phone"
+                ? "your registered email"
+                : maskEmail(forgotContextIdentifier)}
+            </span>
+          </p>
+          <label className="block">
+            <span className="text-sm font-semibold">Enter 6-digit OTP</span>
+            <Input
+              className="mt-2 text-base tracking-[0.12em]"
+              name="otp"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="123456"
+              value={forgotOtp}
+              onChange={(event) => setForgotOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            />
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold">New password</span>
+            <Input
+              className="mt-2"
+              type="password"
+              autoComplete="new-password"
+              value={forgotNewPassword}
+              onChange={(event) => setForgotNewPassword(event.target.value)}
+            />
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold">Confirm new password</span>
+            <Input
+              className="mt-2"
+              type="password"
+              autoComplete="new-password"
+              value={forgotConfirmPassword}
+              onChange={(event) => setForgotConfirmPassword(event.target.value)}
+            />
+          </label>
+          <Button className="w-full" type="submit" disabled={!canSubmitForgotReset}>
+            {isSubmitting ? "Updating password..." : "Update password"}
+          </Button>
+          <button
+            className="focus-ring rounded-lg text-sm font-semibold text-[var(--leaf-deep)]"
+            type="button"
+            onClick={() => {
+              setForgotStep("identifier");
+              setForgotOtp("");
+              setForgotNewPassword("");
+              setForgotConfirmPassword("");
+              setForgotContextIdentifier(null);
+              setMessage("");
+            }}
+          >
+            Use a different email/phone
           </button>
         </form>
       ) : null}

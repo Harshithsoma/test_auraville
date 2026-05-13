@@ -346,20 +346,26 @@ export async function signupOtpSend(params: {
 }): Promise<AuthMessageResponse> {
   const email = params.email.trim().toLowerCase();
   const phoneNormalized = safeNormalizePhone(params.phone);
+  const [emailExists, phoneExists] = await Promise.all([
+    prisma.user.findUnique({
+      where: { email },
+      select: { id: true }
+    }),
+    prisma.user.findFirst({
+      where: {
+        OR: [{ phoneNormalized }, { phone: phoneNormalized }]
+      },
+      select: { id: true }
+    })
+  ]);
 
-  const existingUser = await prisma.user.findFirst({
-    where: {
-      OR: [{ email }, { phoneNormalized }, { phone: phoneNormalized }]
-    },
-    select: { id: true }
-  });
-
-  if (existingUser) {
-    return {
-      data: {
-        message: "OTP sent for signup verification"
-      }
-    };
+  if (emailExists || phoneExists) {
+    throw new HttpError(
+      409,
+      "An account already exists with this email/phone.",
+      { emailExists: Boolean(emailExists), phoneExists: Boolean(phoneExists) },
+      "ACCOUNT_EXISTS"
+    );
   }
 
   const hashedPassword = await passwordHash(params.password);
@@ -750,6 +756,153 @@ export async function loginWithPassword(params: {
     }).data,
     refreshToken: session.refreshToken,
     refreshExpiresAt: session.refreshExpiresAt
+  };
+}
+
+export async function forgotPasswordOtpSend(params: {
+  identifier: string;
+}): Promise<AuthMessageResponse> {
+  const identifier = safeResolveIdentifier(params.identifier);
+  const user = await findActiveUserByIdentifier(identifier);
+
+  if (!user || !user.isActive) {
+    throw new HttpError(
+      404,
+      "No account found. Create an account.",
+      undefined,
+      "USER_NOT_FOUND"
+    );
+  }
+
+  const otpDestinationEmail = identifier.identifierType === "EMAIL" ? identifier.value : user.email;
+  const otp = generateOtpCode();
+  const expiresAt = getOtpExpiry();
+  const codeHash = hashOtpChallenge({
+    identifier: otpDestinationEmail,
+    purpose: OtpPurpose.PASSWORD_RESET,
+    otp
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.otpChallenge.updateMany({
+      where: {
+        identifierType: AuthIdentifierType.EMAIL,
+        identifier: otpDestinationEmail,
+        purpose: OtpPurpose.PASSWORD_RESET,
+        consumedAt: null
+      },
+      data: {
+        consumedAt: new Date()
+      }
+    });
+
+    await tx.otpChallenge.create({
+      data: {
+        identifierType: AuthIdentifierType.EMAIL,
+        identifier: otpDestinationEmail,
+        channel: OtpChannel.EMAIL,
+        purpose: OtpPurpose.PASSWORD_RESET,
+        codeHash,
+        expiresAt,
+        maxAttempts: env.OTP_MAX_ATTEMPTS
+      }
+    });
+  });
+
+  try {
+    await sendEmailOtp({
+      email: otpDestinationEmail,
+      otp,
+      purpose: "PASSWORD_RESET"
+    });
+  } catch {
+    throw new HttpError(503, "Unable to send OTP right now. Please try again.", undefined, "OTP_SEND_FAILED");
+  }
+
+  return {
+    data: {
+      message: "OTP sent for password reset"
+    }
+  };
+}
+
+export async function forgotPasswordReset(params: {
+  identifier: string;
+  otp: string;
+  newPassword: string;
+}): Promise<AuthMessageResponse> {
+  const identifier = safeResolveIdentifier(params.identifier);
+  const user = await findActiveUserByIdentifier(identifier);
+
+  if (!user || !user.isActive) {
+    throw new HttpError(
+      404,
+      "No account found. Create an account.",
+      undefined,
+      "USER_NOT_FOUND"
+    );
+  }
+
+  const otpIdentifier = identifier.identifierType === "EMAIL" ? identifier.value : user.email;
+
+  const challenge = await prisma.otpChallenge.findFirst({
+    where: {
+      identifierType: AuthIdentifierType.EMAIL,
+      identifier: otpIdentifier,
+      purpose: OtpPurpose.PASSWORD_RESET,
+      consumedAt: null
+    },
+    orderBy: {
+      createdAt: "desc"
+    }
+  });
+
+  if (!challenge) {
+    throw new HttpError(400, "Invalid or expired OTP");
+  }
+
+  assertOtpChallengeUsable(challenge);
+
+  const isValidOtp = verifyOtpChallenge({
+    identifier: otpIdentifier,
+    purpose: OtpPurpose.PASSWORD_RESET,
+    otp: params.otp,
+    expectedHash: challenge.codeHash
+  });
+
+  if (!isValidOtp) {
+    await prisma.otpChallenge.update({
+      where: { id: challenge.id },
+      data: {
+        attempts: {
+          increment: 1
+        }
+      }
+    });
+    throw new HttpError(400, "Invalid or expired OTP");
+  }
+
+  const nextPasswordHash = await passwordHash(params.newPassword);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.otpChallenge.update({
+      where: { id: challenge.id },
+      data: { consumedAt: new Date() }
+    });
+
+    await tx.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: nextPasswordHash,
+        passwordUpdatedAt: new Date()
+      }
+    });
+  });
+
+  return {
+    data: {
+      message: "Password updated successfully. Please login."
+    }
   };
 }
 

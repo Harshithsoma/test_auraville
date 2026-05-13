@@ -1,7 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../prisma/prisma.service";
 import { HttpError } from "../../utils/http-error";
-import { invalidateProductsListCache } from "../products/products.service";
+import { dispatchBackInStockNotifications, invalidateProductsListCache } from "../products/products.service";
+import { sendDeliveredOrderReviewRequestEmails } from "../reviews/reviews.service";
 import type {
   AdminCategoryResponse,
   AdminCouponResponse,
@@ -82,6 +83,18 @@ type AdminProductRecord = {
     isActive: boolean;
   }>;
 };
+
+function triggerBackInStockNotifications(productId: string): void {
+  void dispatchBackInStockNotifications(productId).catch((error) => {
+    if (process.env.NODE_ENV !== "test") {
+      // eslint-disable-next-line no-console
+      console.error("Back-in-stock notification dispatch failed", {
+        productId,
+        name: error instanceof Error ? error.name : "UnknownError"
+      });
+    }
+  });
+}
 
 function toApiAvailability(value: "available" | "coming_soon"): "available" | "coming-soon" {
   return value === "coming_soon" ? "coming-soon" : "available";
@@ -812,6 +825,9 @@ export async function adminCreateVariant(params: {
     }
   });
   invalidateProductsListCache();
+  if (created.isActive && created.stock > 0) {
+    triggerBackInStockNotifications(route.id);
+  }
 
   return {
     data: {
@@ -843,7 +859,9 @@ export async function adminPatchVariant(params: {
     },
     select: {
       id: true,
-      frontendVariantId: true
+      frontendVariantId: true,
+      stock: true,
+      isActive: true
     }
   });
 
@@ -910,6 +928,9 @@ export async function adminPatchVariant(params: {
     }
   });
   invalidateProductsListCache();
+  if (updated.isActive && updated.stock > 0) {
+    triggerBackInStockNotifications(route.id);
+  }
 
   return {
     data: {
@@ -1647,6 +1668,18 @@ export async function adminPatchOrderStatus(params: {
       status: true
     }
   });
+
+  if (order.status !== "delivered" && updated.status === "delivered") {
+    void sendDeliveredOrderReviewRequestEmails(updated.id).catch((error) => {
+      if (process.env.NODE_ENV !== "test") {
+        // eslint-disable-next-line no-console
+        console.error("Delivered review request email dispatch failed", {
+          orderId: updated.id,
+          name: error instanceof Error ? error.name : "UnknownError"
+        });
+      }
+    });
+  }
 
   return {
     data: {

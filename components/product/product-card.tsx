@@ -1,12 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { FormEvent, useState } from "react";
 import type { Product } from "@/types/product";
 import { PriceWithCompare } from "@/components/ui/price";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { useCartStore } from "@/stores/cart-store";
+import { selectCardDisplayVariant } from "@/components/product/card-variant";
+import { useNotifyMe } from "@/hooks/use-notify-me";
 
 type ProductCardProps = {
   product: Product;
@@ -15,6 +17,7 @@ type ProductCardProps = {
 
 export function ProductCard({ product, priority = false }: ProductCardProps) {
   const isAvailable = product.availability === "available";
+  const [status, setStatus] = useState("");
   const items = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
   const openDrawer = useCartStore((state) => state.openDrawer);
@@ -22,19 +25,26 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
   const removeItem = useCartStore((state) => state.removeItem);
   const getAvailableStock = useCartStore((state) => state.getAvailableStock);
   const pushCartNotice = useCartStore((state) => state.pushCartNotice);
-  const variant = product.variants[0];
+  const { variant, isOutOfStock, compareAtPrice } = selectCardDisplayVariant(product);
+  const { notify, isSubmitting: isNotifySubmitting } = useNotifyMe({
+    onSuccess: (message) => setStatus(message),
+    onError: (message) => setStatus(message)
+  });
   const cartItem = variant
     ? items.find((item) => item.productId === product.id && item.variantId === variant.id)
     : undefined;
   const quantity = cartItem?.quantity ?? 0;
+  const displayPrice = variant?.price ?? product.price;
   const availableStock = variant ? getAvailableStock(product.id, variant.id) ?? variant.stock ?? null : null;
-
-  const [notifyOpen, setNotifyOpen] = useState(false);
-  const [notifyContact, setNotifyContact] = useState("");
-  const [notifyStatus, setNotifyStatus] = useState("");
+  const canPurchase = isAvailable && Boolean(variant) && !isOutOfStock;
 
   function addToCart(openCart = false) {
     if (!variant) return;
+    if (!isAvailable) return;
+    if (isOutOfStock) {
+      pushCartNotice("No more quantity available.");
+      return;
+    }
     if (typeof availableStock === "number" && availableStock <= 0) {
       pushCartNotice("No more quantity available.");
       return;
@@ -78,34 +88,6 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
     addToCart(true);
   }
 
-  function submitNotify(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const value = notifyContact.trim();
-    const valid =
-      /^\S+@\S+\.\S+$/.test(value) || /^(?:\+?\d{1,3}[- ]?)?\d{10}$/.test(value.replace(/\s+/g, ""));
-
-    if (!valid) {
-      setNotifyStatus("Enter a valid email or phone number.");
-      return;
-    }
-
-    const requests = JSON.parse(localStorage.getItem("auraville-notify-requests") ?? "[]") as Array<{
-      productId: string;
-      productName: string;
-      contact: string;
-      createdAt: string;
-    }>;
-    requests.push({
-      productId: product.id,
-      productName: product.name,
-      contact: value,
-      createdAt: new Date().toISOString()
-    });
-    localStorage.setItem("auraville-notify-requests", JSON.stringify(requests));
-    setNotifyStatus("Thanks. We will notify you when this is back in stock.");
-    setNotifyContact("");
-  }
-
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99]">
       <Link className="focus-ring block rounded-lg" href={`/product/${product.slug}`}>
@@ -119,7 +101,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
             src={product.image}
           />
           <span className="absolute left-2 top-2 rounded-full bg-white px-2 py-1 text-[10px] font-bold uppercase text-[var(--leaf-deep)]">
-            {isAvailable ? "Available Now" : "Out of Stock"}
+            {isAvailable ? (canPurchase ? "Available Now" : "Out of Stock") : "Out of Stock"}
           </span>
         </div>
       </Link>
@@ -133,19 +115,24 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
           <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
         </div>
         <div className="mt-2 text-sm sm:text-base">
-          {isAvailable ? (
+          {canPurchase ? (
             <PriceWithCompare
-              compareAtPrice={product.compareAtPrice}
+              compareAtPrice={compareAtPrice}
               currency={product.currency}
-              value={product.price}
+              value={displayPrice}
             />
           ) : (
-            <p className="font-bold">Coming Soon</p>
+            <p className="font-bold">{isAvailable ? "Out of Stock" : "Coming Soon"}</p>
           )}
         </div>
+        {canPurchase && typeof availableStock === "number" && availableStock > 0 && availableStock <= 5 ? (
+          <p className="mt-1 text-[11px] font-semibold text-[var(--coral)]">
+            {availableStock === 1 ? "Only 1 left" : `Only ${availableStock} left`}
+          </p>
+        ) : null}
 
         <div className="mt-auto">
-          {isAvailable ? (
+          {canPurchase ? (
             quantity === 0 ? (
               <button
                 className="focus-ring mt-3 inline-flex h-9 w-full items-center justify-center rounded-lg border border-[var(--leaf)] bg-[var(--leaf)] px-3 text-xs font-semibold text-white transition active:scale-95 sm:h-10 sm:text-sm"
@@ -179,35 +166,24 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
               </div>
             )
           ) : (
-            <>
-              <button
-                className="focus-ring mt-3 inline-flex h-9 w-full items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 text-xs font-semibold text-[var(--leaf-deep)] transition active:scale-95 sm:h-10 sm:text-sm"
-                type="button"
-                onClick={() => setNotifyOpen((current) => !current)}
-              >
-                Notify Me
-              </button>
-              {notifyOpen ? (
-                <form className="mt-3 space-y-2" onSubmit={submitNotify}>
-                  <input
-                    aria-label={`Email or phone for ${product.name}`}
-                    className="focus-ring h-9 w-full rounded-lg border border-[var(--line)] px-3 text-xs text-[var(--foreground)] sm:text-sm"
-                    placeholder="Email or phone"
-                    type="text"
-                    value={notifyContact}
-                    onChange={(event) => setNotifyContact(event.target.value)}
-                  />
-                  <button
-                    className="focus-ring inline-flex h-9 w-full items-center justify-center rounded-lg border border-[var(--leaf)] bg-white px-3 text-xs font-semibold text-[var(--leaf-deep)] transition active:scale-95 sm:text-sm"
-                    type="submit"
-                  >
-                    Submit
-                  </button>
-                  {notifyStatus ? <p className="text-[11px] text-[var(--leaf-deep)]">{notifyStatus}</p> : null}
-                </form>
-              ) : null}
-            </>
+            <button
+              className="focus-ring mt-3 inline-flex h-9 w-full items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 text-xs font-semibold text-[var(--leaf-deep)] transition active:scale-95 sm:h-10 sm:text-sm"
+              type="button"
+              disabled={isNotifySubmitting}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void notify({ id: product.id, slug: product.slug });
+              }}
+            >
+              {isNotifySubmitting ? "Saving..." : "Notify Me"}
+            </button>
           )}
+          {status ? (
+            <p className="mt-2 text-[11px] font-medium text-[var(--leaf-deep)]" aria-live="polite">
+              {status}
+            </p>
+          ) : null}
         </div>
       </div>
     </article>
