@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ReviewMailer } from "@/components/layout/review-mailer";
 
 const links = [
   { label: "Shop", href: "/products" },
@@ -56,7 +55,7 @@ export function Footer({
 
   return (
     <footer className="mt-24 border-t border-[var(--line)] bg-white">
-      <div className="container-page hidden gap-10 py-12 md:grid md:grid-cols-[1.2fr_0.8fr_0.85fr_0.95fr_1fr]">
+      <div className="container-page hidden gap-10 py-12 md:grid md:grid-cols-[1.2fr_0.8fr_0.85fr_0.95fr]">
         <div>
           <Link className="brand-mark focus-ring inline-block rounded-lg text-2xl font-bold" href="/">
             Auraville
@@ -124,12 +123,6 @@ export function Footer({
               </li>
             ))}
           </ul>
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold">Reviews</h2>
-          <div className="mt-4">
-            <ReviewMailer />
-          </div>
         </div>
       </div>
 
@@ -204,12 +197,6 @@ export function Footer({
             </ul>
           </details>
 
-          <details className="rounded-lg border border-[var(--line)] bg-[var(--mint)] p-4">
-            <summary className="cursor-pointer list-none text-sm font-semibold">Reviews</summary>
-            <div className="mt-4">
-              <ReviewMailer />
-            </div>
-          </details>
         </div>
       </div>
     </footer>

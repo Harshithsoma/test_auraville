@@ -95,6 +95,9 @@ const baseReviews: Review[] = [
   }
 ];
 
+const REVIEW_SUBJECT_MAX_LENGTH = 80;
+const REVIEW_BODY_MAX_LENGTH = 500;
+
 function subscribeToViewport(callback: () => void) {
   window.addEventListener("resize", callback);
   return () => window.removeEventListener("resize", callback);
@@ -113,10 +116,6 @@ function mapBackendReviews(response: ReviewsListResponse): Review[] {
     rating: item.rating,
     productId: item.productId
   }));
-}
-
-function needsReadMore(text: string): boolean {
-  return text.trim().length > 180;
 }
 
 export function ReviewsSlider({
@@ -138,7 +137,6 @@ export function ReviewsSlider({
   const [rating, setRating] = useState(0);
   const [formMessage, setFormMessage] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  const [expandedReview, setExpandedReview] = useState<Review | null>(null);
 
   const cloneCount = Math.min(visibleCards, reviews.length);
   const loopReviews = useMemo(() => {
@@ -221,17 +219,6 @@ export function ReviewsSlider({
     window.addEventListener("keydown", onEscape);
     return () => window.removeEventListener("keydown", onEscape);
   }, [isComposerOpen]);
-
-  useEffect(() => {
-    if (!expandedReview) return;
-    function onEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setExpandedReview(null);
-      }
-    }
-    window.addEventListener("keydown", onEscape);
-    return () => window.removeEventListener("keydown", onEscape);
-  }, [expandedReview]);
 
   function silentJump(nextOffset: number) {
     setIsTransitionEnabled(false);
@@ -403,16 +390,9 @@ export function ReviewsSlider({
                       </div>
                       <p className="text-sm font-semibold text-[var(--leaf-deep)]">{"★".repeat(review.rating)}</p>
                     </div>
-                    <p className="mt-4 line-clamp-4 text-sm leading-6 text-[var(--muted)]">{review.text}</p>
-                    {needsReadMore(review.text) ? (
-                      <button
-                        className="focus-ring mt-3 rounded text-xs font-semibold text-[var(--leaf-deep)] underline"
-                        type="button"
-                        onClick={() => setExpandedReview(review)}
-                      >
-                        Read more
-                      </button>
-                    ) : null}
+                    <div className="mt-4 max-h-36 overflow-y-auto pr-1">
+                      <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">{review.text}</p>
+                    </div>
                   </div>
                 </article>
               ))}
@@ -473,11 +453,27 @@ export function ReviewsSlider({
               <form className="mt-5 space-y-4" onSubmit={(event) => void submitReview(event)}>
                 <label className="block">
                   <span className="text-sm font-semibold">Subject</span>
-                  <Input className="mt-2" value={subject} onChange={(event) => setSubject(event.target.value)} />
+                  <Input
+                    className="mt-2"
+                    maxLength={REVIEW_SUBJECT_MAX_LENGTH}
+                    value={subject}
+                    onChange={(event) => setSubject(event.target.value)}
+                  />
+                  <p className="mt-1 text-right text-xs text-[var(--muted)]">
+                    {subject.length}/{REVIEW_SUBJECT_MAX_LENGTH}
+                  </p>
                 </label>
                 <label className="block">
                   <span className="text-sm font-semibold">Review</span>
-                  <Textarea className="mt-2 min-h-28" value={body} onChange={(event) => setBody(event.target.value)} />
+                  <Textarea
+                    className="mt-2 min-h-28"
+                    maxLength={REVIEW_BODY_MAX_LENGTH}
+                    value={body}
+                    onChange={(event) => setBody(event.target.value)}
+                  />
+                  <p className="mt-1 text-right text-xs text-[var(--muted)]">
+                    {body.length}/{REVIEW_BODY_MAX_LENGTH}
+                  </p>
                 </label>
 
                 <div>
@@ -515,42 +511,6 @@ export function ReviewsSlider({
               </div>
             )}
           </div>
-        </div>
-      ) : null}
-
-      {expandedReview ? (
-        <div className="fixed inset-0 z-[145] flex items-end justify-center bg-black/40 p-4 sm:items-center">
-          <button
-            aria-label="Close full review"
-            className="absolute inset-0"
-            type="button"
-            onClick={() => setExpandedReview(null)}
-          />
-          <article className="relative z-10 w-full max-w-xl rounded-2xl border border-[var(--line)] bg-white p-5 shadow-lg sm:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-lg font-semibold">{expandedReview.subject}</p>
-                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                  {expandedReview.name}
-                </p>
-              </div>
-              <button
-                aria-label="Close full review"
-                className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--line)] text-lg"
-                type="button"
-                onClick={() => setExpandedReview(null)}
-              >
-                ×
-              </button>
-            </div>
-            <p className="mt-4 text-sm font-semibold text-[var(--leaf-deep)]">
-              {"★".repeat(expandedReview.rating)}
-            </p>
-            {expandedReview.productId ? (
-              <p className="mt-1 text-xs text-[var(--muted)]">Product: {expandedReview.productId}</p>
-            ) : null}
-            <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">{expandedReview.text}</p>
-          </article>
         </div>
       ) : null}
 

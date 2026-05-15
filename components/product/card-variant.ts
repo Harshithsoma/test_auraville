@@ -6,20 +6,71 @@ export type DisplayVariantSelection = {
   compareAtPrice?: number;
 };
 
-function computeVariantCompareAtPrice(product: Product, variant: ProductVariant): number | undefined {
-  if (!product.compareAtPrice || product.compareAtPrice <= product.price || product.price <= 0) {
-    return undefined;
-  }
+type VariantContext = "default" | "featured" | "bestSeller";
 
-  const ratio = product.compareAtPrice / product.price;
-  const variantCompareAtPrice = Math.round(variant.price * ratio);
-  return variantCompareAtPrice > variant.price ? variantCompareAtPrice : undefined;
+function isInStock(variant: ProductVariant): boolean {
+  return (variant.stock ?? 0) > 0;
 }
 
-export function selectCardDisplayVariant(product: Product): DisplayVariantSelection {
-  const inStockVariant = product.variants.find((variant) => (variant.stock ?? 0) > 0);
-  const firstVariant = product.variants[0] ?? null;
-  const variant = inStockVariant ?? firstVariant;
+function sortByDisplayPriority(variants: ProductVariant[]): ProductVariant[] {
+  return [...variants].sort((a, b) => {
+    const stockRankA = isInStock(a) ? 0 : 1;
+    const stockRankB = isInStock(b) ? 0 : 1;
+    if (stockRankA !== stockRankB) return stockRankA - stockRankB;
+    return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+  });
+}
+
+function pickVariantByContext(product: Product, context: VariantContext): ProductVariant | null {
+  const variants = product.variants ?? [];
+  if (!variants.length) return null;
+
+  const ordered = sortByDisplayPriority(variants);
+  if (context === "featured") {
+    return (
+      ordered.find((variant) => variant.isFeatured && isInStock(variant)) ??
+      ordered.find((variant) => variant.isFeatured) ??
+      ordered[0] ??
+      null
+    );
+  }
+
+  if (context === "bestSeller") {
+    return (
+      ordered.find((variant) => variant.isBestSeller && isInStock(variant)) ??
+      ordered.find((variant) => variant.isBestSeller) ??
+      ordered[0] ??
+      null
+    );
+  }
+
+  return ordered[0] ?? null;
+}
+
+function computeVariantCompareAtPrice(variant: ProductVariant): number | undefined {
+  const compareAt = variant.compareAtPrice;
+  if (!compareAt || compareAt <= variant.price) {
+    return undefined;
+  }
+  return compareAt;
+}
+
+export function getVariantCompareAtPrice(_product: Product, variant: ProductVariant): number | undefined {
+  return computeVariantCompareAtPrice(variant);
+}
+
+export function selectDefaultProductVariant(variants: ProductVariant[]): ProductVariant | null {
+  if (!variants.length) {
+    return null;
+  }
+  return sortByDisplayPriority(variants)[0] ?? null;
+}
+
+export function selectContextDisplayVariant(
+  product: Product,
+  context: VariantContext
+): DisplayVariantSelection {
+  const variant = pickVariantByContext(product, context);
 
   if (!variant) {
     return {
@@ -30,7 +81,11 @@ export function selectCardDisplayVariant(product: Product): DisplayVariantSelect
 
   return {
     variant,
-    isOutOfStock: (variant.stock ?? 0) <= 0,
-    compareAtPrice: computeVariantCompareAtPrice(product, variant)
+    isOutOfStock: !isInStock(variant),
+    compareAtPrice: computeVariantCompareAtPrice(variant)
   };
+}
+
+export function selectCardDisplayVariant(product: Product): DisplayVariantSelection {
+  return selectContextDisplayVariant(product, "default");
 }

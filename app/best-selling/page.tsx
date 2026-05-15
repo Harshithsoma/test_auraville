@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ProductCard } from "@/components/product/product-card";
 import { fetchProducts } from "@/lib/catalog-api";
+import { sortStorefrontProducts } from "@/lib/storefront-product-order";
 import { absoluteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -29,7 +30,7 @@ export default async function BestSellingPage() {
       bestSeller: true,
       sort: "popular"
     });
-    bestSellers = response.data;
+    bestSellers = sortStorefrontProducts(response.data);
   } catch {
     // Keep empty state when API is unavailable to avoid stale storefront flags.
   }
@@ -49,7 +50,7 @@ export default async function BestSellingPage() {
       {bestSellers.length > 0 ? (
         <section className="mt-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-label="Best-selling products">
           {bestSellers.map((product, index) => (
-            <ProductCard key={product.id} priority={index < 3} product={product} />
+            <ProductCard key={product.id} priority={index < 3} product={product} variantContext="bestSeller" />
           ))}
         </section>
       ) : (

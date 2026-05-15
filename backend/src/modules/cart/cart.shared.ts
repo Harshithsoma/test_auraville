@@ -1,5 +1,5 @@
 import { prisma } from "../../prisma/prisma.service";
-import { calculateCompareAtUnitPrice } from "../../utils/pricing";
+import { calculateVariantCompareAtUnitPrice } from "../../utils/pricing";
 import { HttpError } from "../../utils/http-error";
 import type { CartPriceItemInput, CartPriceResponseItem } from "./cart.types";
 
@@ -57,8 +57,6 @@ export async function enrichCartItems(items: CartPriceItemInput[]): Promise<Vali
         slug: true,
         name: true,
         image: true,
-        price: true,
-        compareAtPrice: true,
         availability: true,
         isActive: true
       }
@@ -71,6 +69,7 @@ export async function enrichCartItems(items: CartPriceItemInput[]): Promise<Vali
         frontendVariantId: true,
         label: true,
         price: true,
+        compareAtPrice: true,
         stock: true,
         isActive: true
       }
@@ -132,10 +131,9 @@ export async function enrichCartItems(items: CartPriceItemInput[]): Promise<Vali
     }
 
     const unitPrice = variant.price;
-    const compareAtUnitPrice = calculateCompareAtUnitPrice({
-      productPrice: product.price,
-      productCompareAtPrice: product.compareAtPrice,
-      variantPrice: unitPrice
+    const compareAtUnitPrice = calculateVariantCompareAtUnitPrice({
+      variantPrice: unitPrice,
+      variantCompareAtPrice: variant.compareAtPrice
     });
 
     enrichedItems.push({

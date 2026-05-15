@@ -26,7 +26,20 @@ function toDbAvailability(value: "available" | "coming-soon"): "available" | "co
   return value === "coming-soon" ? "coming_soon" : "available";
 }
 
-function mapProduct(product: {
+type StorefrontVariantRecord = {
+  frontendVariantId: string;
+  label: string;
+  price: number;
+  compareAtPrice: number | null;
+  discountPercent: number;
+  unit: string;
+  stock: number;
+  isFeatured: boolean;
+  isBestSeller: boolean;
+  sortOrder: number;
+};
+
+type StorefrontProductRecord = {
   id: string;
   slug: string;
   name: string;
@@ -51,11 +64,68 @@ function mapProduct(product: {
   benefits: string[];
   category: { name: string };
   images: Array<{ url: string; position: number }>;
-  variants: Array<{ frontendVariantId: string; label: string; price: number; unit: string; stock: number }>;
-}): ProductApiResponse {
+  variants: StorefrontVariantRecord[];
+};
+
+function getVariantPriority(variant: StorefrontVariantRecord): number {
+  if (variant.stock > 0) {
+    return 0;
+  }
+  return 1;
+}
+
+function sortVariants(
+  variants: StorefrontVariantRecord[],
+  context: "default" | "featured" | "bestSeller"
+): StorefrontVariantRecord[] {
+  return [...variants].sort((a, b) => {
+    const aFlag = context === "featured" ? a.isFeatured : context === "bestSeller" ? a.isBestSeller : true;
+    const bFlag = context === "featured" ? b.isFeatured : context === "bestSeller" ? b.isBestSeller : true;
+    const aFlagRank = aFlag ? 0 : 1;
+    const bFlagRank = bFlag ? 0 : 1;
+    if (aFlagRank !== bFlagRank) {
+      return aFlagRank - bFlagRank;
+    }
+
+    const stockRankDelta = getVariantPriority(a) - getVariantPriority(b);
+    if (stockRankDelta !== 0) {
+      return stockRankDelta;
+    }
+
+    const sortOrderDelta = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    if (sortOrderDelta !== 0) {
+      return sortOrderDelta;
+    }
+
+    return 0;
+  });
+}
+
+function mapProduct(
+  product: StorefrontProductRecord,
+  context: "default" | "featured" | "bestSeller" = "default"
+): ProductApiResponse {
   const gallery = product.images
     .sort((a, b) => a.position - b.position)
     .map((image) => image.url);
+  const orderedVariants = sortVariants(product.variants, context);
+  const primaryVariant = orderedVariants[0] ?? null;
+  const mappedVariants = orderedVariants.map((variant) => ({
+    id: variant.frontendVariantId,
+    label: variant.label,
+    price: variant.price,
+    ...(variant.compareAtPrice !== null && variant.compareAtPrice > variant.price
+      ? { compareAtPrice: variant.compareAtPrice }
+      : {}),
+    discountPercent: variant.discountPercent,
+    unit: variant.unit,
+    stock: variant.stock,
+    isFeatured: variant.isFeatured,
+    isBestSeller: variant.isBestSeller,
+    sortOrder: variant.sortOrder
+  }));
+  const hasFeaturedVariant = product.variants.some((variant) => variant.isFeatured && variant.stock > 0);
+  const hasBestSellerVariant = product.variants.some((variant) => variant.isBestSeller && variant.stock > 0);
 
   return {
     id: product.id,
@@ -64,8 +134,14 @@ function mapProduct(product: {
     tagline: product.tagline,
     description: product.description,
     longDescription: product.longDescription,
-    price: product.price,
-    ...(product.compareAtPrice !== null ? { compareAtPrice: product.compareAtPrice } : {}),
+    price: primaryVariant?.price ?? product.price,
+    ...(primaryVariant?.compareAtPrice !== null &&
+    primaryVariant?.compareAtPrice !== undefined &&
+    primaryVariant.compareAtPrice > (primaryVariant?.price ?? 0)
+      ? { compareAtPrice: primaryVariant.compareAtPrice }
+      : product.compareAtPrice !== null && product.compareAtPrice > (primaryVariant?.price ?? product.price)
+        ? { compareAtPrice: product.compareAtPrice }
+        : {}),
     ...(product.promoLabel !== null ? { promoLabel: product.promoLabel } : {}),
     currency: product.currency as "INR",
     image: product.image,
@@ -75,20 +151,14 @@ function mapProduct(product: {
     ...(product.releaseNote !== null ? { releaseNote: product.releaseNote } : {}),
     rating: typeof product.rating === "number" ? product.rating : Number(product.rating),
     reviewCount: product.reviewCount,
-    isFeatured: product.isFeatured,
-    isBestSeller: product.isBestSeller,
+    isFeatured: hasFeaturedVariant || product.isFeatured,
+    isBestSeller: hasBestSellerVariant || product.isBestSeller,
     isNew: product.isNew,
     ...(product.badgeLabel !== null ? { badgeLabel: product.badgeLabel } : {}),
     popularity: product.popularity,
     ingredients: product.ingredients,
     benefits: product.benefits,
-    variants: product.variants.map((variant) => ({
-      id: variant.frontendVariantId,
-      label: variant.label,
-      price: variant.price,
-      unit: variant.unit,
-      stock: variant.stock
-    }))
+    variants: mappedVariants
   };
 }
 
@@ -150,6 +220,64 @@ export async function listProducts(query: ProductListQuery): Promise<ProductList
     return cached;
   }
 
+  const variantFlagFilters: Array<Record<string, unknown>> = [];
+
+  if (typeof query.featured === "boolean") {
+    if (query.featured) {
+      variantFlagFilters.push({
+        variants: {
+          some: {
+            isActive: true,
+            isFeatured: true,
+            stock: {
+              gt: 0
+            }
+          }
+        }
+      });
+    } else {
+      variantFlagFilters.push({
+        variants: {
+          none: {
+            isActive: true,
+            isFeatured: true,
+            stock: {
+              gt: 0
+            }
+          }
+        }
+      });
+    }
+  }
+
+  if (typeof query.bestSeller === "boolean") {
+    if (query.bestSeller) {
+      variantFlagFilters.push({
+        variants: {
+          some: {
+            isActive: true,
+            isBestSeller: true,
+            stock: {
+              gt: 0
+            }
+          }
+        }
+      });
+    } else {
+      variantFlagFilters.push({
+        variants: {
+          none: {
+            isActive: true,
+            isBestSeller: true,
+            stock: {
+              gt: 0
+            }
+          }
+        }
+      });
+    }
+  }
+
   const where = {
     isActive: true,
     ...(query.category
@@ -171,10 +299,9 @@ export async function listProducts(query: ProductListQuery): Promise<ProductList
           ]
         }
       : {}),
-    ...(typeof query.featured === "boolean" ? { isFeatured: query.featured } : {}),
-    ...(typeof query.bestSeller === "boolean" ? { isBestSeller: query.bestSeller } : {}),
     ...(typeof query.isNew === "boolean" ? { isNew: query.isNew } : {}),
-    ...(query.availability ? { availability: toDbAvailability(query.availability) } : {})
+    ...(query.availability ? { availability: toDbAvailability(query.availability) } : {}),
+    ...(variantFlagFilters.length > 0 ? { AND: variantFlagFilters } : {})
   };
 
   const [total, products] = await Promise.all([
@@ -190,11 +317,16 @@ export async function listProducts(query: ProductListQuery): Promise<ProductList
             frontendVariantId: true,
             label: true,
             price: true,
+            compareAtPrice: true,
+            discountPercent: true,
             unit: true,
             stock: true,
+            isFeatured: true,
+            isBestSeller: true,
+            sortOrder: true,
             createdAt: true
           },
-          orderBy: [{ createdAt: "asc" }]
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
         }
       },
       orderBy: parseSort(query.sort),
@@ -233,8 +365,13 @@ export async function listProducts(query: ProductListQuery): Promise<ProductList
         frontendVariantId: string;
         label: string;
         price: number;
+        compareAtPrice: number | null;
+        discountPercent: number;
         unit: string;
         stock: number;
+        isFeatured: boolean;
+        isBestSeller: boolean;
+        sortOrder: number;
       }>;
     }) =>
       mapProduct({
@@ -243,16 +380,26 @@ export async function listProducts(query: ProductListQuery): Promise<ProductList
           frontendVariantId: string;
           label: string;
           price: number;
+          compareAtPrice: number | null;
+          discountPercent: number;
           unit: string;
           stock: number;
+          isFeatured: boolean;
+          isBestSeller: boolean;
+          sortOrder: number;
         }) => ({
           frontendVariantId: variant.frontendVariantId,
           label: variant.label,
           price: variant.price,
+          compareAtPrice: variant.compareAtPrice,
+          discountPercent: variant.discountPercent,
           unit: variant.unit,
-          stock: variant.stock
+          stock: variant.stock,
+          isFeatured: variant.isFeatured,
+          isBestSeller: variant.isBestSeller,
+          sortOrder: variant.sortOrder
         }))
-      })
+      }, query.featured ? "featured" : query.bestSeller ? "bestSeller" : "default")
     ),
     pagination: {
       page: query.page,
@@ -281,11 +428,16 @@ export async function getProductBySlug(slug: string): Promise<ProductApiResponse
           frontendVariantId: true,
           label: true,
           price: true,
+          compareAtPrice: true,
+          discountPercent: true,
           unit: true,
           stock: true,
+          isFeatured: true,
+          isBestSeller: true,
+          sortOrder: true,
           createdAt: true
         },
-        orderBy: [{ createdAt: "asc" }]
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
       }
     }
   });
@@ -300,14 +452,24 @@ export async function getProductBySlug(slug: string): Promise<ProductApiResponse
       frontendVariantId: string;
       label: string;
       price: number;
+      compareAtPrice: number | null;
+      discountPercent: number;
       unit: string;
       stock: number;
+      isFeatured: boolean;
+      isBestSeller: boolean;
+      sortOrder: number;
     }) => ({
       frontendVariantId: variant.frontendVariantId,
       label: variant.label,
       price: variant.price,
+      compareAtPrice: variant.compareAtPrice,
+      discountPercent: variant.discountPercent,
       unit: variant.unit,
-      stock: variant.stock
+      stock: variant.stock,
+      isFeatured: variant.isFeatured,
+      isBestSeller: variant.isBestSeller,
+      sortOrder: variant.sortOrder
     }))
   });
 }

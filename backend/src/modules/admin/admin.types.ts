@@ -4,9 +4,14 @@ export type AdminProductVariantResponse = {
   id: string;
   label: string;
   price: number;
+  compareAtPrice: number | null;
+  discountPercent: number;
   unit: string;
   stock: number;
   sku: string | null;
+  isFeatured: boolean;
+  isBestSeller: boolean;
+  sortOrder: number;
   isActive: boolean;
 };
 

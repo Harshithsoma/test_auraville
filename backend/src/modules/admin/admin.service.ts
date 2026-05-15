@@ -22,7 +22,9 @@ import type {
   AdminDeleteReviewValidatedInput,
   AdminDeleteCategoryValidatedInput,
   AdminDeleteProductValidatedInput,
+  AdminHardDeleteProductValidatedInput,
   AdminDeleteVariantValidatedInput,
+  AdminHardDeleteVariantValidatedInput,
   AdminGetProductByIdValidatedInput,
   AdminGetOrderByIdValidatedInput,
   AdminListCouponsValidatedInput,
@@ -77,9 +79,14 @@ type AdminProductRecord = {
     frontendVariantId: string;
     label: string;
     price: number;
+    compareAtPrice: number | null;
+    discountPercent: number;
     unit: string;
     stock: number;
     sku: string | null;
+    isFeatured: boolean;
+    isBestSeller: boolean;
+    sortOrder: number;
     isActive: boolean;
   }>;
 };
@@ -92,6 +99,52 @@ function triggerBackInStockNotifications(productId: string): void {
         productId,
         name: error instanceof Error ? error.name : "UnknownError"
       });
+    }
+  });
+}
+
+async function syncLegacyProductProjection(productId: string): Promise<void> {
+  const variants = await prisma.productVariant.findMany({
+    where: { productId },
+    select: {
+      price: true,
+      compareAtPrice: true,
+      isFeatured: true,
+      isBestSeller: true,
+      isActive: true,
+      stock: true,
+      sortOrder: true,
+      createdAt: true
+    }
+  });
+
+  if (variants.length === 0) {
+    return;
+  }
+
+  const ordered = [...variants].sort((a, b) => {
+    const aRank = a.isActive && a.stock > 0 ? 0 : a.isActive ? 1 : 2;
+    const bRank = b.isActive && b.stock > 0 ? 0 : b.isActive ? 1 : 2;
+    if (aRank !== bRank) return aRank - bRank;
+    const sortDelta = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    if (sortDelta !== 0) return sortDelta;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
+
+  const primary = ordered[0];
+  if (!primary) {
+    return;
+  }
+  const hasFeatured = variants.some((variant) => variant.isActive && variant.stock > 0 && variant.isFeatured);
+  const hasBestSeller = variants.some((variant) => variant.isActive && variant.stock > 0 && variant.isBestSeller);
+
+  await prisma.product.update({
+    where: { id: productId },
+    data: {
+      price: primary.price,
+      compareAtPrice: toPublicCompareAtPrice(primary.compareAtPrice, primary.price),
+      isFeatured: hasFeatured,
+      isBestSeller: hasBestSeller
     }
   });
 }
@@ -144,9 +197,14 @@ function mapAdminProduct(product: AdminProductRecord): AdminProductResponse {
       id: variant.frontendVariantId,
       label: variant.label,
       price: variant.price,
+      compareAtPrice: toPublicCompareAtPrice(variant.compareAtPrice, variant.price),
+      discountPercent: variant.discountPercent,
       unit: variant.unit,
       stock: variant.stock,
       sku: variant.sku,
+      isFeatured: variant.isFeatured,
+      isBestSeller: variant.isBestSeller,
+      sortOrder: variant.sortOrder,
       isActive: variant.isActive
     })),
     createdAt: product.createdAt.toISOString(),
@@ -162,6 +220,56 @@ function ensureUniqueVariantIds(variantIds: string[]): void {
     }
     seen.add(variantId);
   }
+}
+
+function clampDiscountPercent(value: number | undefined): number {
+  if (!Number.isFinite(value ?? NaN)) {
+    return 0;
+  }
+
+  return Math.min(100, Math.max(0, Math.round(value ?? 0)));
+}
+
+function resolveVariantPricing(params: {
+  compareAtPrice?: number | null;
+  discountPercent?: number;
+  price?: number;
+}): { price: number; compareAtPrice: number | null; discountPercent: number } {
+  const discountPercent = clampDiscountPercent(params.discountPercent);
+
+  if (typeof params.compareAtPrice === "number" && params.compareAtPrice >= 0) {
+    const compareAtPrice = Math.round(params.compareAtPrice);
+    const computedPrice = Math.round(compareAtPrice * (1 - discountPercent / 100));
+    return {
+      price: Math.max(0, computedPrice),
+      compareAtPrice,
+      discountPercent
+    };
+  }
+
+  if (typeof params.price === "number" && params.price >= 0) {
+    const price = Math.round(params.price);
+    return {
+      price,
+      compareAtPrice: price,
+      discountPercent: 0
+    };
+  }
+
+  throw new HttpError(
+    400,
+    "Variant requires either compareAtPrice (MRP) or price",
+    undefined,
+    "INVALID_VARIANT_PRICING"
+  );
+}
+
+function toPublicCompareAtPrice(compareAtPrice: number | null, price: number): number | null {
+  if (compareAtPrice === null || compareAtPrice <= price) {
+    return null;
+  }
+
+  return compareAtPrice;
 }
 
 function normalizeCouponCode(code: string): string {
@@ -468,15 +576,18 @@ async function getAdminProductRecordById(id: string): Promise<AdminProductRecord
           frontendVariantId: true,
           label: true,
           price: true,
+          compareAtPrice: true,
+          discountPercent: true,
           unit: true,
           stock: true,
           sku: true,
+          isFeatured: true,
+          isBestSeller: true,
+          sortOrder: true,
           isActive: true,
           createdAt: true
         },
-        orderBy: {
-          createdAt: "asc"
-        }
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
       }
     }
   });
@@ -523,8 +634,63 @@ export async function adminListProducts(
   }
 
   if (typeof query.isActive === "boolean") where.isActive = query.isActive;
-  if (typeof query.isFeatured === "boolean") where.isFeatured = query.isFeatured;
-  if (typeof query.isBestSeller === "boolean") where.isBestSeller = query.isBestSeller;
+  if (typeof query.isFeatured === "boolean") {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : []),
+      query.isFeatured
+        ? {
+            variants: {
+              some: {
+                isActive: true,
+                isFeatured: true,
+                stock: {
+                  gt: 0
+                }
+              }
+            }
+          }
+        : {
+            variants: {
+              none: {
+                isActive: true,
+                isFeatured: true,
+                stock: {
+                  gt: 0
+                }
+              }
+            }
+          }
+    ];
+  }
+
+  if (typeof query.isBestSeller === "boolean") {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : []),
+      query.isBestSeller
+        ? {
+            variants: {
+              some: {
+                isActive: true,
+                isBestSeller: true,
+                stock: {
+                  gt: 0
+                }
+              }
+            }
+          }
+        : {
+            variants: {
+              none: {
+                isActive: true,
+                isBestSeller: true,
+                stock: {
+                  gt: 0
+                }
+              }
+            }
+          }
+    ];
+  }
   if (typeof query.isNew === "boolean") where.isNew = query.isNew;
 
   const [total, products] = await Promise.all([
@@ -550,15 +716,18 @@ export async function adminListProducts(
             frontendVariantId: true,
             label: true,
             price: true,
+            compareAtPrice: true,
+            discountPercent: true,
             unit: true,
             stock: true,
             sku: true,
+            isFeatured: true,
+            isBestSeller: true,
+            sortOrder: true,
             isActive: true,
             createdAt: true
           },
-          orderBy: {
-            createdAt: "asc"
-          }
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
         }
       },
       orderBy: [{ updatedAt: "desc" }],
@@ -611,10 +780,85 @@ export async function adminCreateProduct(
     }
   }
 
+  const normalizedVariants = variantPayload.map((variant, index) => {
+    const pricing = resolveVariantPricing({
+      compareAtPrice: variant.compareAtPrice,
+      discountPercent: variant.discountPercent,
+      price: variant.price
+    });
+
+    return {
+      frontendVariantId: variant.frontendVariantId,
+      label: variant.label,
+      price: pricing.price,
+      compareAtPrice: pricing.compareAtPrice,
+      discountPercent: pricing.discountPercent,
+      unit: variant.unit,
+      stock: variant.stock,
+      sku: variant.sku,
+      isFeatured: variant.isFeatured ?? false,
+      isBestSeller: variant.isBestSeller ?? false,
+      sortOrder: variant.sortOrder ?? index,
+      isActive: variant.isActive ?? true
+    };
+  });
+
+  if (normalizedVariants.length === 0 && payload.price === undefined) {
+    throw new HttpError(
+      400,
+      "At least one variant or a fallback product price is required",
+      undefined,
+      "PRODUCT_PRICE_REQUIRED"
+    );
+  }
+
+  const preferredVariantIndex = normalizedVariants.findIndex((variant) => variant.isActive && variant.stock > 0);
+  const fallbackVariantIndex =
+    preferredVariantIndex >= 0 ? preferredVariantIndex : normalizedVariants.findIndex((variant) => variant.isActive);
+  const selectedVariantIndex = fallbackVariantIndex >= 0 ? fallbackVariantIndex : 0;
+  const selectedVariant = normalizedVariants[selectedVariantIndex];
+
+  if (
+    payload.isFeatured &&
+    normalizedVariants.length > 0 &&
+    selectedVariant &&
+    !normalizedVariants.some((variant) => variant.isFeatured)
+  ) {
+    selectedVariant.isFeatured = true;
+  }
+  if (
+    payload.isBestSeller &&
+    normalizedVariants.length > 0 &&
+    selectedVariant &&
+    !normalizedVariants.some((variant) => variant.isBestSeller)
+  ) {
+    selectedVariant.isBestSeller = true;
+  }
+
+  const primaryVariant = normalizedVariants
+    .slice()
+    .sort((a, b) => {
+      const aRank = a.isActive && a.stock > 0 ? 0 : a.isActive ? 1 : 2;
+      const bRank = b.isActive && b.stock > 0 ? 0 : b.isActive ? 1 : 2;
+      if (aRank !== bRank) return aRank - bRank;
+      return a.sortOrder - b.sortOrder;
+    })[0];
+
   const gallery = payload.gallery && payload.gallery.length > 0 ? payload.gallery : [payload.image];
   const productId = payload.id?.trim()
     ? payload.id.trim()
     : await generateUniqueProductIdFromSlug(payload.slug);
+
+  const derivedProductPrice = primaryVariant?.price ?? payload.price ?? 0;
+  const derivedProductCompareAt =
+    toPublicCompareAtPrice(primaryVariant?.compareAtPrice ?? null, derivedProductPrice) ??
+    toPublicCompareAtPrice(payload.compareAtPrice ?? null, derivedProductPrice);
+  const hasFeaturedVariant = normalizedVariants.some(
+    (variant) => variant.isActive && variant.stock > 0 && variant.isFeatured
+  );
+  const hasBestSellerVariant = normalizedVariants.some(
+    (variant) => variant.isActive && variant.stock > 0 && variant.isBestSeller
+  );
 
   await prisma.product.create({
     data: {
@@ -624,8 +868,8 @@ export async function adminCreateProduct(
       tagline: payload.tagline,
       description: payload.description,
       longDescription: payload.longDescription,
-      price: payload.price,
-      compareAtPrice: payload.compareAtPrice ?? null,
+      price: derivedProductPrice,
+      compareAtPrice: derivedProductCompareAt,
       promoLabel: payload.promoLabel ?? null,
       currency: payload.currency ?? "INR",
       image: payload.image,
@@ -634,8 +878,8 @@ export async function adminCreateProduct(
       releaseNote: payload.releaseNote ?? null,
       rating: payload.rating ?? 0,
       reviewCount: payload.reviewCount ?? 0,
-      isFeatured: payload.isFeatured ?? false,
-      isBestSeller: payload.isBestSeller ?? false,
+      isFeatured: hasFeaturedVariant || (payload.isFeatured ?? false),
+      isBestSeller: hasBestSellerVariant || (payload.isBestSeller ?? false),
       isNew: payload.isNew ?? false,
       badgeLabel: payload.badgeLabel ?? null,
       popularity: payload.popularity ?? 0,
@@ -650,18 +894,24 @@ export async function adminCreateProduct(
         }))
       },
       variants: {
-        create: variantPayload.map((variant) => ({
+        create: normalizedVariants.map((variant) => ({
           frontendVariantId: variant.frontendVariantId,
           label: variant.label,
           price: variant.price,
+          compareAtPrice: variant.compareAtPrice,
+          discountPercent: variant.discountPercent,
           unit: variant.unit,
           stock: variant.stock,
           sku: variant.sku,
+          isFeatured: variant.isFeatured,
+          isBestSeller: variant.isBestSeller,
+          sortOrder: variant.sortOrder,
           isActive: variant.isActive ?? true
         }))
       }
     }
   });
+  await syncLegacyProductProjection(productId);
   invalidateProductsListCache();
 
   const created = await getAdminProductRecordById(productId);
@@ -736,6 +986,7 @@ export async function adminPatchProduct(params: {
       });
     }
   });
+  await syncLegacyProductProjection(route.id);
   invalidateProductsListCache();
 
   const updated = await getAdminProductRecordById(route.id);
@@ -763,10 +1014,111 @@ export async function adminSoftDeleteProduct(
   };
 }
 
+export async function adminHardDeleteProduct(params: {
+  route: AdminHardDeleteProductValidatedInput["params"];
+  payload: AdminHardDeleteProductValidatedInput["body"];
+}): Promise<{ data: { id: string; deleted: true } }> {
+  const { route, payload } = params;
+  const product = await getAdminProductRecordById(route.id);
+
+  if (payload.confirmText.trim() !== product.name.trim()) {
+    throw new HttpError(
+      400,
+      "Confirmation text does not match product name.",
+      undefined,
+      "DELETE_CONFIRMATION_MISMATCH"
+    );
+  }
+
+  const [orderItemCount, verifiedReviewCount, activeNotifyCount, reviewTokenCount] = await Promise.all([
+    prisma.orderItem.count({
+      where: {
+        productId: route.id
+      }
+    }),
+    prisma.review.count({
+      where: {
+        productId: route.id,
+        isVerifiedPurchase: true
+      }
+    }),
+    prisma.productNotifyRequest.count({
+      where: {
+        productId: route.id,
+        isActive: true
+      }
+    }),
+    prisma.reviewRequestToken.count({
+      where: {
+        productId: route.id
+      }
+    })
+  ]);
+
+  if (orderItemCount > 0 || verifiedReviewCount > 0 || reviewTokenCount > 0) {
+    throw new HttpError(
+      409,
+      "Cannot permanently delete product because historical orders exist. Deactivate instead.",
+      undefined,
+      "PRODUCT_DELETE_BLOCKED_HISTORY"
+    );
+  }
+
+  if (activeNotifyCount > 0) {
+    throw new HttpError(
+      409,
+      "Cannot permanently delete product while active Notify Me requests exist. Deactivate instead.",
+      undefined,
+      "PRODUCT_DELETE_BLOCKED_NOTIFY"
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.productNotifyRequest.deleteMany({
+      where: {
+        productId: route.id
+      }
+    });
+
+    await tx.review.deleteMany({
+      where: {
+        productId: route.id
+      }
+    });
+
+    await tx.productImage.deleteMany({
+      where: {
+        productId: route.id
+      }
+    });
+
+    await tx.productVariant.deleteMany({
+      where: {
+        productId: route.id
+      }
+    });
+
+    await tx.product.delete({
+      where: {
+        id: route.id
+      }
+    });
+  });
+
+  invalidateProductsListCache();
+
+  return {
+    data: {
+      id: route.id,
+      deleted: true
+    }
+  };
+}
+
 export async function adminCreateVariant(params: {
   route: AdminCreateVariantValidatedInput["params"];
   payload: AdminCreateVariantValidatedInput["body"];
-}): Promise<{ data: { id: string; label: string; price: number; unit: string; stock: number; sku: string | null; isActive: boolean } }> {
+}): Promise<{ data: { id: string; label: string; price: number; compareAtPrice: number | null; discountPercent: number; unit: string; stock: number; sku: string | null; isFeatured: boolean; isBestSeller: boolean; sortOrder: number; isActive: boolean } }> {
   const { route, payload } = params;
 
   await getAdminProductRecordById(route.id);
@@ -803,27 +1155,44 @@ export async function adminCreateVariant(params: {
     }
   }
 
+  const pricing = resolveVariantPricing({
+    compareAtPrice: payload.compareAtPrice,
+    discountPercent: payload.discountPercent,
+    price: payload.price
+  });
+
   const created = await prisma.productVariant.create({
     data: {
       productId: route.id,
       frontendVariantId: payload.frontendVariantId,
       label: payload.label,
-      price: payload.price,
+      price: pricing.price,
+      compareAtPrice: pricing.compareAtPrice,
+      discountPercent: pricing.discountPercent,
       unit: payload.unit,
       stock: payload.stock,
       sku: payload.sku,
+      isFeatured: payload.isFeatured ?? false,
+      isBestSeller: payload.isBestSeller ?? false,
+      sortOrder: payload.sortOrder ?? 0,
       isActive: payload.isActive ?? true
     },
     select: {
       frontendVariantId: true,
       label: true,
       price: true,
+      compareAtPrice: true,
+      discountPercent: true,
       unit: true,
       stock: true,
       sku: true,
+      isFeatured: true,
+      isBestSeller: true,
+      sortOrder: true,
       isActive: true
     }
   });
+  await syncLegacyProductProjection(route.id);
   invalidateProductsListCache();
   if (created.isActive && created.stock > 0) {
     triggerBackInStockNotifications(route.id);
@@ -834,9 +1203,14 @@ export async function adminCreateVariant(params: {
       id: created.frontendVariantId,
       label: created.label,
       price: created.price,
+      compareAtPrice: toPublicCompareAtPrice(created.compareAtPrice, created.price),
+      discountPercent: created.discountPercent,
       unit: created.unit,
       stock: created.stock,
       sku: created.sku,
+      isFeatured: created.isFeatured,
+      isBestSeller: created.isBestSeller,
+      sortOrder: created.sortOrder,
       isActive: created.isActive
     }
   };
@@ -845,7 +1219,7 @@ export async function adminCreateVariant(params: {
 export async function adminPatchVariant(params: {
   route: AdminPatchVariantValidatedInput["params"];
   payload: AdminPatchVariantValidatedInput["body"];
-}): Promise<{ data: { id: string; label: string; price: number; unit: string; stock: number; sku: string | null; isActive: boolean } }> {
+}): Promise<{ data: { id: string; label: string; price: number; compareAtPrice: number | null; discountPercent: number; unit: string; stock: number; sku: string | null; isFeatured: boolean; isBestSeller: boolean; sortOrder: number; isActive: boolean } }> {
   const { route, payload } = params;
 
   await getAdminProductRecordById(route.id);
@@ -861,7 +1235,10 @@ export async function adminPatchVariant(params: {
       id: true,
       frontendVariantId: true,
       stock: true,
-      isActive: true
+      isActive: true,
+      compareAtPrice: true,
+      discountPercent: true,
+      price: true
     }
   });
 
@@ -906,27 +1283,63 @@ export async function adminPatchVariant(params: {
     }
   }
 
+  let resolvedPrice = variant.price;
+  let resolvedCompareAt = variant.compareAtPrice;
+  let resolvedDiscount = variant.discountPercent;
+
+  if (
+    payload.compareAtPrice !== undefined ||
+    payload.discountPercent !== undefined ||
+    payload.price !== undefined
+  ) {
+    const resolved = resolveVariantPricing({
+      compareAtPrice:
+        payload.compareAtPrice !== undefined ? payload.compareAtPrice : variant.compareAtPrice,
+      discountPercent:
+        payload.discountPercent !== undefined ? payload.discountPercent : variant.discountPercent,
+      price: payload.price !== undefined ? payload.price : variant.price
+    });
+    resolvedPrice = resolved.price;
+    resolvedCompareAt = resolved.compareAtPrice;
+    resolvedDiscount = resolved.discountPercent;
+  }
+
   const updated = await prisma.productVariant.update({
     where: { id: variant.id },
     data: {
       ...(payload.frontendVariantId !== undefined ? { frontendVariantId: payload.frontendVariantId } : {}),
       ...(payload.label !== undefined ? { label: payload.label } : {}),
-      ...(payload.price !== undefined ? { price: payload.price } : {}),
+      ...(payload.compareAtPrice !== undefined || payload.discountPercent !== undefined || payload.price !== undefined
+        ? {
+            price: resolvedPrice,
+            compareAtPrice: resolvedCompareAt,
+            discountPercent: resolvedDiscount
+          }
+        : {}),
       ...(payload.unit !== undefined ? { unit: payload.unit } : {}),
       ...(payload.stock !== undefined ? { stock: payload.stock } : {}),
       ...(payload.sku !== undefined ? { sku: payload.sku } : {}),
+      ...(payload.isFeatured !== undefined ? { isFeatured: payload.isFeatured } : {}),
+      ...(payload.isBestSeller !== undefined ? { isBestSeller: payload.isBestSeller } : {}),
+      ...(payload.sortOrder !== undefined ? { sortOrder: payload.sortOrder } : {}),
       ...(payload.isActive !== undefined ? { isActive: payload.isActive } : {})
     },
     select: {
       frontendVariantId: true,
       label: true,
       price: true,
+      compareAtPrice: true,
+      discountPercent: true,
       unit: true,
       stock: true,
       sku: true,
+      isFeatured: true,
+      isBestSeller: true,
+      sortOrder: true,
       isActive: true
     }
   });
+  await syncLegacyProductProjection(route.id);
   invalidateProductsListCache();
   if (updated.isActive && updated.stock > 0) {
     triggerBackInStockNotifications(route.id);
@@ -937,9 +1350,14 @@ export async function adminPatchVariant(params: {
       id: updated.frontendVariantId,
       label: updated.label,
       price: updated.price,
+      compareAtPrice: toPublicCompareAtPrice(updated.compareAtPrice, updated.price),
+      discountPercent: updated.discountPercent,
       unit: updated.unit,
       stock: updated.stock,
       sku: updated.sku,
+      isFeatured: updated.isFeatured,
+      isBestSeller: updated.isBestSeller,
+      sortOrder: updated.sortOrder,
       isActive: updated.isActive
     }
   };
@@ -975,12 +1393,135 @@ export async function adminSoftDeleteVariant(params: {
       isActive: false
     }
   });
+  await syncLegacyProductProjection(route.id);
   invalidateProductsListCache();
 
   return {
     data: {
       id: variant.frontendVariantId,
       isActive: false
+    }
+  };
+}
+
+export async function adminHardDeleteVariant(params: {
+  route: AdminHardDeleteVariantValidatedInput["params"];
+  payload: AdminHardDeleteVariantValidatedInput["body"];
+}): Promise<{ data: { id: string; deleted: true } }> {
+  const { route, payload } = params;
+
+  await getAdminProductRecordById(route.id);
+
+  const variant = await prisma.productVariant.findUnique({
+    where: {
+      productId_frontendVariantId: {
+        productId: route.id,
+        frontendVariantId: route.variantId
+      }
+    },
+    select: {
+      id: true,
+      frontendVariantId: true,
+      label: true,
+      isFeatured: true,
+      isBestSeller: true
+    }
+  });
+
+  if (!variant) {
+    throw new HttpError(404, "Variant not found", undefined, "VARIANT_NOT_FOUND");
+  }
+
+  if (payload.confirmText.trim() !== variant.label.trim()) {
+    throw new HttpError(
+      400,
+      "Confirmation text does not match variant label.",
+      undefined,
+      "DELETE_CONFIRMATION_MISMATCH"
+    );
+  }
+
+  const orderItemCount = await prisma.orderItem.count({
+    where: {
+      variantDbId: variant.id
+    }
+  });
+
+  if (orderItemCount > 0) {
+    throw new HttpError(
+      409,
+      "Variant cannot be permanently deleted because historical records exist. Deactivate instead.",
+      undefined,
+      "VARIANT_DELETE_BLOCKED_HISTORY"
+    );
+  }
+
+  if (variant.isFeatured || variant.isBestSeller) {
+    const [otherFeaturedCount, otherBestSellerCount] = await Promise.all([
+      variant.isFeatured
+        ? prisma.productVariant.count({
+            where: {
+              productId: route.id,
+              id: {
+                not: variant.id
+              },
+              isActive: true,
+              isFeatured: true,
+              stock: {
+                gt: 0
+              }
+            }
+          })
+        : Promise.resolve(1),
+      variant.isBestSeller
+        ? prisma.productVariant.count({
+            where: {
+              productId: route.id,
+              id: {
+                not: variant.id
+              },
+              isActive: true,
+              isBestSeller: true,
+              stock: {
+                gt: 0
+              }
+            }
+          })
+        : Promise.resolve(1)
+    ]);
+
+    if (variant.isFeatured && otherFeaturedCount === 0) {
+      throw new HttpError(
+        409,
+        "Variant cannot be permanently deleted because it is the only active in-stock featured variant.",
+        undefined,
+        "VARIANT_DELETE_BLOCKED_FEATURED"
+      );
+    }
+
+    if (variant.isBestSeller && otherBestSellerCount === 0) {
+      throw new HttpError(
+        409,
+        "Variant cannot be permanently deleted because it is the only active in-stock best-seller variant.",
+        undefined,
+        "VARIANT_DELETE_BLOCKED_BESTSELLER"
+      );
+    }
+  }
+
+  await prisma.productVariant.delete({
+    where: {
+      id: variant.id
+    }
+  });
+
+  await syncLegacyProductProjection(route.id);
+  invalidateProductsListCache();
+
+  return {
+    data: {
+      id: variant.frontendVariantId,
+      deleted: true
     }
   };
 }

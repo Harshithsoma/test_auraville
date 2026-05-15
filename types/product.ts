@@ -4,8 +4,13 @@ export type ProductVariant = {
   id: string;
   label: string;
   price: number;
+  compareAtPrice?: number;
+  discountPercent?: number;
   unit: string;
   stock?: number;
+  isFeatured?: boolean;
+  isBestSeller?: boolean;
+  sortOrder?: number;
 };
 
 export type Product = {
@@ -26,7 +31,8 @@ export type Product = {
   releaseNote?: string;
   rating: number;
   reviewCount: number;
-  isFeatured: boolean;
+  isFeatured?: boolean;
+  isBestSeller?: boolean;
   isNew: boolean;
   badgeLabel?: string;
   popularity: number;

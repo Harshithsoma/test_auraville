@@ -1,5 +1,6 @@
 import { BestSellersCarousel } from "@/components/product/best-sellers-carousel";
 import { fetchProducts } from "@/lib/catalog-api";
+import { sortStorefrontProducts } from "@/lib/storefront-product-order";
 
 export async function BestSellersSection() {
   let bestSellers: Awaited<ReturnType<typeof fetchProducts>>["data"] = [];
@@ -10,7 +11,7 @@ export async function BestSellersSection() {
       sort: "popular",
       limit: 12
     });
-    bestSellers = response.data;
+    bestSellers = sortStorefrontProducts(response.data);
   } catch {
     // Keep section hidden when API is unavailable to avoid stale bestseller flags.
   }

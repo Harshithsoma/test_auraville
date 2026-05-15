@@ -1,17 +1,15 @@
 export const FREE_SHIPPING_THRESHOLD = 499;
 export const SHIPPING_FEE = 99;
 
-export function calculateCompareAtUnitPrice(params: {
-  productPrice: number;
-  productCompareAtPrice: number | null;
+export function calculateVariantCompareAtUnitPrice(params: {
   variantPrice: number;
+  variantCompareAtPrice: number | null;
 }): number {
-  const { productPrice, productCompareAtPrice, variantPrice } = params;
+  const { variantPrice, variantCompareAtPrice } = params;
 
-  if (!productCompareAtPrice || productCompareAtPrice <= productPrice) {
+  if (!variantCompareAtPrice || variantCompareAtPrice <= variantPrice) {
     return variantPrice;
   }
 
-  const scaled = Math.round((variantPrice * productCompareAtPrice) / productPrice);
-  return Math.max(variantPrice, scaled);
+  return Math.max(variantPrice, variantCompareAtPrice);
 }

@@ -7,15 +7,16 @@ import type { Product } from "@/types/product";
 import { PriceWithCompare } from "@/components/ui/price";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { useCartStore } from "@/stores/cart-store";
-import { selectCardDisplayVariant } from "@/components/product/card-variant";
+import { selectCardDisplayVariant, selectContextDisplayVariant } from "@/components/product/card-variant";
 import { useNotifyMe } from "@/hooks/use-notify-me";
 
 type ProductCardProps = {
   product: Product;
   priority?: boolean;
+  variantContext?: "default" | "featured" | "bestSeller";
 };
 
-export function ProductCard({ product, priority = false }: ProductCardProps) {
+export function ProductCard({ product, priority = false, variantContext = "default" }: ProductCardProps) {
   const isAvailable = product.availability === "available";
   const [status, setStatus] = useState("");
   const items = useCartStore((state) => state.items);
@@ -25,7 +26,11 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
   const removeItem = useCartStore((state) => state.removeItem);
   const getAvailableStock = useCartStore((state) => state.getAvailableStock);
   const pushCartNotice = useCartStore((state) => state.pushCartNotice);
-  const { variant, isOutOfStock, compareAtPrice } = selectCardDisplayVariant(product);
+  const selection =
+    variantContext === "default"
+      ? selectCardDisplayVariant(product)
+      : selectContextDisplayVariant(product, variantContext);
+  const { variant, isOutOfStock, compareAtPrice } = selection;
   const { notify, isSubmitting: isNotifySubmitting } = useNotifyMe({
     onSuccess: (message) => setStatus(message),
     onError: (message) => setStatus(message)

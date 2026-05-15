@@ -10,6 +10,8 @@ import {
   adminDeleteReview,
   adminDeleteCategory,
   adminGetProductById,
+  adminHardDeleteProduct,
+  adminHardDeleteVariant,
   adminListHomepage,
   adminListCoupons,
   adminListCategories,
@@ -36,7 +38,9 @@ import type {
   AdminDeleteReviewValidatedInput,
   AdminDeleteCategoryValidatedInput,
   AdminDeleteProductValidatedInput,
+  AdminHardDeleteProductValidatedInput,
   AdminDeleteVariantValidatedInput,
+  AdminHardDeleteVariantValidatedInput,
   AdminGetProductByIdValidatedInput,
   AdminListCouponsValidatedInput,
   AdminListOrdersValidatedInput,
@@ -100,6 +104,16 @@ export const adminDeleteProductController: RequestHandler = async (req, res, nex
   }
 };
 
+export const adminHardDeleteProductController: RequestHandler = async (req, res, next) => {
+  try {
+    const { params, body } = req as unknown as AdminHardDeleteProductValidatedInput;
+    const result = await adminHardDeleteProduct({ route: params, payload: body });
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const adminCreateVariantController: RequestHandler = async (req, res, next) => {
   try {
     const { params, body } = req as unknown as AdminCreateVariantValidatedInput;
@@ -124,6 +138,16 @@ export const adminDeleteVariantController: RequestHandler = async (req, res, nex
   try {
     const { params } = req as unknown as AdminDeleteVariantValidatedInput;
     const result = await adminSoftDeleteVariant({ route: params });
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminHardDeleteVariantController: RequestHandler = async (req, res, next) => {
+  try {
+    const { params, body } = req as unknown as AdminHardDeleteVariantValidatedInput;
+    const result = await adminHardDeleteVariant({ route: params, payload: body });
     res.status(200).json(result);
   } catch (error) {
     next(error);

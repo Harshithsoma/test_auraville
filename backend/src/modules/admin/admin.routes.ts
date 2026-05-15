@@ -13,7 +13,9 @@ import {
   adminDeleteReviewController,
   adminDeleteCategoryController,
   adminDeleteProductController,
+  adminHardDeleteProductController,
   adminDeleteVariantController,
+  adminHardDeleteVariantController,
   adminGetProductByIdController,
   adminListHomepageController,
   adminListCouponsController,
@@ -39,7 +41,9 @@ import {
   adminDeleteReviewSchema,
   adminDeleteCategorySchema,
   adminDeleteProductSchema,
+  adminHardDeleteProductSchema,
   adminDeleteVariantSchema,
+  adminHardDeleteVariantSchema,
   adminGetProductByIdSchema,
   adminListHomepageSchema,
   adminListCouponsSchema,
@@ -68,6 +72,11 @@ adminRouter.delete(
   validateRequest(adminDeleteProductSchema),
   adminDeleteProductController
 );
+adminRouter.delete(
+  "/admin/products/:id/permanent",
+  validateRequest(adminHardDeleteProductSchema),
+  adminHardDeleteProductController
+);
 
 adminRouter.post(
   "/admin/products/:id/variants",
@@ -83,6 +92,11 @@ adminRouter.delete(
   "/admin/products/:id/variants/:variantId",
   validateRequest(adminDeleteVariantSchema),
   adminDeleteVariantController
+);
+adminRouter.delete(
+  "/admin/products/:id/variants/:variantId/permanent",
+  validateRequest(adminHardDeleteVariantSchema),
+  adminHardDeleteVariantController
 );
 
 adminRouter.get("/admin/categories", validateRequest(adminListCategoriesSchema), adminListCategoriesController);

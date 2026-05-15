@@ -617,6 +617,11 @@ export const commerceApi = {
         request<TResponse>(`/admin/products/${encodeURIComponent(id)}`, {
           method: "DELETE"
         }),
+      hardDelete: <TResponse, TBody>(id: string, payload: TBody) =>
+        request<TResponse, TBody>(`/admin/products/${encodeURIComponent(id)}/permanent`, {
+          method: "DELETE",
+          body: payload
+        }),
       createVariant: <TResponse, TBody>(productId: string, payload: TBody) =>
         request<TResponse, TBody>(`/admin/products/${encodeURIComponent(productId)}/variants`, {
           method: "POST",
@@ -633,7 +638,15 @@ export const commerceApi = {
       softDeleteVariant: <TResponse>(productId: string, variantId: string) =>
         request<TResponse>(`/admin/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}`, {
           method: "DELETE"
-        })
+        }),
+      hardDeleteVariant: <TResponse, TBody>(productId: string, variantId: string, payload: TBody) =>
+        request<TResponse, TBody>(
+          `/admin/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}/permanent`,
+          {
+            method: "DELETE",
+            body: payload
+          }
+        )
     },
     uploads: {
       uploadImage: <TResponse>(file: File) => {

@@ -1,9 +1,10 @@
 import { fetchProducts } from "@/lib/catalog-api";
 import { products as fallbackProducts } from "@/lib/products";
+import { sortStorefrontProducts } from "@/lib/storefront-product-order";
 import { ProductShelfCarousel } from "@/components/product/product-shelf-carousel";
 
 export async function FeaturedProducts() {
-  let featuredProducts = fallbackProducts.filter((product) => product.isFeatured);
+  let featuredProducts = sortStorefrontProducts(fallbackProducts.filter((product) => product.isFeatured));
 
   try {
     const response = await fetchProducts({
@@ -11,7 +12,7 @@ export async function FeaturedProducts() {
       sort: "popular",
       limit: 12
     });
-    featuredProducts = response.data;
+    featuredProducts = sortStorefrontProducts(response.data);
   } catch {
     // Fallback keeps homepage resilient when API is unavailable.
   }
@@ -21,7 +22,7 @@ export async function FeaturedProducts() {
       <h2 id="featured-products" className="mb-5 text-center text-2xl font-bold sm:mb-7 sm:text-3xl">
         Our Products
       </h2>
-      <ProductShelfCarousel products={featuredProducts} />
+      <ProductShelfCarousel products={featuredProducts} variantContext="featured" />
     </section>
   );
 }

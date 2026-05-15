@@ -9,46 +9,71 @@ import { useNotifyMe } from "@/hooks/use-notify-me";
 import { Button } from "@/components/ui/button";
 import { Price, PriceWithCompare } from "@/components/ui/price";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
+import { getVariantCompareAtPrice, selectDefaultProductVariant } from "@/components/product/card-variant";
 
-export function ProductPurchasePanel({ product }: { product: Product }) {
+type ProductPurchasePanelProps = {
+  product: Product;
+  selectedVariantId?: string;
+  onSelectedVariantIdChange?: (variantId: string) => void;
+};
+
+export function ProductPurchasePanel({
+  product,
+  selectedVariantId,
+  onSelectedVariantIdChange
+}: ProductPurchasePanelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const user = useAuthStore((state) => state.user);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
-  const isAvailable = product.availability === "available";
-  const [variantId, setVariantId] = useState(product.variants[0]?.id ?? "");
-  const [quantity, setQuantity] = useState(1);
-  const [status, setStatus] = useState("");
-  const attemptedAutoNotifyRef = useRef(false);
   const addItem = useCartStore((state) => state.addItem);
   const openDrawer = useCartStore((state) => state.openDrawer);
   const getAvailableStock = useCartStore((state) => state.getAvailableStock);
   const pushCartNotice = useCartStore((state) => state.pushCartNotice);
+  const [quantity, setQuantity] = useState(1);
+  const [status, setStatus] = useState("");
+  const attemptedAutoNotifyRef = useRef(false);
+  const isAvailable = product.availability === "available";
+  const defaultVariant = useMemo(() => selectDefaultProductVariant(product.variants), [product.variants]);
+  const isControlled = typeof selectedVariantId === "string" && typeof onSelectedVariantIdChange === "function";
+  const [internalVariantId, setInternalVariantId] = useState(defaultVariant?.id ?? "");
+  const effectiveVariantId = isControlled
+    ? selectedVariantId
+    : internalVariantId || defaultVariant?.id || "";
   const { notify, isSubmitting: isNotifySubmitting } = useNotifyMe({
     onSuccess: (message) => setStatus(message),
     onError: (message) => setStatus(message)
   });
 
-  const selectedVariant = useMemo(
-    () => product.variants.find((variant) => variant.id === variantId) ?? product.variants[0],
-    [product.variants, variantId]
-  );
+  useEffect(() => {
+    if (!isControlled) {
+      return;
+    }
 
-  const compareAtForVariant = useMemo(() => {
-    if (!selectedVariant) return undefined;
-    if (!product.compareAtPrice || product.compareAtPrice <= product.price) return undefined;
-    const ratio = product.compareAtPrice / product.price;
-    return Math.round(selectedVariant.price * ratio);
-  }, [product.compareAtPrice, product.price, selectedVariant]);
+    const exists = product.variants.some((variant) => variant.id === selectedVariantId);
+    if (!exists && defaultVariant) {
+      onSelectedVariantIdChange(defaultVariant.id);
+    }
+  }, [defaultVariant, isControlled, onSelectedVariantIdChange, product.variants, selectedVariantId]);
+
+  const selectedVariant = useMemo(() => {
+    const byId = product.variants.find((variant) => variant.id === effectiveVariantId);
+    return byId ?? defaultVariant ?? null;
+  }, [defaultVariant, effectiveVariantId, product.variants]);
 
   const selectedVariantStock =
-    selectedVariant ? getAvailableStock(product.id, selectedVariant.id) ?? selectedVariant.stock ?? null : null;
+    selectedVariant
+      ? getAvailableStock(product.id, selectedVariant.id) ?? selectedVariant.stock ?? null
+      : null;
+  const hasAnyInStockVariant = product.variants.some(
+    (variant) => (getAvailableStock(product.id, variant.id) ?? variant.stock ?? 0) > 0
+  );
   const isOutOfStock = typeof selectedVariantStock === "number" && selectedVariantStock <= 0;
   const hasLimitedStock = typeof selectedVariantStock === "number" && selectedVariantStock > 0;
-  const effectiveQuantity =
-    hasLimitedStock
-      ? Math.min(quantity, selectedVariantStock)
-      : quantity;
+  const effectiveQuantity = hasLimitedStock
+    ? Math.min(Math.max(1, quantity), selectedVariantStock)
+    : Math.max(1, quantity);
+  const compareAtForVariant = selectedVariant ? getVariantCompareAtPrice(product, selectedVariant) : undefined;
 
   useEffect(() => {
     if (attemptedAutoNotifyRef.current) {
@@ -81,15 +106,42 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
     });
   }, [hasHydrated, notify, product.id, product.slug, router, searchParams, user]);
 
+  function setCurrentVariant(nextVariantId: string) {
+    setStatus("");
+    if (isControlled) {
+      onSelectedVariantIdChange(nextVariantId);
+      return;
+    }
+    setInternalVariantId(nextVariantId);
+  }
+
   if (!selectedVariant) {
     return (
       <div className="rounded-2xl border border-[var(--line)] bg-white p-4 shadow-[0_18px_45px_rgb(23_33_28_/_8%)] sm:p-5">
-        <p className="text-sm text-[var(--muted)]">Variants will be listed here shortly.</p>
+        <p className="text-sm font-semibold text-[var(--coral)]">Product unavailable right now.</p>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          This product has no active variants currently. Please check back soon.
+        </p>
+        <Button
+          className="mt-4 w-full rounded-xl border border-[var(--line)] bg-[var(--mint)] text-sm font-semibold text-[var(--leaf-deep)] hover:bg-[var(--mint)]/80"
+          disabled={isNotifySubmitting}
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            void notify({ id: product.id, slug: product.slug });
+          }}
+        >
+          {isNotifySubmitting ? "Saving..." : "Notify Me"}
+        </Button>
       </div>
     );
   }
 
   function addToCart() {
+    if (!selectedVariant) {
+      return;
+    }
+
     if (!isAvailable) {
       setStatus(`${product.name} is coming soon.`);
       return;
@@ -102,7 +154,7 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
       return;
     }
 
-    if (hasLimitedStock && effectiveQuantity > selectedVariantStock) {
+    if (hasLimitedStock && selectedVariantStock !== null && effectiveQuantity > selectedVariantStock) {
       const notice =
         selectedVariantStock === 1
           ? "Only 1 left in stock."
@@ -133,44 +185,77 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
           {isAvailable ? "Select Variant" : "Planned Variants"}
         </legend>
         <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
-          {product.variants.map((variant) => (
-            <label
-              className="cursor-pointer rounded-xl border border-[var(--line)] bg-[var(--background)] p-3.5 transition has-[:checked]:border-[var(--leaf)] has-[:checked]:bg-[var(--mint)] has-[:checked]:shadow-[inset_0_0_0_1px_var(--leaf)]"
-              key={variant.id}
-            >
-              <input
-                checked={variantId === variant.id}
-                className="sr-only"
-                disabled={!isAvailable}
-                name="variant"
-                type="radio"
-                value={variant.id}
-                onChange={() => setVariantId(variant.id)}
-              />
-              <span className="block text-sm font-semibold text-[var(--foreground)]">{variant.label}</span>
-              <span className="mt-1 block text-xs text-[var(--muted)]">{variant.unit}</span>
-              <span className="mt-2 block text-sm font-semibold text-[var(--leaf-deep)]">
-                <Price currency={product.currency} value={variant.price} />
-              </span>
-            </label>
-          ))}
+          {product.variants.map((variant) => {
+            const variantStock = getAvailableStock(product.id, variant.id) ?? variant.stock ?? null;
+            const variantIsOut = typeof variantStock === "number" && variantStock <= 0;
+            const variantIsLow = typeof variantStock === "number" && variantStock > 0 && variantStock <= 5;
+            const isSelected = selectedVariant.id === variant.id;
+
+            return (
+              <label
+                className={`cursor-pointer rounded-xl border p-3.5 transition ${
+                  variantIsOut
+                    ? "border-[#f2d5d3] bg-[#fff8f8] text-[#8f5550]"
+                    : "border-[var(--line)] bg-[var(--background)]"
+                } ${isSelected ? "border-[var(--leaf)] bg-[var(--mint)] shadow-[inset_0_0_0_1px_var(--leaf)]" : ""}`}
+                key={variant.id}
+              >
+                <input
+                  checked={isSelected}
+                  className="sr-only"
+                  disabled={!isAvailable}
+                  name="variant"
+                  type="radio"
+                  value={variant.id}
+                  onChange={() => setCurrentVariant(variant.id)}
+                />
+                <span className="block text-sm font-semibold">{variant.label}</span>
+                <span className="mt-1 block text-xs text-[var(--muted)]">{variant.unit}</span>
+                <span className="mt-2 block text-sm font-semibold">
+                  <Price currency={product.currency} value={variant.price} />
+                </span>
+                {variantIsOut ? (
+                  <span className="mt-1 block text-xs font-semibold text-[var(--coral)]">Out of stock</span>
+                ) : variantIsLow ? (
+                  <span className="mt-1 block text-xs font-semibold text-[var(--coral)]">
+                    {variantStock === 1 ? "Only 1 left" : `Only ${variantStock} left`}
+                  </span>
+                ) : null}
+              </label>
+            );
+          })}
         </div>
       </fieldset>
 
-      <div className="mt-5 flex items-center justify-between gap-4 rounded-xl border border-[var(--line)] bg-[var(--mint)]/45 px-3.5 py-3">
+      <div className="mt-5 rounded-xl border border-[var(--line)] bg-[var(--mint)]/45 px-3.5 py-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Selected variant price</p>
+        {isAvailable ? (
+          <div className="mt-1 text-lg font-semibold sm:text-xl">
+            <PriceWithCompare
+              compareAtPrice={compareAtForVariant}
+              currency={product.currency}
+              value={selectedVariant.price}
+            />
+          </div>
+        ) : (
+          <p className="mt-1 text-base font-semibold">Coming soon</p>
+        )}
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-[var(--line)] bg-[var(--mint)]/45 px-3.5 py-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Quantity</p>
           <div className="mt-2">
             {isAvailable && !isOutOfStock ? (
               <QuantityStepper
-                value={quantity}
+                value={effectiveQuantity}
                 max={typeof selectedVariantStock === "number" ? Math.max(1, selectedVariantStock) : undefined}
                 onChange={(nextValue) => {
                   if (typeof selectedVariantStock === "number" && selectedVariantStock > 0) {
-                    setQuantity(Math.min(nextValue, selectedVariantStock));
+                    setQuantity(Math.min(Math.max(1, nextValue), selectedVariantStock));
                     return;
                   }
-                  setQuantity(nextValue);
+                  setQuantity(Math.max(1, nextValue));
                 }}
               />
             ) : (
@@ -200,14 +285,14 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
       <div className="mt-5 rounded-xl bg-[var(--leaf-deep)] p-1.5">
         <Button
           className="w-full rounded-[10px] border border-transparent bg-[var(--leaf-deep)] text-base font-bold tracking-wide text-white hover:bg-[var(--leaf)]"
-          disabled={!isAvailable || isOutOfStock}
+          disabled={!isAvailable || isOutOfStock || !hasAnyInStockVariant}
           type="button"
           onClick={addToCart}
         >
           {isAvailable ? (isOutOfStock ? "Out of Stock" : "Add to Cart") : "Coming Soon"}
         </Button>
       </div>
-      {!isAvailable || isOutOfStock ? (
+      {!isAvailable || isOutOfStock || !hasAnyInStockVariant ? (
         <Button
           className="mt-3 w-full rounded-xl border border-[var(--line)] bg-[var(--mint)] text-sm font-semibold text-[var(--leaf-deep)] hover:bg-[var(--mint)]/80"
           disabled={isNotifySubmitting}

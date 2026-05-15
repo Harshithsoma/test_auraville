@@ -21,6 +21,9 @@ type SaveTextResponse = {
   };
 };
 
+const REVIEW_SUBJECT_MAX_LENGTH = 80;
+const REVIEW_BODY_MAX_LENGTH = 500;
+
 export function ReviewFromLinkClient() {
   const params = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -132,19 +135,25 @@ export function ReviewFromLinkClient() {
               <span className="text-sm font-semibold">Subject (optional)</span>
               <Input
                 className="mt-2"
-                maxLength={160}
+                maxLength={REVIEW_SUBJECT_MAX_LENGTH}
                 value={subject}
                 onChange={(event) => setSubject(event.target.value)}
               />
+              <p className="mt-1 text-right text-xs text-[var(--muted)]">
+                {subject.length}/{REVIEW_SUBJECT_MAX_LENGTH}
+              </p>
             </label>
             <label className="block">
               <span className="text-sm font-semibold">Review (optional)</span>
               <Textarea
                 className="mt-2 min-h-28"
-                maxLength={5000}
+                maxLength={REVIEW_BODY_MAX_LENGTH}
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
               />
+              <p className="mt-1 text-right text-xs text-[var(--muted)]">
+                {body.length}/{REVIEW_BODY_MAX_LENGTH}
+              </p>
             </label>
             <div className="flex flex-wrap gap-2">
               <Button type="button" disabled={isSubmitting} onClick={() => void submitOptionalText()}>

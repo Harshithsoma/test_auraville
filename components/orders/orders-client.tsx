@@ -89,6 +89,9 @@ function orderItemKey(orderId: string, orderItemId: string): string {
   return `${orderId}:${orderItemId}`;
 }
 
+const REVIEW_SUBJECT_MAX_LENGTH = 80;
+const REVIEW_BODY_MAX_LENGTH = 500;
+
 export function OrdersClient() {
   const hasMounted = useHasMounted();
   const user = useAuthStore((state) => state.user);
@@ -486,7 +489,7 @@ export function OrdersClient() {
                         <span className="text-xs font-semibold">Subject</span>
                         <Input
                           className="mt-1"
-                          maxLength={160}
+                          maxLength={REVIEW_SUBJECT_MAX_LENGTH}
                           value={activeEditor.subject}
                           onChange={(event) =>
                             setActiveEditor((current) =>
@@ -494,12 +497,15 @@ export function OrdersClient() {
                             )
                           }
                         />
+                        <p className="mt-1 text-right text-[11px] text-[var(--muted)]">
+                          {activeEditor.subject.length}/{REVIEW_SUBJECT_MAX_LENGTH}
+                        </p>
                       </label>
                       <label className="mt-2 block">
                         <span className="text-xs font-semibold">Review</span>
                         <Textarea
                           className="mt-1 min-h-24"
-                          maxLength={5000}
+                          maxLength={REVIEW_BODY_MAX_LENGTH}
                           value={activeEditor.body}
                           onChange={(event) =>
                             setActiveEditor((current) =>
@@ -507,6 +513,9 @@ export function OrdersClient() {
                             )
                           }
                         />
+                        <p className="mt-1 text-right text-[11px] text-[var(--muted)]">
+                          {activeEditor.body.length}/{REVIEW_BODY_MAX_LENGTH}
+                        </p>
                       </label>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button

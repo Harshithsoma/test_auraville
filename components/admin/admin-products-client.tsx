@@ -12,9 +12,14 @@ type AdminVariant = {
   id: string;
   label: string;
   price: number;
+  compareAtPrice: number | null;
+  discountPercent: number;
   unit: string;
   stock: number;
   sku: string | null;
+  isFeatured: boolean;
+  isBestSeller: boolean;
+  sortOrder: number;
   isActive: boolean;
 };
 
@@ -92,9 +97,14 @@ type VariantMutationResponse = {
     id: string;
     label: string;
     price: number;
+    compareAtPrice: number | null;
+    discountPercent: number;
     unit: string;
     stock: number;
     sku: string | null;
+    isFeatured: boolean;
+    isBestSeller: boolean;
+    sortOrder: number;
     isActive: boolean;
   };
 };
@@ -105,6 +115,34 @@ type VariantDeleteResponse = {
     isActive: boolean;
   };
 };
+
+type HardDeleteProductResponse = {
+  data: {
+    id: string;
+    deleted: boolean;
+  };
+};
+
+type HardDeleteVariantResponse = {
+  data: {
+    id: string;
+    deleted: boolean;
+  };
+};
+
+type DeleteDialogState =
+  | {
+      kind: "product";
+      productId: string;
+      productName: string;
+    }
+  | {
+      kind: "variant";
+      productId: string;
+      variantId: string;
+      variantLabel: string;
+      variantLocalKey: string;
+    };
 
 type AdminCategoryOption = {
   id: string;
@@ -124,12 +162,28 @@ type FormVariant = {
   frontendVariantId: string;
   label: string;
   price: string;
+  compareAtPrice: string;
+  discountPercent: string;
   unit: string;
   stock: string;
   sku: string;
   skuManuallyEdited: boolean;
+  isFeatured: boolean;
+  isBestSeller: boolean;
+  sortOrder: string;
   isActive: boolean;
   isSaving: boolean;
+  initialPackSize: string;
+  initialLabel: string;
+  initialPrice: string;
+  initialCompareAtPrice: string;
+  initialDiscountPercent: string;
+  initialStock: string;
+  initialSku: string;
+  initialIsFeatured: boolean;
+  initialIsBestSeller: boolean;
+  initialSortOrder: string;
+  initialIsActive: boolean;
 };
 
 type ProductFormState = {
@@ -192,20 +246,42 @@ function parseTextList(text: string): string[] {
 }
 
 function toFormVariant(variant: AdminVariant): FormVariant {
+  const packSize = packSizeFromVariantId(variant.id);
+  const price = String(variant.price);
+  const compareAtPrice = String(variant.compareAtPrice ?? variant.price);
+  const discountPercent = String(variant.discountPercent ?? 0);
+  const stock = String(variant.stock);
+  const sku = variant.sku ?? "";
   return {
     localKey: `${variant.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     persisted: true,
     originalId: variant.id,
-    packSize: packSizeFromVariantId(variant.id),
+    packSize,
     frontendVariantId: variant.id,
     label: variant.label,
-    price: String(variant.price),
+    price,
+    compareAtPrice,
+    discountPercent,
     unit: variant.unit,
-    stock: String(variant.stock),
-    sku: variant.sku ?? "",
+    stock,
+    sku,
     skuManuallyEdited: true,
+    isFeatured: variant.isFeatured,
+    isBestSeller: variant.isBestSeller,
+    sortOrder: String(variant.sortOrder ?? 0),
     isActive: variant.isActive,
-    isSaving: false
+    isSaving: false,
+    initialPackSize: packSize,
+    initialLabel: variant.label,
+    initialPrice: price,
+    initialCompareAtPrice: compareAtPrice,
+    initialDiscountPercent: discountPercent,
+    initialStock: stock,
+    initialSku: sku,
+    initialIsFeatured: variant.isFeatured,
+    initialIsBestSeller: variant.isBestSeller,
+    initialSortOrder: String(variant.sortOrder ?? 0),
+    initialIsActive: variant.isActive
   };
 }
 
@@ -216,7 +292,7 @@ function defaultForm(): ProductFormState {
     tagline: "",
     description: "",
     longDescription: "",
-    price: "0",
+    price: "",
     compareAtPrice: "",
     promoLabel: "",
     currency: "INR",
@@ -235,6 +311,99 @@ function defaultForm(): ProductFormState {
     isActive: true,
     variants: []
   };
+}
+
+function serializeProductFields(state: ProductFormState): string {
+  return JSON.stringify({
+    slug: state.slug.trim(),
+    name: state.name.trim(),
+    tagline: state.tagline.trim(),
+    description: state.description.trim(),
+    longDescription: state.longDescription.trim(),
+    price: state.price.trim(),
+    compareAtPrice: state.compareAtPrice.trim(),
+    promoLabel: state.promoLabel.trim(),
+    currency: state.currency,
+    image: state.image.trim(),
+    gallery: state.gallery,
+    categoryId: state.categoryId,
+    availability: state.availability,
+    releaseNote: state.releaseNote.trim(),
+    isFeatured: state.isFeatured,
+    isBestSeller: state.isBestSeller,
+    isNew: state.isNew,
+    badgeLabel: state.badgeLabel.trim(),
+    popularity: state.popularity.trim(),
+    ingredientsText: state.ingredientsText.trim(),
+    benefitsText: state.benefitsText.trim(),
+    isActive: state.isActive
+  });
+}
+
+function hasVariantSectionChanges(variants: FormVariant[]): boolean {
+  return variants.some((variant) => {
+    if (!variant.persisted) {
+      return Boolean(
+        variant.packSize.trim() ||
+          variant.label.trim() ||
+          variant.price.trim() ||
+          variant.compareAtPrice.trim() ||
+          variant.discountPercent.trim() ||
+          variant.stock.trim() ||
+          variant.sku.trim() ||
+          variant.isFeatured ||
+          variant.isBestSeller ||
+          variant.sortOrder.trim() !== "0" ||
+          !variant.isActive
+      );
+    }
+
+    return (
+      variant.packSize.trim() !== variant.initialPackSize.trim() ||
+      variant.label.trim() !== variant.initialLabel.trim() ||
+      variant.price.trim() !== variant.initialPrice.trim() ||
+      variant.compareAtPrice.trim() !== variant.initialCompareAtPrice.trim() ||
+      variant.discountPercent.trim() !== variant.initialDiscountPercent.trim() ||
+      variant.stock.trim() !== variant.initialStock.trim() ||
+      variant.sku.trim() !== variant.initialSku.trim() ||
+      variant.isFeatured !== variant.initialIsFeatured ||
+      variant.isBestSeller !== variant.initialIsBestSeller ||
+      variant.sortOrder.trim() !== variant.initialSortOrder.trim() ||
+      variant.isActive !== variant.initialIsActive
+    );
+  });
+}
+
+function isVariantDirty(variant: FormVariant): boolean {
+  if (!variant.persisted) {
+    return Boolean(
+      variant.packSize.trim() ||
+        variant.label.trim() ||
+        variant.price.trim() ||
+        variant.compareAtPrice.trim() ||
+        variant.discountPercent.trim() ||
+        variant.stock.trim() ||
+        variant.sku.trim() ||
+        variant.isFeatured ||
+        variant.isBestSeller ||
+        variant.sortOrder.trim() !== "0" ||
+        !variant.isActive
+    );
+  }
+
+  return (
+    variant.packSize.trim() !== variant.initialPackSize.trim() ||
+    variant.label.trim() !== variant.initialLabel.trim() ||
+    variant.price.trim() !== variant.initialPrice.trim() ||
+    variant.compareAtPrice.trim() !== variant.initialCompareAtPrice.trim() ||
+    variant.discountPercent.trim() !== variant.initialDiscountPercent.trim() ||
+    variant.stock.trim() !== variant.initialStock.trim() ||
+    variant.sku.trim() !== variant.initialSku.trim() ||
+    variant.isFeatured !== variant.initialIsFeatured ||
+    variant.isBestSeller !== variant.initialIsBestSeller ||
+    variant.sortOrder.trim() !== variant.initialSortOrder.trim() ||
+    variant.isActive !== variant.initialIsActive
+  );
 }
 
 function productToForm(product: AdminProduct): ProductFormState {
@@ -289,6 +458,18 @@ function toNumber(value: string): number {
   return Math.round(n);
 }
 
+function clampDiscountPercent(value: string): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
+
+function computeSellingPrice(compareAtPrice: string, discountPercent: string): number {
+  const mrp = Math.max(0, toNumber(compareAtPrice));
+  const discount = clampDiscountPercent(discountPercent);
+  return Math.max(0, Math.round(mrp * (1 - discount / 100)));
+}
+
 function slugifyName(value: string): string {
   return value
     .trim()
@@ -322,6 +503,16 @@ function toVariantLabel(packSize: number): string {
   return `Pack of ${packSize}`;
 }
 
+function toVariantIdFromLabel(label: string): string {
+  const normalized = label
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+  return normalized ? `variant-${normalized}` : "variant-custom";
+}
+
 function toVariantSku(baseSlug: string, packSize: number): string {
   const safeBase = baseSlug
     .trim()
@@ -335,13 +526,35 @@ function toVariantSku(baseSlug: string, packSize: number): string {
   return `${safeBase}-PACK-${packSize}`;
 }
 
+function getPrimaryVariantForProjection(variants: FormVariant[]): FormVariant | null {
+  if (variants.length === 0) {
+    return null;
+  }
+
+  const ranked = [...variants].sort((a, b) => {
+    const stockA = toNumber(a.stock);
+    const stockB = toNumber(b.stock);
+    const rankA = a.isActive && stockA > 0 ? 0 : a.isActive ? 1 : 2;
+    const rankB = b.isActive && stockB > 0 ? 0 : b.isActive ? 1 : 2;
+    if (rankA !== rankB) return rankA - rankB;
+    return toNumber(a.sortOrder) - toNumber(b.sortOrder);
+  });
+
+  return ranked[0] ?? null;
+}
+
 type VariantMutationPayload = {
   frontendVariantId: string;
   label: string;
-  price: number;
+  price?: number;
+  compareAtPrice: number;
+  discountPercent: number;
   unit: string;
   stock: number;
   sku?: string;
+  isFeatured: boolean;
+  isBestSeller: boolean;
+  sortOrder: number;
   isActive: boolean;
 };
 
@@ -372,7 +585,12 @@ export function AdminProductsClient() {
   const [isUploadingGalleryImage, setIsUploadingGalleryImage] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeletingPermanent, setIsDeletingPermanent] = useState(false);
+  const [deleteDialogError, setDeleteDialogError] = useState<string | null>(null);
   const formCardRef = useRef<HTMLFormElement | null>(null);
+  const initialProductSnapshotRef = useRef<string>(serializeProductFields(defaultForm()));
 
   async function loadCategories() {
     try {
@@ -413,15 +631,39 @@ export function AdminProductsClient() {
     void loadCategories();
   }, []);
 
+  useEffect(() => {
+    if (!deleteDialog) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !isDeletingPermanent) {
+        setDeleteDialog(null);
+        setDeleteConfirmText("");
+        setDeleteDialogError(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [deleteDialog, isDeletingPermanent]);
+
+  const isProductSectionDirty = useMemo(
+    () => serializeProductFields(formState) !== initialProductSnapshotRef.current,
+    [formState]
+  );
+  const hasVariantChanges = useMemo(() => hasVariantSectionChanges(formState.variants), [formState.variants]);
+  const isMainSaveDisabled = isSavingProduct || isLoadingFormProduct || !isProductSectionDirty;
+
   function resetForm(modeValue: FormMode) {
+    const nextDefaultForm = defaultForm();
     setMode(modeValue);
     setEditingProductId(null);
-    setFormState(defaultForm());
+    setFormState(nextDefaultForm);
     setGalleryInput("");
     setFormError(null);
     setFormMessage(null);
     setUploadError(null);
     setIsSlugManuallyEdited(false);
+    initialProductSnapshotRef.current = serializeProductFields(nextDefaultForm);
   }
 
   async function beginEdit(productId: string) {
@@ -435,7 +677,9 @@ export function AdminProductsClient() {
 
     try {
       const response = await commerceApi.admin.products.byId<GetProductResponse>(productId);
-      setFormState(productToForm(response.data));
+      const nextFormState = productToForm(response.data);
+      setFormState(nextFormState);
+      initialProductSnapshotRef.current = serializeProductFields(nextFormState);
       setIsSlugManuallyEdited(true);
       requestAnimationFrame(() => {
         formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -494,6 +738,99 @@ export function AdminProductsClient() {
       }
     } finally {
       setBusyProductActionId(null);
+    }
+  }
+
+  function openProductDeleteDialog(product: AdminProduct) {
+    setDeleteDialog({
+      kind: "product",
+      productId: product.id,
+      productName: product.name
+    });
+    setDeleteConfirmText("");
+    setDeleteDialogError(null);
+    setFormError(null);
+    setListError(null);
+  }
+
+  function openVariantDeleteDialog(variant: FormVariant) {
+    if (mode !== "edit" || !editingProductId || !variant.persisted) {
+      return;
+    }
+
+    setDeleteDialog({
+      kind: "variant",
+      productId: editingProductId,
+      variantId: variant.originalId,
+      variantLabel: variant.label,
+      variantLocalKey: variant.localKey
+    });
+    setDeleteConfirmText("");
+    setDeleteDialogError(null);
+    setFormError(null);
+    setListError(null);
+  }
+
+  async function confirmPermanentDelete() {
+    if (!deleteDialog || isDeletingPermanent) return;
+
+    setIsDeletingPermanent(true);
+    setFormError(null);
+    setFormMessage(null);
+    setListError(null);
+    setListMessage(null);
+    setDeleteDialogError(null);
+
+    try {
+      if (deleteDialog.kind === "product") {
+        await commerceApi.admin.products.hardDelete<
+          HardDeleteProductResponse,
+          { confirmText: string }
+        >(deleteDialog.productId, {
+          confirmText: deleteConfirmText
+        });
+
+        if (editingProductId === deleteDialog.productId) {
+          resetForm("create");
+        }
+
+        setListMessage(`Product "${deleteDialog.productName}" deleted permanently.`);
+      } else {
+        await commerceApi.admin.products.hardDeleteVariant<
+          HardDeleteVariantResponse,
+          { confirmText: string }
+        >(deleteDialog.productId, deleteDialog.variantId, {
+          confirmText: deleteConfirmText
+        });
+
+        setFormState((current) => ({
+          ...current,
+          variants: current.variants.filter((variant) => variant.localKey !== deleteDialog.variantLocalKey)
+        }));
+        setFormMessage(`Variant "${deleteDialog.variantLabel}" deleted permanently.`);
+      }
+
+      setDeleteDialog(null);
+      setDeleteConfirmText("");
+      setDeleteDialogError(null);
+      await loadProducts();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setDeleteDialogError(error.message);
+        if (deleteDialog.kind === "product") {
+          setListError(error.message);
+        } else {
+          setFormError(error.message);
+        }
+      } else if (deleteDialog.kind === "product") {
+        setDeleteDialogError("Unable to permanently delete product.");
+        setListError("Unable to permanently delete product.");
+      } else {
+        setDeleteDialogError("Unable to permanently delete variant.");
+        setFormError("Unable to permanently delete variant.");
+      }
+    } finally {
+      setIsDeletingPermanent(false);
     }
   }
 
@@ -556,15 +893,25 @@ export function AdminProductsClient() {
     }
   }
 
-  function buildProductCreatePayload(effectiveSlug: string) {
+function buildProductCreatePayload(effectiveSlug: string) {
+    const primaryVariant = getPrimaryVariantForProjection(formState.variants);
+    const projectedPrice = primaryVariant
+      ? computeSellingPrice(primaryVariant.compareAtPrice, primaryVariant.discountPercent)
+      : toNumber(formState.price);
+    const projectedCompareAt = primaryVariant
+      ? toNumber(primaryVariant.compareAtPrice)
+      : formState.compareAtPrice.trim()
+        ? toNumber(formState.compareAtPrice)
+        : projectedPrice;
+
     return {
       slug: effectiveSlug,
       name: formState.name.trim(),
       tagline: formState.tagline.trim(),
       description: formState.description.trim(),
       longDescription: formState.longDescription.trim(),
-      price: toNumber(formState.price),
-      compareAtPrice: formState.compareAtPrice.trim() ? toNumber(formState.compareAtPrice) : null,
+      price: projectedPrice,
+      compareAtPrice: projectedCompareAt >= projectedPrice ? projectedCompareAt : null,
       promoLabel: formState.promoLabel.trim() || null,
       currency: "INR" as const,
       image: formState.image.trim(),
@@ -581,28 +928,46 @@ export function AdminProductsClient() {
       benefits: parseTextList(formState.benefitsText),
       isActive: formState.isActive,
       variants: formState.variants.map((variant) => ({
-        frontendVariantId: toVariantId(parsePackSize(variant.packSize) ?? 1),
-        label: toVariantLabel(parsePackSize(variant.packSize) ?? 1),
-        price: toNumber(variant.price),
-        unit: "pack",
+        frontendVariantId:
+          variant.frontendVariantId.trim() ||
+          (parsePackSize(variant.packSize) !== null
+            ? toVariantId(parsePackSize(variant.packSize) ?? 1)
+            : toVariantIdFromLabel(variant.label)),
+        label: variant.label.trim() || toVariantLabel(parsePackSize(variant.packSize) ?? 1),
+        compareAtPrice: toNumber(variant.compareAtPrice),
+        discountPercent: clampDiscountPercent(variant.discountPercent),
+        unit: variant.unit.trim() || "pack",
         stock: toNumber(variant.stock),
         sku:
           (variant.sku.trim() ||
             toVariantSku(effectiveSlug, parsePackSize(variant.packSize) ?? 1)) || undefined,
+        isFeatured: variant.isFeatured,
+        isBestSeller: variant.isBestSeller,
+        sortOrder: toNumber(variant.sortOrder),
         isActive: variant.isActive
       }))
     };
   }
 
-  function buildProductPatchPayload(effectiveSlug: string) {
+function buildProductPatchPayload(effectiveSlug: string) {
+    const primaryVariant = getPrimaryVariantForProjection(formState.variants);
+    const projectedPrice = primaryVariant
+      ? computeSellingPrice(primaryVariant.compareAtPrice, primaryVariant.discountPercent)
+      : toNumber(formState.price);
+    const projectedCompareAt = primaryVariant
+      ? toNumber(primaryVariant.compareAtPrice)
+      : formState.compareAtPrice.trim()
+        ? toNumber(formState.compareAtPrice)
+        : projectedPrice;
+
     return {
       slug: effectiveSlug,
       name: formState.name.trim(),
       tagline: formState.tagline.trim(),
       description: formState.description.trim(),
       longDescription: formState.longDescription.trim(),
-      price: toNumber(formState.price),
-      compareAtPrice: formState.compareAtPrice.trim() ? toNumber(formState.compareAtPrice) : null,
+      price: projectedPrice,
+      compareAtPrice: projectedCompareAt >= projectedPrice ? projectedCompareAt : null,
       promoLabel: formState.promoLabel.trim() || null,
       currency: "INR" as const,
       image: formState.image.trim(),
@@ -646,16 +1011,20 @@ export function AdminProductsClient() {
 
     for (const variant of formState.variants) {
       const stockValue = Number(variant.stock);
-      const priceValue = Number(variant.price);
-      if (!Number.isFinite(priceValue) || priceValue < 0) {
-        return "Variant price must be 0 or more.";
+      const mrpValue = Number(variant.compareAtPrice);
+      const discountValue = Number(variant.discountPercent);
+      if (!Number.isFinite(mrpValue) || mrpValue < 0) {
+        return "Variant MRP must be 0 or more.";
+      }
+      if (!Number.isFinite(discountValue) || discountValue < 0 || discountValue > 100) {
+        return "Variant discount must be between 0 and 100.";
       }
       if (!Number.isFinite(stockValue) || stockValue < 0) {
         return "Variant stock must be 0 or more.";
       }
       const packSize = parsePackSize(variant.packSize);
-      if (!packSize && !variant.persisted) {
-        return "Pack size must be greater than zero.";
+      if (!packSize && !variant.label.trim()) {
+        return "Provide either pack size or a custom variant label.";
       }
       if (!packSize) {
         continue;
@@ -664,6 +1033,10 @@ export function AdminProductsClient() {
         return "Duplicate pack sizes are not allowed for the same product.";
       }
       seenPackSizes.add(packSize);
+
+      if (!variant.label.trim()) {
+        return "Variant label is required.";
+      }
     }
 
     return null;
@@ -680,6 +1053,15 @@ export function AdminProductsClient() {
     const validationError = validateForm(effectiveSlug);
     if (validationError) {
       setFormError(validationError);
+      return;
+    }
+
+    if (!isProductSectionDirty) {
+      setFormMessage(
+        mode === "edit"
+          ? "No product field changes to save. Variants use their own Save variant button."
+          : "No changes to save yet. Update product fields to continue."
+      );
       return;
     }
 
@@ -727,8 +1109,12 @@ export function AdminProductsClient() {
 
         const payload = buildProductPatchPayload(effectiveSlug);
         await commerceApi.admin.products.update<MutateProductResponse, typeof payload>(editingProductId, payload);
-        await persistPendingVariantsForEdit(editingProductId, effectiveSlug);
-        setFormMessage("Product updated successfully.");
+        initialProductSnapshotRef.current = serializeProductFields({
+          ...formState,
+          slug: effectiveSlug
+        });
+        setFormState((current) => ({ ...current, slug: effectiveSlug }));
+        setFormMessage("Product saved successfully.");
       }
 
       await loadProducts();
@@ -749,6 +1135,10 @@ export function AdminProductsClient() {
 
   function addVariantRow(presetPackSize?: number) {
     const packValue = presetPackSize ? String(presetPackSize) : "";
+    const defaultSku =
+      presetPackSize && (formState.slug.trim() || slugifyName(formState.name))
+        ? toVariantSku(formState.slug.trim() || slugifyName(formState.name), presetPackSize)
+        : "";
     setFormState((current) => ({
       ...current,
       variants: [
@@ -761,15 +1151,28 @@ export function AdminProductsClient() {
           frontendVariantId: presetPackSize ? toVariantId(presetPackSize) : "",
           label: presetPackSize ? toVariantLabel(presetPackSize) : "",
           price: "0",
+          compareAtPrice: "0",
+          discountPercent: "0",
           unit: "pack",
           stock: "0",
-          sku:
-            presetPackSize && (current.slug.trim() || slugifyName(current.name))
-              ? toVariantSku(current.slug.trim() || slugifyName(current.name), presetPackSize)
-              : "",
+          sku: defaultSku,
           skuManuallyEdited: false,
+          isFeatured: false,
+          isBestSeller: false,
+          sortOrder: String(current.variants.length),
           isActive: true,
-          isSaving: false
+          isSaving: false,
+          initialPackSize: "",
+          initialLabel: "",
+          initialPrice: "0",
+          initialCompareAtPrice: "0",
+          initialDiscountPercent: "0",
+          initialStock: "0",
+          initialSku: "",
+          initialIsFeatured: false,
+          initialIsBestSeller: false,
+          initialSortOrder: String(current.variants.length),
+          initialIsActive: true
         }
       ]
     }));
@@ -797,13 +1200,15 @@ export function AdminProductsClient() {
     generatedId: string;
   } | null {
     const packSize = parsePackSize(variant.packSize);
-    if (!packSize && !variant.persisted) {
-      setFormError("Pack size must be greater than zero.");
+    if (!packSize && !variant.label.trim()) {
+      setFormError("Provide either pack size or a custom variant label.");
       return null;
     }
 
-    const generatedId = packSize !== null ? toVariantId(packSize) : variant.frontendVariantId.trim();
-    const generatedLabel = packSize !== null ? toVariantLabel(packSize) : variant.label.trim();
+    const generatedId =
+      variant.frontendVariantId.trim() ||
+      (packSize !== null ? toVariantId(packSize) : toVariantIdFromLabel(variant.label));
+    const generatedLabel = variant.label.trim() || (packSize !== null ? toVariantLabel(packSize) : "");
     const generatedSku = packSize !== null ? toVariantSku(effectiveSlug, packSize) : variant.sku.trim();
 
     if (!generatedId || !generatedLabel) {
@@ -817,59 +1222,26 @@ export function AdminProductsClient() {
       payload: {
         frontendVariantId: generatedId,
         label: generatedLabel,
-        price: toNumber(variant.price),
+        compareAtPrice: toNumber(variant.compareAtPrice),
+        discountPercent: clampDiscountPercent(variant.discountPercent),
         unit: variant.unit.trim() || "pack",
         stock: toNumber(variant.stock),
         sku: variant.sku.trim() || generatedSku || undefined,
+        isFeatured: variant.isFeatured,
+        isBestSeller: variant.isBestSeller,
+        sortOrder: toNumber(variant.sortOrder),
         isActive: variant.isActive
       }
     };
   }
 
-  async function persistPendingVariantsForEdit(productId: string, effectiveSlug: string) {
-    const pendingVariants = formState.variants.filter((variant) => !variant.persisted);
-    if (pendingVariants.length === 0) {
+  async function saveVariant(variant: FormVariant) {
+    if (mode !== "edit" || !editingProductId) {
       return;
     }
 
-    for (const pendingVariant of pendingVariants) {
-      const prepared = prepareVariantMutation(pendingVariant, effectiveSlug);
-      if (!prepared) {
-        throw new Error("Variant validation failed.");
-      }
-
-      const response = await commerceApi.admin.products.createVariant<VariantMutationResponse, VariantMutationPayload>(
-        productId,
-        prepared.payload
-      );
-
-      setFormState((current) => ({
-        ...current,
-        variants: current.variants.map((row) =>
-          row.localKey === pendingVariant.localKey
-            ? {
-                ...row,
-                packSize: prepared.packSize !== null ? String(prepared.packSize) : row.packSize,
-                originalId: response.data.id,
-                frontendVariantId: response.data.id,
-                label: response.data.label,
-                price: String(response.data.price),
-                unit: response.data.unit,
-                stock: String(response.data.stock),
-                sku: response.data.sku ?? "",
-                skuManuallyEdited: true,
-                isActive: response.data.isActive,
-                persisted: true,
-                isSaving: false
-              }
-            : row
-        )
-      }));
-    }
-  }
-
-  async function saveVariant(variant: FormVariant) {
-    if (mode !== "edit" || !editingProductId) {
+    if (!isVariantDirty(variant)) {
+      setFormMessage(`No changes to save for variant "${variant.frontendVariantId || variant.label || "new"}".`);
       return;
     }
 
@@ -915,15 +1287,31 @@ export function AdminProductsClient() {
           frontendVariantId: response.data.id,
           label: response.data.label,
           price: String(response.data.price),
+          compareAtPrice: String(response.data.compareAtPrice ?? response.data.price),
+          discountPercent: String(response.data.discountPercent),
           unit: response.data.unit,
           stock: String(response.data.stock),
           sku: response.data.sku ?? "",
           skuManuallyEdited: true,
+          isFeatured: response.data.isFeatured,
+          isBestSeller: response.data.isBestSeller,
+          sortOrder: String(response.data.sortOrder ?? 0),
           isActive: response.data.isActive,
           isSaving: false,
-          persisted: true
+          persisted: true,
+          initialPackSize: packSizeFromVariantId(response.data.id) || current.packSize,
+          initialLabel: response.data.label,
+          initialPrice: String(response.data.price),
+          initialCompareAtPrice: String(response.data.compareAtPrice ?? response.data.price),
+          initialDiscountPercent: String(response.data.discountPercent),
+          initialStock: String(response.data.stock),
+          initialSku: response.data.sku ?? "",
+          initialIsFeatured: response.data.isFeatured,
+          initialIsBestSeller: response.data.isBestSeller,
+          initialSortOrder: String(response.data.sortOrder ?? 0),
+          initialIsActive: response.data.isActive
         }));
-        setFormMessage(`Variant "${prepared.generatedId}" updated.`);
+        setFormMessage("Variant saved successfully.");
       } else {
         const response = await commerceApi.admin.products.createVariant<VariantMutationResponse, VariantMutationPayload>(
           editingProductId,
@@ -937,15 +1325,31 @@ export function AdminProductsClient() {
           frontendVariantId: response.data.id,
           label: response.data.label,
           price: String(response.data.price),
+          compareAtPrice: String(response.data.compareAtPrice ?? response.data.price),
+          discountPercent: String(response.data.discountPercent),
           unit: response.data.unit,
           stock: String(response.data.stock),
           sku: response.data.sku ?? "",
           skuManuallyEdited: true,
+          isFeatured: response.data.isFeatured,
+          isBestSeller: response.data.isBestSeller,
+          sortOrder: String(response.data.sortOrder ?? 0),
           isActive: response.data.isActive,
           isSaving: false,
-          persisted: true
+          persisted: true,
+          initialPackSize: prepared.packSize !== null ? String(prepared.packSize) : current.packSize,
+          initialLabel: response.data.label,
+          initialPrice: String(response.data.price),
+          initialCompareAtPrice: String(response.data.compareAtPrice ?? response.data.price),
+          initialDiscountPercent: String(response.data.discountPercent),
+          initialStock: String(response.data.stock),
+          initialSku: response.data.sku ?? "",
+          initialIsFeatured: response.data.isFeatured,
+          initialIsBestSeller: response.data.isBestSeller,
+          initialSortOrder: String(response.data.sortOrder ?? 0),
+          initialIsActive: response.data.isActive
         }));
-        setFormMessage(`Variant "${prepared.generatedId}" created.`);
+        setFormMessage("Variant saved successfully.");
       }
 
       await loadProducts();
@@ -990,7 +1394,8 @@ export function AdminProductsClient() {
       updateVariant(variant.localKey, (current) => ({
         ...current,
         isActive: !variant.isActive,
-        isSaving: false
+        isSaving: false,
+        initialIsActive: !variant.isActive
       }));
       setFormMessage(
         variant.isActive
@@ -1050,6 +1455,23 @@ export function AdminProductsClient() {
 
     return { label: "Visible on store", tone: "good" };
   }
+
+  const deleteExpectedText =
+    deleteDialog?.kind === "product"
+      ? deleteDialog.productName
+      : deleteDialog?.kind === "variant"
+        ? deleteDialog.variantLabel
+        : "";
+  const canConfirmDelete =
+    Boolean(deleteDialog) &&
+    deleteConfirmText.trim() === deleteExpectedText.trim() &&
+    !isDeletingPermanent;
+  const closeDeleteDialog = () => {
+    if (isDeletingPermanent) return;
+    setDeleteDialog(null);
+    setDeleteConfirmText("");
+    setDeleteDialogError(null);
+  };
 
   return (
     <section className="space-y-6">
@@ -1267,6 +1689,14 @@ export function AdminProductsClient() {
                                   ? "Deactivate"
                                   : "Activate"}
                             </Button>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              disabled={busyProductActionId === product.id}
+                              onClick={() => openProductDeleteDialog(product)}
+                            >
+                              Delete
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -1342,6 +1772,15 @@ export function AdminProductsClient() {
                             ? "Deactivate"
                             : "Activate"}
                       </Button>
+                      <Button
+                        className="flex-1"
+                        type="button"
+                        variant="destructive"
+                        disabled={busyProductActionId === product.id}
+                        onClick={() => openProductDeleteDialog(product)}
+                      >
+                        Delete
+                      </Button>
                     </div>
                   </article>
                 );
@@ -1397,6 +1836,12 @@ export function AdminProductsClient() {
             <p className="mt-1 text-xs text-[var(--muted)]">
               Homepage sections show only Featured / Best Seller products. Active + Available products appear in `/products`.
             </p>
+            {mode === "edit" ? (
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Product fields save with <span className="font-semibold">Save product</span>. Variants have separate
+                <span className="font-semibold"> Save variant</span> actions.
+              </p>
+            ) : null}
             {mode === "create" ? (
               <p className="mt-1 text-xs text-[var(--muted)]">
                 URL slug: {formState.slug.trim() || slugifyName(formState.name) || "auto-generated from name"}
@@ -1499,24 +1944,38 @@ export function AdminProductsClient() {
             />
           </label>
           <label>
-            <span className="text-sm font-semibold">Price</span>
+            <span className="text-sm font-semibold">Projected Selling Price (legacy product field)</span>
             <Input
-              className="mt-2"
+              className="mt-2 bg-[var(--mint)]/35"
               type="number"
               min={0}
-              value={formState.price}
-              onChange={(event) => setFormState((current) => ({ ...current, price: event.target.value }))}
+              value={
+                getPrimaryVariantForProjection(formState.variants)
+                  ? String(
+                      computeSellingPrice(
+                        getPrimaryVariantForProjection(formState.variants)?.compareAtPrice ?? "0",
+                        getPrimaryVariantForProjection(formState.variants)?.discountPercent ?? "0"
+                      )
+                    )
+                  : formState.price
+              }
+              readOnly
             />
+            <p className="mt-1 text-xs text-[var(--muted)]">Prices are managed per variant in the Variants section.</p>
           </label>
           <label>
-            <span className="text-sm font-semibold">Compare At Price</span>
+            <span className="text-sm font-semibold">Projected Compare-at Price (legacy product field)</span>
             <Input
-              className="mt-2"
+              className="mt-2 bg-[var(--mint)]/35"
               type="number"
               min={0}
-              value={formState.compareAtPrice}
-              onChange={(event) => setFormState((current) => ({ ...current, compareAtPrice: event.target.value }))}
+              value={
+                getPrimaryVariantForProjection(formState.variants)?.compareAtPrice ??
+                formState.compareAtPrice
+              }
+              readOnly
             />
+            <p className="mt-1 text-xs text-[var(--muted)]">This is auto-derived from the primary variant.</p>
           </label>
           <label>
             <span className="text-sm font-semibold">Promo Badge Text</span>
@@ -1688,6 +2147,9 @@ export function AdminProductsClient() {
               value={formState.releaseNote}
               onChange={(event) => setFormState((current) => ({ ...current, releaseNote: event.target.value }))}
             />
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Optional short product update shown internally or in product detail if enabled.
+            </p>
           </label>
           <label>
             <span className="text-sm font-semibold">Badge Label</span>
@@ -1696,6 +2158,9 @@ export function AdminProductsClient() {
               value={formState.badgeLabel}
               onChange={(event) => setFormState((current) => ({ ...current, badgeLabel: event.target.value }))}
             />
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Small marketing label shown on product cards, for example New, Trending, Limited.
+            </p>
           </label>
           <label>
             <span className="text-sm font-semibold">Popularity</span>
@@ -1706,6 +2171,9 @@ export function AdminProductsClient() {
               value={formState.popularity}
               onChange={(event) => setFormState((current) => ({ ...current, popularity: event.target.value }))}
             />
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Manual ranking score used for popular sorting. Higher value appears earlier.
+            </p>
           </label>
 
           <label className="sm:col-span-2">
@@ -1738,17 +2206,19 @@ export function AdminProductsClient() {
               <input
                 checked={formState.isFeatured}
                 type="checkbox"
+                disabled
                 onChange={(event) => setFormState((current) => ({ ...current, isFeatured: event.target.checked }))}
               />
-              Featured
+              Featured (variant-driven)
             </label>
             <label className="flex items-center gap-2 rounded border border-[var(--line)] bg-[var(--mint)] px-3 py-2 text-sm">
               <input
                 checked={formState.isBestSeller}
                 type="checkbox"
+                disabled
                 onChange={(event) => setFormState((current) => ({ ...current, isBestSeller: event.target.checked }))}
               />
-              Best seller
+              Best seller (variant-driven)
             </label>
             <label className="flex items-center gap-2 rounded border border-[var(--line)] bg-[var(--mint)] px-3 py-2 text-sm">
               <input
@@ -1764,7 +2234,7 @@ export function AdminProductsClient() {
               Active = visible on store. Availability controls whether customers can buy now.
             </p>
             <p className="mt-1">
-              Featured = homepage featured section, Best Seller = best-selling section/page, New = new badge/section.
+              Featured and Best Seller visibility is controlled per variant below. New remains product-level.
             </p>
             <p className="mt-1">
               Coming Soon products are not purchasable in normal buy flow.
@@ -1785,13 +2255,16 @@ export function AdminProductsClient() {
               <Button type="button" variant="utility" onClick={() => addVariantRow(6)}>
                 + Add Pack of 6
               </Button>
+              <Button type="button" variant="utility" onClick={() => addVariantRow(12)}>
+                + Add Box of 12
+              </Button>
               <Button type="button" variant="secondary" onClick={() => addVariantRow()}>
-                Add custom pack
+                + Add Custom
               </Button>
             </div>
           </div>
           <p className="mb-3 text-xs text-[var(--muted)]">
-            Variants define sellable packs. Stock is tracked per variant.
+            Variants define sellable options. Prices are managed per variant (MRP + discount). Stock is tracked per variant.
           </p>
 
           <div className="space-y-3">
@@ -1800,7 +2273,7 @@ export function AdminProductsClient() {
             ) : (
               formState.variants.map((variant) => (
                 <div className="rounded border border-[var(--line)] bg-white p-3" key={variant.localKey}>
-                  <div className="grid gap-2 md:grid-cols-6">
+                  <div className="grid gap-2 md:grid-cols-8">
                     <label>
                       <span className="text-xs font-semibold uppercase text-[var(--muted)]">Pack Size</span>
                       <Input
@@ -1821,7 +2294,8 @@ export function AdminProductsClient() {
                               ...(parsed
                                 ? {
                                     frontendVariantId: toVariantId(parsed),
-                                    label: toVariantLabel(parsed),
+                                    label:
+                                      current.label.trim() || toVariantLabel(parsed),
                                     sku:
                                       current.skuManuallyEdited && current.sku.trim()
                                         ? current.sku
@@ -1838,20 +2312,59 @@ export function AdminProductsClient() {
                     </label>
                     <label>
                       <span className="text-xs font-semibold uppercase text-[var(--muted)]">Label</span>
-                      <Input className="mt-1" value={variant.label} disabled />
+                      <Input
+                        className="mt-1"
+                        placeholder="Pack of 4 / 250g / 500g"
+                        value={variant.label}
+                        onChange={(event) =>
+                          updateVariant(variant.localKey, (current) => ({
+                            ...current,
+                            label: event.target.value
+                          }))
+                        }
+                      />
+                      <p className="mt-1 text-[10px] text-[var(--muted)]">
+                        Customer-facing label, for example Pack of 1, Pack of 4, 250g, 500g.
+                      </p>
                     </label>
                     <label>
-                      <span className="text-xs font-semibold uppercase text-[var(--muted)]">Price</span>
+                      <span className="text-xs font-semibold uppercase text-[var(--muted)]">Original Price / MRP</span>
                       <Input
                         className="mt-1"
                         min={0}
                         type="number"
-                        placeholder="149"
-                        value={variant.price}
+                        placeholder="199"
+                        value={variant.compareAtPrice}
                         onChange={(event) =>
-                          updateVariant(variant.localKey, (current) => ({ ...current, price: event.target.value }))
+                          updateVariant(variant.localKey, (current) => ({
+                            ...current,
+                            compareAtPrice: event.target.value,
+                            price: String(computeSellingPrice(event.target.value, current.discountPercent))
+                          }))
                         }
                       />
+                    </label>
+                    <label>
+                      <span className="text-xs font-semibold uppercase text-[var(--muted)]">Discount %</span>
+                      <Input
+                        className="mt-1"
+                        min={0}
+                        max={100}
+                        type="number"
+                        placeholder="10"
+                        value={variant.discountPercent}
+                        onChange={(event) =>
+                          updateVariant(variant.localKey, (current) => ({
+                            ...current,
+                            discountPercent: event.target.value,
+                            price: String(computeSellingPrice(current.compareAtPrice, event.target.value))
+                          }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span className="text-xs font-semibold uppercase text-[var(--muted)]">Selling Price</span>
+                      <Input className="mt-1 bg-[var(--mint)]/35" value={variant.price} readOnly />
                     </label>
                     <label>
                       <span className="text-xs font-semibold uppercase text-[var(--muted)]">Stock</span>
@@ -1880,6 +2393,22 @@ export function AdminProductsClient() {
                           }))
                         }
                       />
+                      <p className="mt-1 text-[10px] text-[var(--muted)]">Unique inventory code for this exact variant.</p>
+                    </label>
+                    <label>
+                      <span className="text-xs font-semibold uppercase text-[var(--muted)]">Sort Order</span>
+                      <Input
+                        className="mt-1"
+                        min={0}
+                        type="number"
+                        value={variant.sortOrder}
+                        onChange={(event) =>
+                          updateVariant(variant.localKey, (current) => ({
+                            ...current,
+                            sortOrder: event.target.value
+                          }))
+                        }
+                      />
                     </label>
                     <div className="rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 py-2">
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Status</p>
@@ -1897,7 +2426,7 @@ export function AdminProductsClient() {
                     </div>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
                     <label className="flex items-center gap-2 text-sm">
                       <input
                         checked={variant.isActive}
@@ -1911,12 +2440,38 @@ export function AdminProductsClient() {
                       />
                       Active
                     </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        checked={variant.isFeatured}
+                        type="checkbox"
+                        onChange={(event) =>
+                          updateVariant(variant.localKey, (current) => ({
+                            ...current,
+                            isFeatured: event.target.checked
+                          }))
+                        }
+                      />
+                      Featured variant
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        checked={variant.isBestSeller}
+                        type="checkbox"
+                        onChange={(event) =>
+                          updateVariant(variant.localKey, (current) => ({
+                            ...current,
+                            isBestSeller: event.target.checked
+                          }))
+                        }
+                      />
+                      Best seller variant
+                    </label>
 
                     {mode === "edit" ? (
                       <Button
                         type="button"
                         variant="secondary"
-                        disabled={variant.isSaving}
+                        disabled={variant.isSaving || !isVariantDirty(variant)}
                         onClick={() => void saveVariant(variant)}
                       >
                         {variant.isSaving ? "Saving..." : "Save variant"}
@@ -1931,6 +2486,16 @@ export function AdminProductsClient() {
                     >
                       {variant.persisted ? (variant.isActive ? "Deactivate" : "Activate") : "Remove"}
                     </Button>
+                    {variant.persisted ? (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        disabled={variant.isSaving}
+                        onClick={() => openVariantDeleteDialog(variant)}
+                      >
+                        Delete variant
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               ))
@@ -1939,7 +2504,7 @@ export function AdminProductsClient() {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-2">
-          <Button type="submit" disabled={isSavingProduct || isLoadingFormProduct}>
+          <Button type="submit" disabled={isMainSaveDisabled}>
             {isSavingProduct ? "Saving..." : mode === "create" ? "Create product" : "Save product"}
           </Button>
           {mode === "edit" && editingProductId ? (
@@ -1956,7 +2521,71 @@ export function AdminProductsClient() {
             </Button>
           ) : null}
         </div>
+        {mode === "edit" && !isProductSectionDirty ? (
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            No product field changes to save.
+            {hasVariantChanges ? " Variant updates can be saved using each row’s Save variant button." : ""}
+          </p>
+        ) : null}
       </form>
+      {deleteDialog ? (
+        <div
+          aria-modal="true"
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 px-4 py-8"
+          role="dialog"
+          onClick={closeDeleteDialog}
+        >
+          <div
+            className="w-full max-w-lg rounded-xl border border-[var(--line)] bg-white p-5 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--coral)]">
+              Permanent delete
+            </p>
+            <h3 className="mt-2 text-xl font-semibold">
+              {deleteDialog.kind === "product" ? "Delete product permanently?" : "Delete variant permanently?"}
+            </h3>
+            <p className="mt-2 text-sm text-[var(--muted)]">
+              {deleteDialog.kind === "product"
+                ? "Deleting this product permanently removes it from storefront management. Historical orders and reviews remain preserved where required."
+                : `Delete variant "${deleteDialog.variantLabel}" permanently? Historical references are protected and will block this action when needed.`}
+            </p>
+            <p className="mt-4 text-xs text-[var(--muted)]">
+              Type <span className="font-semibold text-[var(--ink)]">{deleteExpectedText}</span> to confirm.
+            </p>
+            <Input
+              className="mt-2"
+              disabled={isDeletingPermanent}
+              placeholder={deleteExpectedText}
+              value={deleteConfirmText}
+              onChange={(event) => setDeleteConfirmText(event.target.value)}
+            />
+            {deleteDialogError ? (
+              <div className="mt-3 rounded-lg border border-[#e7c9c6] bg-[#fff7f7] p-3 text-sm text-[var(--coral)]">
+                {deleteDialogError}
+              </div>
+            ) : null}
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={isDeletingPermanent}
+                onClick={closeDeleteDialog}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={!canConfirmDelete}
+                onClick={() => void confirmPermanentDelete()}
+              >
+                {isDeletingPermanent ? "Deleting..." : "Delete permanently"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

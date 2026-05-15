@@ -27,7 +27,13 @@ function isDragPointerType(pointerType: string): boolean {
   return pointerType === "touch" || pointerType === "pen";
 }
 
-export function ProductShelfCarousel({ products }: { products: Product[] }) {
+export function ProductShelfCarousel({
+  products,
+  variantContext = "default"
+}: {
+  products: Product[];
+  variantContext?: "default" | "featured" | "bestSeller";
+}) {
   const visibleCards = useSyncExternalStore(subscribeToViewport, getVisibleCards, () => 2);
   const maxIndex = Math.max(0, products.length - visibleCards);
 
@@ -144,7 +150,7 @@ export function ProductShelfCarousel({ products }: { products: Product[] }) {
                 }
               }}
             >
-              <ProductCard priority={index < visibleCards} product={product} />
+              <ProductCard priority={index < visibleCards} product={product} variantContext={variantContext} />
             </div>
           ))}
         </div>

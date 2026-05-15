@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ProductGridClient } from "@/components/product/product-grid-client";
 import { categories as fallbackCategories, products as fallbackProducts } from "@/lib/products";
 import { fetchCategories, fetchProducts } from "@/lib/catalog-api";
+import { sortStorefrontProducts } from "@/lib/storefront-product-order";
 import { absoluteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function ProductsPage() {
-  let initialProducts = fallbackProducts;
+  let initialProducts = sortStorefrontProducts(fallbackProducts);
   let initialCategories = fallbackCategories;
   let initialTotalPages = 1;
   let initialTotal = fallbackProducts.length;
@@ -33,7 +34,7 @@ export default async function ProductsPage() {
       fetchCategories()
     ]);
 
-    initialProducts = productsResponse.data;
+    initialProducts = sortStorefrontProducts(productsResponse.data);
     initialTotalPages = productsResponse.pagination.totalPages;
     initialTotal = productsResponse.pagination.total;
 

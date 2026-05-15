@@ -7,7 +7,7 @@ import type { Product } from "@/types/product";
 import { PriceWithCompare } from "@/components/ui/price";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { useCartStore } from "@/stores/cart-store";
-import { selectCardDisplayVariant } from "@/components/product/card-variant";
+import { selectContextDisplayVariant } from "@/components/product/card-variant";
 import { useNotifyMe } from "@/hooks/use-notify-me";
 
 export function BestSellerCard({ product, priority = false }: { product: Product; priority?: boolean }) {
@@ -21,7 +21,7 @@ export function BestSellerCard({ product, priority = false }: { product: Product
   const getAvailableStock = useCartStore((state) => state.getAvailableStock);
   const pushCartNotice = useCartStore((state) => state.pushCartNotice);
 
-  const { variant, isOutOfStock, compareAtPrice } = selectCardDisplayVariant(product);
+  const { variant, isOutOfStock, compareAtPrice } = selectContextDisplayVariant(product, "bestSeller");
   const { notify, isSubmitting: isNotifySubmitting } = useNotifyMe({
     onSuccess: (message) => setStatus(message),
     onError: (message) => setStatus(message)

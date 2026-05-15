@@ -1,12 +1,15 @@
 import { z } from "zod";
 
+const REVIEW_SUBJECT_MAX_LENGTH = 80;
+const REVIEW_BODY_MAX_LENGTH = 500;
+
 export const createReviewSchema = z.object({
   params: z.object({}).passthrough(),
   query: z.object({}).passthrough(),
   body: z.object({
     rating: z.coerce.number().int().min(1).max(5),
-    subject: z.string().trim().min(1).max(160),
-    body: z.string().trim().min(1).max(5000),
+    subject: z.string().trim().min(1).max(REVIEW_SUBJECT_MAX_LENGTH),
+    body: z.string().trim().min(1).max(REVIEW_BODY_MAX_LENGTH),
     productId: z.string().trim().min(1).optional()
   })
 });
@@ -38,8 +41,8 @@ export const verifiedTextSchema = z.object({
   body: z
     .object({
       reviewId: z.string().trim().min(1),
-      subject: z.string().trim().max(160).optional(),
-      body: z.string().trim().max(5000).optional()
+      subject: z.string().trim().max(REVIEW_SUBJECT_MAX_LENGTH).optional(),
+      body: z.string().trim().max(REVIEW_BODY_MAX_LENGTH).optional()
     })
     .refine((value) => Boolean(value.subject?.trim() || value.body?.trim()), {
       message: "Either subject or body is required"
@@ -68,8 +71,8 @@ export const verifiedFromLinkTextSchema = z.object({
     .object({
       token: z.string().trim().min(1),
       reviewId: z.string().trim().min(1),
-      subject: z.string().trim().max(160).optional(),
-      body: z.string().trim().max(5000).optional()
+      subject: z.string().trim().max(REVIEW_SUBJECT_MAX_LENGTH).optional(),
+      body: z.string().trim().max(REVIEW_BODY_MAX_LENGTH).optional()
     })
     .refine((value) => Boolean(value.subject?.trim() || value.body?.trim()), {
       message: "Either subject or body is required"

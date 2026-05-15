@@ -2,6 +2,7 @@
 
 import type { Product } from "@/types/product";
 import { fetchProducts } from "@/lib/catalog-api";
+import { sortStorefrontProducts } from "@/lib/storefront-product-order";
 
 const SEARCH_INDEX_STORAGE_KEY = "auraville-search-index-v1";
 const SEARCH_INDEX_LIMIT = 100;
@@ -14,11 +15,21 @@ function normalizeQuery(query: string): string {
 }
 
 function rankForDefault(products: Product[]): Product[] {
-  return [...products].sort((a, b) => {
+  return sortStorefrontProducts(products).sort((a, b) => {
     const aScore = Number(a.isFeatured) * 3 + a.popularity + Number(a.reviewCount > 0);
     const bScore = Number(b.isFeatured) * 3 + b.popularity + Number(b.reviewCount > 0);
     return bScore - aScore;
   });
+}
+
+function getAvailabilityRank(product: Product): number {
+  if (product.availability === "coming-soon") {
+    return 2;
+  }
+  if (!product.variants || product.variants.length === 0) {
+    return 2;
+  }
+  return product.variants.some((variant) => (variant.stock ?? 0) > 0) ? 0 : 1;
 }
 
 function hydrateFromSessionStorage(): Product[] | null {
@@ -103,6 +114,13 @@ export function filterSearchIndex(query: string, limit = 7): Product[] {
     .filter((product) => {
       const haystack = `${product.name} ${product.slug} ${product.category} ${product.tagline}`.toLowerCase();
       return haystack.includes(normalized);
+    })
+    .sort((a, b) => {
+      const rankDelta = getAvailabilityRank(a) - getAvailabilityRank(b);
+      if (rankDelta !== 0) return rankDelta;
+      const aScore = Number(a.isFeatured) * 3 + a.popularity + Number(a.reviewCount > 0);
+      const bScore = Number(b.isFeatured) * 3 + b.popularity + Number(b.reviewCount > 0);
+      return bScore - aScore;
     })
     .slice(0, limit);
 }

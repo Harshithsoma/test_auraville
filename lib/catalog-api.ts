@@ -1,5 +1,6 @@
 import type { Product } from "@/types/product";
 import { commerceApi } from "@/services/api";
+import { sortStorefrontProducts } from "@/lib/storefront-product-order";
 
 export type Pagination = {
   page: number;
@@ -34,7 +35,11 @@ export type ProductsListQuery = {
 };
 
 export async function fetchProducts(query?: ProductsListQuery): Promise<ProductsListResponse> {
-  return commerceApi.products.list<ProductsListResponse>(query);
+  const response = await commerceApi.products.list<ProductsListResponse>(query);
+  return {
+    ...response,
+    data: sortStorefrontProducts(response.data)
+  };
 }
 
 export async function fetchProductBySlug(slug: string): Promise<ProductResponse> {

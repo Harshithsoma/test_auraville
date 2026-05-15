@@ -2,8 +2,13 @@ export type ProductApiVariant = {
   id: string;
   label: string;
   price: number;
+  compareAtPrice?: number;
+  discountPercent: number;
   unit: string;
   stock: number;
+  isFeatured: boolean;
+  isBestSeller: boolean;
+  sortOrder: number;
 };
 
 export type ProductApiResponse = {
@@ -24,6 +29,7 @@ export type ProductApiResponse = {
   releaseNote?: string;
   rating: number;
   reviewCount: number;
+  // Deprecated product-level merchandising flags. Variant-level flags drive storefront sections.
   isFeatured: boolean;
   isBestSeller: boolean;
   isNew: boolean;

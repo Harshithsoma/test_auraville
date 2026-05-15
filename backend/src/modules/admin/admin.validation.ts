@@ -31,10 +31,15 @@ const metadataObjectSchema = z
 const productVariantBodySchema = z.object({
   frontendVariantId: z.string().trim().min(1).max(80),
   label: z.string().trim().min(1).max(120),
-  price: z.coerce.number().int().min(0),
+  price: z.coerce.number().int().min(0).optional(),
+  compareAtPrice: z.coerce.number().int().min(0).nullable().optional(),
+  discountPercent: z.coerce.number().int().min(0).max(100).optional(),
   unit: z.string().trim().min(1).max(40),
   stock: z.coerce.number().int().min(0),
   sku: z.string().trim().min(1).max(120).optional(),
+  isFeatured: z.boolean().optional(),
+  isBestSeller: z.boolean().optional(),
+  sortOrder: z.coerce.number().int().min(0).optional(),
   isActive: z.boolean().optional()
 });
 
@@ -45,7 +50,7 @@ const productBaseBodySchema = z.object({
   tagline: z.string().trim().min(1).max(255),
   description: z.string().trim().min(1).max(1000),
   longDescription: z.string().trim().min(1).max(10000),
-  price: z.coerce.number().int().min(0),
+  price: z.coerce.number().int().min(0).optional(),
   compareAtPrice: z.coerce.number().int().min(0).nullable().optional(),
   promoLabel: z.string().trim().min(1).max(120).nullable().optional(),
   currency: z.literal("INR").optional(),
@@ -120,6 +125,16 @@ export const adminDeleteProductSchema = z.object({
   })
 });
 
+export const adminHardDeleteProductSchema = z.object({
+  query: z.object({}).passthrough(),
+  params: z.object({
+    id: z.string().trim().min(1)
+  }),
+  body: z.object({
+    confirmText: z.string().trim().min(1).max(255)
+  })
+});
+
 export const adminCreateVariantSchema = z.object({
   query: z.object({}).passthrough(),
   params: z.object({
@@ -150,6 +165,17 @@ export const adminDeleteVariantSchema = z.object({
   params: z.object({
     id: z.string().trim().min(1),
     variantId: z.string().trim().min(1)
+  })
+});
+
+export const adminHardDeleteVariantSchema = z.object({
+  query: z.object({}).passthrough(),
+  params: z.object({
+    id: z.string().trim().min(1),
+    variantId: z.string().trim().min(1)
+  }),
+  body: z.object({
+    confirmText: z.string().trim().min(1).max(255)
   })
 });
 
@@ -398,10 +424,12 @@ export type AdminGetProductByIdValidatedInput = z.infer<typeof adminGetProductBy
 export type AdminCreateProductValidatedInput = z.infer<typeof adminCreateProductSchema>;
 export type AdminPatchProductValidatedInput = z.infer<typeof adminPatchProductSchema>;
 export type AdminDeleteProductValidatedInput = z.infer<typeof adminDeleteProductSchema>;
+export type AdminHardDeleteProductValidatedInput = z.infer<typeof adminHardDeleteProductSchema>;
 
 export type AdminCreateVariantValidatedInput = z.infer<typeof adminCreateVariantSchema>;
 export type AdminPatchVariantValidatedInput = z.infer<typeof adminPatchVariantSchema>;
 export type AdminDeleteVariantValidatedInput = z.infer<typeof adminDeleteVariantSchema>;
+export type AdminHardDeleteVariantValidatedInput = z.infer<typeof adminHardDeleteVariantSchema>;
 
 export type AdminCreateCategoryValidatedInput = z.infer<typeof adminCreateCategorySchema>;
 export type AdminPatchCategoryValidatedInput = z.infer<typeof adminPatchCategorySchema>;
