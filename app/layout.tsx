@@ -5,7 +5,11 @@ import { CartDrawer } from "@/components/cart/cart-drawer";
 import { DeliveryReviewPrompt } from "@/components/layout/delivery-review-prompt";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
-import { fetchHomepageSections, sectionMap } from "@/lib/homepage-cms";
+import {
+  fetchHomepageSections,
+  getHomepageSectionDisplayMode,
+  sectionMap
+} from "@/lib/homepage-cms";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -50,6 +54,9 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const sections = await fetchHomepageSections();
   const footerSection = sectionMap(sections).get("footer");
+  const footerMode = getHomepageSectionDisplayMode(footerSection);
+  const footerBrandBlurb = footerMode === "custom" ? (footerSection?.body ?? undefined) : undefined;
+  const isFooterHidden = footerMode === "hidden";
 
   return (
     <html lang="en" data-scroll-behavior="smooth">
@@ -58,7 +65,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <Header />
         <DeliveryReviewPrompt />
         <main>{children}</main>
-        <Footer brandBlurb={footerSection?.body ?? undefined} hidden={footerSection ? !footerSection.isActive : false} />
+        <Footer brandBlurb={footerBrandBlurb} hidden={isFooterHidden} />
         <CartDrawer />
       </body>
     </html>

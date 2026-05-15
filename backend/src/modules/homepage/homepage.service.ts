@@ -34,9 +34,6 @@ function mapSection(section: {
 
 export async function listHomepageSections(): Promise<{ data: HomepageSectionResponse[] }> {
   const sections = await prisma.homepageSection.findMany({
-    where: {
-      isActive: true
-    },
     orderBy: [{ position: "asc" }, { key: "asc" }]
   });
 

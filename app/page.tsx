@@ -10,7 +10,12 @@ import { Hero } from "@/components/sections/hero";
 import { ReviewsSlider } from "@/components/sections/reviews-slider";
 import { ScrollingBanner } from "@/components/sections/scrolling-banner";
 import { UspFeatures } from "@/components/sections/usp-features";
-import { fetchHomepageSections, metadataObject, sectionMap } from "@/lib/homepage-cms";
+import {
+  fetchHomepageSections,
+  getHomepageSectionDisplayMode,
+  metadataObject,
+  sectionMap
+} from "@/lib/homepage-cms";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -68,31 +73,48 @@ export default async function HomePage() {
 
   const uspMetadata = metadataObject(uspFeatures);
   const faqMetadata = metadataObject(faq);
+  const heroMode = getHomepageSectionDisplayMode(hero);
+  const uspMode = getHomepageSectionDisplayMode(uspFeatures);
+  const announcementMode = getHomepageSectionDisplayMode(announcement);
+  const reviewsMode = getHomepageSectionDisplayMode(reviews);
+  const whyAuravilleMode = getHomepageSectionDisplayMode(whyAuraville);
+  const doYouKnowMode = getHomepageSectionDisplayMode(doYouKnow);
+  const faqMode = getHomepageSectionDisplayMode(faq);
 
   return (
     <>
-      <Hero
-        imageUrl={hero && hero.isActive ? (hero.imageUrl ?? undefined) : undefined}
-        linkUrl={hero && hero.isActive ? (hero.linkUrl ?? undefined) : undefined}
-        title={hero && hero.isActive ? (hero.title ?? undefined) : undefined}
-      />
+      {heroMode === "hidden" ? null : heroMode === "custom" ? (
+        <Hero
+          imageUrl={hero?.imageUrl ?? undefined}
+          linkUrl={hero?.linkUrl ?? undefined}
+          title={hero?.title ?? undefined}
+        />
+      ) : (
+        <Hero />
+      )}
       <ScrollingBanner />
-      {!uspFeatures || uspFeatures.isActive ? (
+      {uspMode === "hidden" ? null : uspMode === "custom" ? (
         <UspFeatures
           title={uspFeatures?.title ?? undefined}
           labels={asStringArray(uspMetadata.labels)}
         />
-      ) : null}
+      ) : (
+        <UspFeatures />
+      )}
       <FeaturedProducts />
-      {!announcement || announcement.isActive ? (
+      {announcementMode === "hidden" ? null : announcementMode === "custom" ? (
         <AnnouncementBar items={announcementItems} />
-      ) : null}
+      ) : (
+        <AnnouncementBar />
+      )}
       <BestSellersSection />
       <FeaturedCoreProduct />
-      {!reviews || reviews.isActive ? (
+      {reviewsMode === "hidden" ? null : reviewsMode === "custom" ? (
         <ReviewsSlider title={reviews?.title ?? undefined} subtitle={reviews?.subtitle ?? undefined} />
-      ) : null}
-      {!whyAuraville || whyAuraville.isActive ? (
+      ) : (
+        <ReviewsSlider />
+      )}
+      {whyAuravilleMode === "hidden" ? null : whyAuravilleMode === "custom" ? (
         <BrandStoryImage
           eyebrow={whyAuraville?.subtitle ?? undefined}
           title={whyAuraville?.title ?? undefined}
@@ -100,13 +122,19 @@ export default async function HomePage() {
           imageUrl={whyAuraville?.imageUrl ?? undefined}
           linkUrl={whyAuraville?.linkUrl ?? undefined}
         />
-      ) : null}
-      {!doYouKnow || doYouKnow.isActive ? (
+      ) : (
+        <BrandStoryImage />
+      )}
+      {doYouKnowMode === "hidden" ? null : doYouKnowMode === "custom" ? (
         <DoYouKnowSection title={doYouKnow?.title ?? undefined} subtitle={doYouKnow?.subtitle ?? undefined} />
-      ) : null}
-      {!faq || faq.isActive ? (
+      ) : (
+        <DoYouKnowSection />
+      )}
+      {faqMode === "hidden" ? null : faqMode === "custom" ? (
         <FaqSection title={faq?.title ?? undefined} items={asFaqItems(faqMetadata.items)} />
-      ) : null}
+      ) : (
+        <FaqSection />
+      )}
     </>
   );
 }

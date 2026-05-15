@@ -14,6 +14,8 @@ export type HomepageSection = {
   updatedAt: string;
 };
 
+export type HomepageSectionDisplayMode = "custom" | "default" | "hidden";
+
 type HomepageSectionsResponse = {
   data: HomepageSection[];
 };
@@ -31,9 +33,37 @@ export function sectionMap(sections: HomepageSection[]): Map<string, HomepageSec
   return new Map(sections.map((section) => [section.key, section]));
 }
 
-export function metadataObject(section: HomepageSection | undefined): Record<string, unknown> {
+function metadataWithDisplayMode(
+  section: HomepageSection | undefined
+): Record<string, unknown> {
   if (!section?.metadata || typeof section.metadata !== "object" || Array.isArray(section.metadata)) {
     return {};
   }
   return section.metadata;
+}
+
+export function getHomepageSectionDisplayMode(
+  section: HomepageSection | undefined
+): HomepageSectionDisplayMode {
+  const metadata = metadataWithDisplayMode(section);
+  const candidate = metadata.displayMode;
+  if (candidate === "custom" || candidate === "default" || candidate === "hidden") {
+    return candidate;
+  }
+
+  if (!section) {
+    return "default";
+  }
+
+  return section.isActive ? "custom" : "hidden";
+}
+
+export function metadataObject(section: HomepageSection | undefined): Record<string, unknown> {
+  const metadata = metadataWithDisplayMode(section);
+  if ("displayMode" in metadata) {
+    const rest = { ...metadata };
+    delete rest.displayMode;
+    return rest;
+  }
+  return metadata;
 }

@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { getCartCount, useCartStore } from "@/stores/cart-store";
 import { useCartPricing } from "@/hooks/use-cart-pricing";
@@ -10,8 +11,11 @@ import { useHasMounted } from "@/hooks/use-has-mounted";
 import { formatPrice } from "@/components/ui/price";
 import { CouponPicker } from "@/components/cart/coupon-picker";
 
+const CART_DRAWER_HISTORY_FLAG = "__auravilleCartDrawer";
+
 export function CartDrawer() {
   const hasMounted = useHasMounted();
+  const pathname = usePathname();
   const user = useAuthStore((state) => state.user);
 
   const items = useCartStore((state) => state.items);
@@ -30,17 +34,113 @@ export function CartDrawer() {
   const { summary, enrichedItems, pricingError, isPricingLoading, isBackendPricing, shippingProgress } = useCartPricing();
 
   const [isSummaryOpen, setIsSummaryOpen] = useState(true);
+  const drawerHistoryActiveRef = useRef(false);
+  const isHistoryCleanupRef = useRef(false);
+  const isDrawerOpenRef = useRef(isDrawerOpen);
+  const wasDrawerOpenRef = useRef(isDrawerOpen);
+  const previousRouteRef = useRef<string | null>(null);
 
   const count = getCartCount(items);
   const hasUnavailableItems =
     isBackendPricing &&
     enrichedItems.some((item) => !item.available || item.stock <= 0 || item.quantity > item.stock);
 
+  const closeDrawerWithHistory = useCallback(() => {
+    if (!isDrawerOpenRef.current) return;
+    closeDrawer();
+
+    if (typeof window !== "undefined" && drawerHistoryActiveRef.current) {
+      drawerHistoryActiveRef.current = false;
+      isHistoryCleanupRef.current = true;
+      window.history.back();
+    }
+  }, [closeDrawer]);
+
+  useEffect(() => {
+    isDrawerOpenRef.current = isDrawerOpen;
+  }, [isDrawerOpen]);
+
+  useEffect(() => {
+    if (!hasMounted) return;
+
+    if (wasDrawerOpenRef.current && !isDrawerOpen && drawerHistoryActiveRef.current && typeof window !== "undefined") {
+      drawerHistoryActiveRef.current = false;
+      isHistoryCleanupRef.current = true;
+      window.history.back();
+    }
+
+    wasDrawerOpenRef.current = isDrawerOpen;
+  }, [closeDrawerWithHistory, hasMounted, isDrawerOpen]);
+
+  useEffect(() => {
+    if (!hasMounted) return;
+
+    const routeKey = pathname;
+    if (previousRouteRef.current === null) {
+      previousRouteRef.current = routeKey;
+      return;
+    }
+
+    if (previousRouteRef.current === routeKey) {
+      return;
+    }
+
+    previousRouteRef.current = routeKey;
+    drawerHistoryActiveRef.current = false;
+    isHistoryCleanupRef.current = false;
+
+    if (isDrawerOpenRef.current) {
+      closeDrawer();
+    }
+  }, [closeDrawer, hasMounted, pathname]);
+
+  useEffect(() => {
+    if (!hasMounted || !isDrawerOpen) return;
+    if (typeof window === "undefined") return;
+    if (drawerHistoryActiveRef.current) return;
+
+    const currentState =
+      window.history.state && typeof window.history.state === "object"
+        ? window.history.state
+        : {};
+    window.history.pushState(
+      {
+        ...currentState,
+        [CART_DRAWER_HISTORY_FLAG]: true
+      },
+      "",
+      window.location.href
+    );
+    drawerHistoryActiveRef.current = true;
+  }, [closeDrawerWithHistory, hasMounted, isDrawerOpen]);
+
+  useEffect(() => {
+    if (!hasMounted) return;
+    if (typeof window === "undefined") return;
+
+    function onPopState() {
+      if (isHistoryCleanupRef.current) {
+        isHistoryCleanupRef.current = false;
+        return;
+      }
+
+      if (isDrawerOpenRef.current && drawerHistoryActiveRef.current) {
+        drawerHistoryActiveRef.current = false;
+        closeDrawer();
+      }
+    }
+
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, [closeDrawer, hasMounted]);
+
   useEffect(() => {
     if (!hasMounted || !isDrawerOpen) return;
 
     function onEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") closeDrawer();
+      if (event.key === "Escape") closeDrawerWithHistory();
     }
 
     document.body.style.overflow = "hidden";
@@ -50,7 +150,7 @@ export function CartDrawer() {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", onEscape);
     };
-  }, [closeDrawer, hasMounted, isDrawerOpen]);
+  }, [closeDrawerWithHistory, hasMounted, isDrawerOpen]);
 
   if (!hasMounted) return null;
 
@@ -63,7 +163,7 @@ export function CartDrawer() {
         aria-label="Close cart drawer"
         className={`absolute inset-0 bg-black/35 transition ${isDrawerOpen ? "pointer-events-auto opacity-100" : "opacity-0"}`}
         type="button"
-        onClick={closeDrawer}
+        onClick={closeDrawerWithHistory}
       />
 
       <aside
@@ -79,7 +179,7 @@ export function CartDrawer() {
               aria-label="Close cart"
               className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--line)] text-lg transition active:scale-95"
               type="button"
-              onClick={closeDrawer}
+              onClick={closeDrawerWithHistory}
             >
               ×
             </button>
