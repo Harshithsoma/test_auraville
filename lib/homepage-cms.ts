@@ -67,3 +67,16 @@ export function metadataObject(section: HomepageSection | undefined): Record<str
   }
   return metadata;
 }
+
+export function isRenderableCmsImageUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value.trim());
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return false;
+    }
+    const blockedHosts = new Set(["example.com", "www.example.com", "localhost", "127.0.0.1"]);
+    return !blockedHosts.has(parsed.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}

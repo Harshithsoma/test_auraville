@@ -1,10 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
-const slides = [
+export type HeroSlide = {
+  title: string;
+  subtitle?: string;
+  buttonText?: string;
+  image: string;
+  href?: string;
+  objectPosition?: string;
+};
+
+const defaultSlides: HeroSlide[] = [
   {
     title: "Bringing palmyra sprout back to the snack shelf.",
     image: "/hero/palmyra-energy.svg",
@@ -31,9 +39,12 @@ const slides = [
   }
 ];
 
-export function HeroSlideshow() {
-  const slideCount = slides.length;
-  const loopSlides = [slides[slideCount - 1], ...slides, slides[0]];
+export function HeroSlideshow({ slides = defaultSlides }: { slides?: HeroSlide[] }) {
+  const normalizedSlides = slides.length > 0 ? slides : defaultSlides;
+  const firstSlide = normalizedSlides[0] ?? defaultSlides[0]!;
+
+  const slideCount = normalizedSlides.length;
+  const loopSlides = [normalizedSlides[normalizedSlides.length - 1] ?? firstSlide, ...normalizedSlides, firstSlide];
 
   const [position, setPosition] = useState(1);
   const [dragOffset, setDragOffset] = useState(0);
@@ -167,30 +178,55 @@ export function HeroSlideshow() {
             }
           }}
         >
-          {loopSlides.map((item, index) => (
-            <Link
-              aria-label={item.title}
-              className="relative block min-w-full shrink-0"
-              href={item.href}
-              key={`${item.title}-${index}`}
-              onClick={(event) => {
-                if (dragMovedRef.current) {
-                  event.preventDefault();
-                }
-              }}
-            >
-              <Image
-                alt={item.title}
-                className="object-cover object-center select-none"
-                draggable={false}
-                fill
-                priority={index <= 2}
-                sizes="100vw"
-                src={item.image}
-                style={{ objectPosition: item.objectPosition }}
-              />
-            </Link>
-          ))}
+          {loopSlides.map((item, index) => {
+            const slideVisual = (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  alt={item.title}
+                  className="h-full w-full object-cover object-center select-none"
+                  draggable={false}
+                  src={item.image}
+                  style={{ objectPosition: item.objectPosition }}
+                />
+                {item.subtitle?.trim() || item.buttonText?.trim() ? (
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent px-5 pb-6 pt-10 text-white sm:px-8 sm:pb-8">
+                    <div className="mx-auto flex w-full max-w-6xl flex-col gap-2">
+                      <p className="text-lg font-semibold leading-tight sm:text-2xl">{item.title}</p>
+                      {item.subtitle?.trim() ? (
+                        <p className="max-w-3xl text-xs leading-5 text-white/90 sm:text-sm">{item.subtitle.trim()}</p>
+                      ) : null}
+                      {item.buttonText?.trim() ? (
+                        <span className="mt-1 inline-flex w-fit items-center rounded-lg border border-white/50 bg-black/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white backdrop-blur-sm sm:text-sm">
+                          {item.buttonText.trim()}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            );
+
+            return item.href?.trim() ? (
+              <Link
+                aria-label={item.title}
+                className="relative block min-w-full shrink-0"
+                href={item.href.trim()}
+                key={`${item.title}-${index}`}
+                onClick={(event) => {
+                  if (dragMovedRef.current) {
+                    event.preventDefault();
+                  }
+                }}
+              >
+                {slideVisual}
+              </Link>
+            ) : (
+              <div className="relative block min-w-full shrink-0" key={`${item.title}-${index}`}>
+                {slideVisual}
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>

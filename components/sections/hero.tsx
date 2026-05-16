@@ -22,12 +22,37 @@ function isRenderableCmsImageUrl(value: string): boolean {
 export function Hero({
   imageUrl,
   linkUrl,
-  title
+  title,
+  slides
 }: {
   imageUrl?: string;
   linkUrl?: string;
   title?: string;
+  slides?: Array<{
+    imageUrl: string;
+    title?: string;
+    subtitle?: string;
+    linkUrl?: string;
+    buttonText?: string;
+    sortOrder?: number;
+  }>;
 }) {
+  const validSlides =
+    slides
+      ?.filter((slide) => slide.imageUrl?.trim() && isRenderableCmsImageUrl(slide.imageUrl))
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+      .map((slide) => ({
+        title: slide.title?.trim() || "Auraville hero",
+        subtitle: slide.subtitle?.trim() || undefined,
+        buttonText: slide.buttonText?.trim() || undefined,
+        image: slide.imageUrl.trim(),
+        href: slide.linkUrl?.trim() || undefined
+      })) ?? [];
+
+  if (validSlides.length > 0) {
+    return <HeroSlideshow slides={validSlides} />;
+  }
+
   if (imageUrl?.trim() && isRenderableCmsImageUrl(imageUrl)) {
     const heroImage = (
       <div className="relative aspect-[1440/780] w-full max-h-[620px]">

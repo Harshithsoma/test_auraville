@@ -5,10 +5,16 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useSectionInView } from "@/hooks/use-section-in-view";
 
-const instagramPostUrl =
-  "https://www.instagram.com/p/DT--hjFk77y/?utm_source=ig_web_copy_link&igsh=MzRlODBiNWFlZA==";
+export type DoYouKnowCard = {
+  title: string;
+  excerpt: string;
+  image?: string;
+  linkUrl?: string;
+  buttonText?: string;
+  postedAt?: string;
+};
 
-const cards = [
+const defaultCards: DoYouKnowCard[] = [
   {
     title: "Palmyra Sprout, Reintroduced",
     excerpt: "Why this traditional ingredient deserves a modern daily place.",
@@ -47,6 +53,14 @@ const cards = [
   }
 ];
 
+function isExternalLink(href: string): boolean {
+  return /^https?:\/\//i.test(href);
+}
+
+function isRemoteImage(src: string): boolean {
+  return /^https?:\/\//i.test(src);
+}
+
 function subscribeToViewport(callback: () => void) {
   window.addEventListener("resize", callback);
   return () => window.removeEventListener("resize", callback);
@@ -67,13 +81,16 @@ function isInteractiveTarget(target: EventTarget | null) {
 
 export function DoYouKnowSection({
   title,
-  subtitle
+  subtitle,
+  cards
 }: {
   title?: string;
   subtitle?: string;
+  cards?: DoYouKnowCard[];
 }) {
+  const feedCards = cards && cards.length > 0 ? cards : defaultCards;
   const visibleCards = useSyncExternalStore(subscribeToViewport, getVisibleCards, () => 2);
-  const maxIndex = Math.max(0, cards.length - visibleCards);
+  const maxIndex = Math.max(0, feedCards.length - visibleCards);
   const [active, setActive] = useState(0);
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -187,8 +204,13 @@ export function DoYouKnowSection({
               transform: `translate3d(calc(-${(clampedIndex * 100) / visibleCards}% + ${dragOffset}px), 0, 0)`
             }}
           >
-            {cards.map((card, index) => {
-              const isCenter = visibleCards >= 3 && index === Math.min(centerIndex, cards.length - 1);
+            {feedCards.map((card, index) => {
+              const isCenter = visibleCards >= 3 && index === Math.min(centerIndex, feedCards.length - 1);
+              const href = card.linkUrl?.trim() || "https://www.instagram.com/auraville.in/";
+              const cardImage = card.image?.trim() || defaultCards[index % defaultCards.length]?.image;
+              const ctaText = card.buttonText?.trim() || (isExternalLink(href) ? "View post" : "Read more");
+              const postedAt = card.postedAt?.trim() || defaultCards[index % defaultCards.length]?.postedAt || "";
+              const openExternal = isExternalLink(href);
               return (
                 <div
                   className={`min-w-0 shrink-0 basis-1/2 px-2 transition-[transform,opacity] duration-300 md:px-2.5 lg:basis-1/3 xl:basis-1/4 ${
@@ -204,9 +226,9 @@ export function DoYouKnowSection({
                 >
                   <Link
                     className="focus-ring group block h-full overflow-hidden rounded-xl border border-[var(--line)] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]"
-                    href={instagramPostUrl}
-                    rel="noopener noreferrer"
-                    target="_blank"
+                    href={href}
+                    rel={openExternal ? "noopener noreferrer" : undefined}
+                    target={openExternal ? "_blank" : undefined}
                   >
                     <div className="p-3.5">
                       <div className="flex items-center gap-2.5">
@@ -215,22 +237,31 @@ export function DoYouKnowSection({
                         </span>
                         <div>
                           <p className="text-sm font-semibold text-[var(--leaf-deep)]">auraville.india</p>
-                          <p className="text-[11px] text-[var(--muted)]">{card.postedAt}</p>
+                          <p className="text-[11px] text-[var(--muted)]">{postedAt}</p>
                         </div>
                       </div>
                       <div className="relative mt-3 aspect-[4/5] overflow-hidden rounded-lg bg-[var(--mint)]">
-                        <Image
-                          alt={card.title}
-                          className="object-cover transition duration-500 group-hover:scale-[1.04]"
-                          fill
-                          sizes="(min-width: 1280px) 22vw, (min-width: 1024px) 30vw, 48vw"
-                          src={card.image}
-                        />
+                        {cardImage ? isRemoteImage(cardImage) ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            alt={card.title}
+                            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+                            src={cardImage}
+                          />
+                        ) : (
+                          <Image
+                            alt={card.title}
+                            className="object-cover transition duration-500 group-hover:scale-[1.04]"
+                            fill
+                            sizes="(min-width: 1280px) 22vw, (min-width: 1024px) 30vw, 48vw"
+                            src={cardImage}
+                          />
+                        ) : null}
                       </div>
                       <p className="mt-3 line-clamp-2 text-sm font-semibold leading-5 text-[var(--leaf-deep)]">{card.title}</p>
                       <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--muted)]">{card.excerpt}</p>
                       <span className="mt-3 inline-flex items-center text-xs font-semibold text-[var(--leaf)]">
-                        View on Instagram
+                        {ctaText}
                         <span className="ml-1.5 text-sm">↗</span>
                       </span>
                     </div>
