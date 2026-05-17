@@ -1,24 +1,31 @@
+import { HOMEPAGE_DEFAULT_USP_LABELS } from "@/lib/homepage-defaults";
+
+const fallbackLabels =
+  HOMEPAGE_DEFAULT_USP_LABELS.length > 0
+    ? HOMEPAGE_DEFAULT_USP_LABELS
+    : ["Gluten Free", "No Preservatives", "Rich in Fiber", "Rich in Iron", "Natural Energy"];
+
 const defaultFeatures = [
   {
-    label: "Gluten Free",
+    label: fallbackLabels[0],
     icon: (
       <path d="M12 4c3 3 4.5 5.8 4.5 8.3A4.5 4.5 0 0 1 12 17a4.5 4.5 0 0 1-4.5-4.7C7.5 9.8 9 7 12 4Z" />
     )
   },
   {
-    label: "No Preservatives",
+    label: fallbackLabels[1] ?? "No Preservatives",
     icon: <path d="M6 7h12M8 7l1 12h6l1-12M10 7V5h4v2" />
   },
   {
-    label: "Rich in Fiber",
+    label: fallbackLabels[2] ?? "Rich in Fiber",
     icon: <path d="M5 18c7 0 12-5 14-12-7 0-12 5-14 12Zm0 0 8-8" />
   },
   {
-    label: "Rich in Iron",
+    label: fallbackLabels[3] ?? "Rich in Iron",
     icon: <path d="M12 4v16M7 8h10M7 16h10M5 12h14" />
   },
   {
-    label: "Natural Energy",
+    label: fallbackLabels[4] ?? "Natural Energy",
     icon: <path d="m13 3-7 11h5l-1 7 8-12h-5l0-6Z" />
   }
 ];

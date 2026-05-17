@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { HOMEPAGE_DEFAULT_FAQ_ITEMS } from "@/lib/homepage-defaults";
 
-const defaultFaqItems = [
+const defaultFaqItems = HOMEPAGE_DEFAULT_FAQ_ITEMS.length > 0 ? HOMEPAGE_DEFAULT_FAQ_ITEMS : [
   {
     q: "Are the products gluten free?",
     a: "Our core energy bar range is made without wheat ingredients. Always check each product label before purchase."

@@ -28,6 +28,60 @@ const metadataObjectSchema = z
     { message: "metadata must be a JSON object" }
   );
 
+function isAllowedHomepageImageUrl(value: string): boolean {
+  const normalized = value.trim().replace(/^['"]|['"]$/g, "");
+  if (!normalized) {
+    return false;
+  }
+
+  if (normalized.startsWith("/")) {
+    return /\.(jpg|jpeg|png|webp|avif|gif|svg)$/i.test(normalized);
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    return false;
+  }
+
+  if (parsed.protocol.toLowerCase() !== "https:") {
+    return false;
+  }
+
+  const host = parsed.hostname.toLowerCase();
+  const blockedHosts = new Set(["example.com", "www.example.com", "localhost", "127.0.0.1"]);
+  if (blockedHosts.has(host)) {
+    return false;
+  }
+
+  if (host === "res.cloudinary.com" && parsed.pathname.includes("/image/upload/")) {
+    return true;
+  }
+
+  if (host === "images.unsplash.com" || host === "source.unsplash.com") {
+    return true;
+  }
+
+  return /\.(jpg|jpeg|png|webp|avif|gif|svg)$/i.test(parsed.pathname);
+}
+
+const homepageImageUrlSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .refine((value) => isAllowedHomepageImageUrl(value), {
+    message: "imageUrl must be a local image path or supported HTTPS image URL"
+  });
+
+const homepageLinkUrlSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .refine((value) => value.startsWith("/") || z.string().url().safeParse(value).success, {
+    message: "linkUrl must be a valid URL or relative path"
+  });
+
 const productVariantBodySchema = z.object({
   frontendVariantId: z.string().trim().min(1).max(80),
   label: z.string().trim().min(1).max(120),
@@ -408,8 +462,8 @@ export const adminPatchHomepageSchema = z.object({
       title: z.string().trim().min(1).max(255).nullable().optional(),
       subtitle: z.string().trim().min(1).max(500).nullable().optional(),
       body: z.string().trim().min(1).max(10000).nullable().optional(),
-      imageUrl: z.string().trim().url().max(2048).optional(),
-      linkUrl: z.string().trim().url().max(2048).optional(),
+      imageUrl: homepageImageUrlSchema.optional(),
+      linkUrl: homepageLinkUrlSchema.optional(),
       metadata: metadataObjectSchema.optional(),
       isActive: z.boolean().optional(),
       position: z.coerce.number().int().min(0).optional()

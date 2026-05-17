@@ -1,50 +1,65 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { HOMEPAGE_DEFAULT_HERO_SLIDES, type HomepageHeroSlide } from "@/lib/homepage-defaults";
 
-export type HeroSlide = {
+type Slide = {
   title: string;
-  subtitle?: string;
-  buttonText?: string;
-  image: string;
-  href?: string;
-  objectPosition?: string;
+  imageUrl: string;
+  linkUrl?: string;
+  objectPosition: string;
 };
 
-const defaultSlides: HeroSlide[] = [
-  {
-    title: "Bringing palmyra sprout back to the snack shelf.",
-    image: "/hero/palmyra-energy.svg",
-    href: "/product/palmyra-sprout-energy-bar",
-    objectPosition: "50% 50%"
-  },
-  {
-    title: "Palmyra sprout cookies coming soon.",
-    image: "/hero/palmyra-cookies.svg",
-    href: "/product/palmyra-sprout-cookies",
-    objectPosition: "50% 50%"
-  },
-  {
-    title: "Palmyra health mix coming soon.",
-    image: "/hero/palmyra-health-mix.svg",
-    href: "/product/palmyra-sprout-health-mix",
-    objectPosition: "50% 50%"
-  },
-  {
-    title: "Palmyra sprout laddu coming soon.",
-    image: "/hero/palmyra-laddu.svg",
-    href: "/product/palmyra-sprout-laddu",
-    objectPosition: "50% 50%"
+function isRenderableImageUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith("/")) return true;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return false;
+    }
+
+    const blockedHosts = new Set(["example.com", "www.example.com", "localhost", "127.0.0.1"]);
+    return !blockedHosts.has(parsed.hostname.toLowerCase());
+  } catch {
+    return false;
   }
-];
+}
 
-export function HeroSlideshow({ slides = defaultSlides }: { slides?: HeroSlide[] }) {
-  const normalizedSlides = slides.length > 0 ? slides : defaultSlides;
-  const firstSlide = normalizedSlides[0] ?? defaultSlides[0]!;
+function toSlides(items?: HomepageHeroSlide[]): Slide[] {
+  const source = items && items.length > 0 ? items : HOMEPAGE_DEFAULT_HERO_SLIDES;
+  const active = [...source]
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    .filter((item) => item.isActive !== false);
 
-  const slideCount = normalizedSlides.length;
-  const loopSlides = [normalizedSlides[normalizedSlides.length - 1] ?? firstSlide, ...normalizedSlides, firstSlide];
+  const mapped = active
+    .map((item) => ({
+      title: item.title?.trim() || "Auraville hero",
+      imageUrl: item.imageUrl?.trim() || "",
+      linkUrl: item.linkUrl?.trim() || undefined,
+      objectPosition: item.objectPosition?.trim() || "50% 50%"
+    }))
+    .filter((item) => isRenderableImageUrl(item.imageUrl));
+
+  if (mapped.length > 0) {
+    return mapped;
+  }
+
+  return HOMEPAGE_DEFAULT_HERO_SLIDES.map((item) => ({
+    title: item.title?.trim() || "Auraville hero",
+    imageUrl: item.imageUrl,
+    linkUrl: item.linkUrl,
+    objectPosition: item.objectPosition ?? "50% 50%"
+  }));
+}
+
+export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroSlide[] }) {
+  const slides = useMemo(() => toSlides(customSlides), [customSlides]);
+  const slideCount = slides.length;
+  const loopSlides = [slides[slideCount - 1], ...slides, slides[0]];
 
   const [position, setPosition] = useState(1);
   const [dragOffset, setDragOffset] = useState(0);
@@ -178,55 +193,28 @@ export function HeroSlideshow({ slides = defaultSlides }: { slides?: HeroSlide[]
             }
           }}
         >
-          {loopSlides.map((item, index) => {
-            const slideVisual = (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  alt={item.title}
-                  className="h-full w-full object-cover object-center select-none"
-                  draggable={false}
-                  src={item.image}
-                  style={{ objectPosition: item.objectPosition }}
-                />
-                {item.subtitle?.trim() || item.buttonText?.trim() ? (
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent px-5 pb-6 pt-10 text-white sm:px-8 sm:pb-8">
-                    <div className="mx-auto flex w-full max-w-6xl flex-col gap-2">
-                      <p className="text-lg font-semibold leading-tight sm:text-2xl">{item.title}</p>
-                      {item.subtitle?.trim() ? (
-                        <p className="max-w-3xl text-xs leading-5 text-white/90 sm:text-sm">{item.subtitle.trim()}</p>
-                      ) : null}
-                      {item.buttonText?.trim() ? (
-                        <span className="mt-1 inline-flex w-fit items-center rounded-lg border border-white/50 bg-black/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white backdrop-blur-sm sm:text-sm">
-                          {item.buttonText.trim()}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : null}
-              </>
-            );
-
-            return item.href?.trim() ? (
-              <Link
-                aria-label={item.title}
-                className="relative block min-w-full shrink-0"
-                href={item.href.trim()}
-                key={`${item.title}-${index}`}
-                onClick={(event) => {
-                  if (dragMovedRef.current) {
-                    event.preventDefault();
-                  }
-                }}
-              >
-                {slideVisual}
-              </Link>
-            ) : (
-              <div className="relative block min-w-full shrink-0" key={`${item.title}-${index}`}>
-                {slideVisual}
-              </div>
-            );
-          })}
+          {loopSlides.map((item, index) => (
+            <Link
+              aria-label={item.title}
+              className="relative block min-w-full shrink-0"
+              href={item.linkUrl ?? "#"}
+              key={`${item.title}-${index}`}
+              onClick={(event) => {
+                if (dragMovedRef.current || !item.linkUrl) {
+                  event.preventDefault();
+                }
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                alt={item.title}
+                className="h-full w-full object-cover object-center select-none"
+                draggable={false}
+                src={item.imageUrl}
+                style={{ objectPosition: item.objectPosition }}
+              />
+            </Link>
+          ))}
         </div>
       </div>
     </section>

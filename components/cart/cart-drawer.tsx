@@ -36,6 +36,7 @@ export function CartDrawer() {
   const [isSummaryOpen, setIsSummaryOpen] = useState(true);
   const drawerHistoryActiveRef = useRef(false);
   const isHistoryCleanupRef = useRef(false);
+  const skipHistoryBackOnCloseRef = useRef(false);
   const isDrawerOpenRef = useRef(isDrawerOpen);
   const wasDrawerOpenRef = useRef(isDrawerOpen);
   const previousRouteRef = useRef<string | null>(null);
@@ -47,6 +48,7 @@ export function CartDrawer() {
 
   const closeDrawerWithHistory = useCallback(() => {
     if (!isDrawerOpenRef.current) return;
+    skipHistoryBackOnCloseRef.current = false;
     closeDrawer();
 
     if (typeof window !== "undefined" && drawerHistoryActiveRef.current) {
@@ -54,6 +56,12 @@ export function CartDrawer() {
       isHistoryCleanupRef.current = true;
       window.history.back();
     }
+  }, [closeDrawer]);
+
+  const closeDrawerForNavigation = useCallback(() => {
+    if (!isDrawerOpenRef.current) return;
+    skipHistoryBackOnCloseRef.current = true;
+    closeDrawer();
   }, [closeDrawer]);
 
   useEffect(() => {
@@ -64,13 +72,22 @@ export function CartDrawer() {
     if (!hasMounted) return;
 
     if (wasDrawerOpenRef.current && !isDrawerOpen && drawerHistoryActiveRef.current && typeof window !== "undefined") {
+      if (skipHistoryBackOnCloseRef.current) {
+        skipHistoryBackOnCloseRef.current = false;
+        drawerHistoryActiveRef.current = false;
+      } else {
+        drawerHistoryActiveRef.current = false;
+        isHistoryCleanupRef.current = true;
+        window.history.back();
+      }
+    } else if (wasDrawerOpenRef.current && !isDrawerOpen) {
+      skipHistoryBackOnCloseRef.current = false;
       drawerHistoryActiveRef.current = false;
-      isHistoryCleanupRef.current = true;
-      window.history.back();
+      isHistoryCleanupRef.current = false;
     }
 
     wasDrawerOpenRef.current = isDrawerOpen;
-  }, [closeDrawerWithHistory, hasMounted, isDrawerOpen]);
+  }, [hasMounted, isDrawerOpen]);
 
   useEffect(() => {
     if (!hasMounted) return;
@@ -88,6 +105,7 @@ export function CartDrawer() {
     previousRouteRef.current = routeKey;
     drawerHistoryActiveRef.current = false;
     isHistoryCleanupRef.current = false;
+    skipHistoryBackOnCloseRef.current = false;
 
     if (isDrawerOpenRef.current) {
       closeDrawer();
@@ -223,7 +241,7 @@ export function CartDrawer() {
               <Link
                 className="focus-ring mt-4 inline-flex h-10 items-center justify-center rounded-lg border border-[var(--leaf)] bg-[var(--leaf)] px-4 text-sm font-semibold text-white transition active:scale-95"
                 href="/#best-sellers-title"
-                onClick={closeDrawer}
+                onClick={closeDrawerForNavigation}
               >
                 Shop Now
               </Link>
@@ -236,7 +254,7 @@ export function CartDrawer() {
                     <Link
                       className="focus-ring relative aspect-square overflow-hidden rounded-md bg-[var(--mint)]"
                       href={`/product/${item.slug}`}
-                      onClick={closeDrawer}
+                      onClick={closeDrawerForNavigation}
                     >
                       <Image alt={item.name} className="object-cover" fill sizes="(min-width: 640px) 78px, 74px" src={item.image} />
                     </Link>
@@ -246,7 +264,7 @@ export function CartDrawer() {
                         <Link
                           className="focus-ring line-clamp-2 rounded text-sm font-semibold leading-5"
                           href={`/product/${item.slug}`}
-                          onClick={closeDrawer}
+                          onClick={closeDrawerForNavigation}
                         >
                           {item.name}
                         </Link>
@@ -411,7 +429,7 @@ export function CartDrawer() {
                 : "bg-[var(--leaf-deep)] text-white hover:bg-[var(--leaf)]"
             }`}
             href={user ? "/checkout" : "/auth"}
-            onClick={closeDrawer}
+            onClick={closeDrawerForNavigation}
           >
             {items.length === 0
               ? "Add products to continue"

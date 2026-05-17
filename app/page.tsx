@@ -12,9 +12,12 @@ import { ScrollingBanner } from "@/components/sections/scrolling-banner";
 import { UspFeatures } from "@/components/sections/usp-features";
 import {
   fetchHomepageSections,
-  getHomepageSectionDisplayMode,
-  isRenderableCmsImageUrl,
-  metadataObject,
+  getSectionDisplayMode,
+  parseAnnouncementItems,
+  parseDoYouKnowCards,
+  parseFaqItems,
+  parseHeroSlides,
+  parseUspLabels,
   sectionMap
 } from "@/lib/homepage-cms";
 import { absoluteUrl, siteConfig } from "@/lib/site";
@@ -29,158 +32,21 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-type FaqMetadataItem = {
-  q?: unknown;
-  a?: unknown;
-  active?: unknown;
-  sortOrder?: unknown;
-};
-
-type HeroMetadataSlide = {
-  imageUrl?: unknown;
-  title?: unknown;
-  subtitle?: unknown;
-  linkUrl?: unknown;
-  buttonText?: unknown;
-  active?: unknown;
-  sortOrder?: unknown;
-};
-
-type AnnouncementMetadataItem = {
-  text?: unknown;
-  active?: unknown;
-  sortOrder?: unknown;
-};
-
-type UspMetadataItem = {
-  label?: unknown;
-  text?: unknown;
-  active?: unknown;
-  sortOrder?: unknown;
-};
-
-type DoYouKnowMetadataCard = {
-  title?: unknown;
-  body?: unknown;
-  excerpt?: unknown;
-  imageUrl?: unknown;
-  linkUrl?: unknown;
-  buttonText?: unknown;
-  postedAt?: unknown;
-  active?: unknown;
-  sortOrder?: unknown;
-};
-
-function asStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+function sortedActiveTexts(items: Array<{ text: string; isActive?: boolean; sortOrder?: number }>): string[] {
+  return [...items]
+    .filter((item) => item.isActive !== false && item.text.trim().length > 0)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    .map((item) => item.text.trim());
 }
 
-function asBoolean(value: unknown, fallback = true): boolean {
-  return typeof value === "boolean" ? value : fallback;
-}
-
-function asNumber(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
-function asSingleLineText(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function asCmsHeroSlides(value: unknown): Array<{
-  imageUrl: string;
-  title?: string;
-  subtitle?: string;
-  linkUrl?: string;
-  buttonText?: string;
-  sortOrder?: number;
-}> {
-  if (!Array.isArray(value)) return [];
-
-  return (value as HeroMetadataSlide[])
-    .filter((item) => asBoolean(item.active, true))
+function sortedActiveFaq(items: Array<{ q: string; a: string; isActive?: boolean; sortOrder?: number }>) {
+  return [...items]
+    .filter((item) => item.isActive !== false && item.q.trim().length > 0 && item.a.trim().length > 0)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
     .map((item) => ({
-      imageUrl: asSingleLineText(item.imageUrl) ?? "",
-      title: asSingleLineText(item.title),
-      subtitle: asSingleLineText(item.subtitle),
-      linkUrl: asSingleLineText(item.linkUrl),
-      buttonText: asSingleLineText(item.buttonText),
-      sortOrder: asNumber(item.sortOrder, 0)
-    }))
-    .filter((slide) => slide.imageUrl.length > 0 && isRenderableCmsImageUrl(slide.imageUrl))
-    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-}
-
-function asAnnouncementItems(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-
-  if (value.every((item) => typeof item === "string")) {
-    return asStringArray(value);
-  }
-
-  return (value as AnnouncementMetadataItem[])
-    .filter((item) => asBoolean(item.active, true))
-    .sort((a, b) => asNumber(a.sortOrder, 0) - asNumber(b.sortOrder, 0))
-    .map((item) => asSingleLineText(item.text))
-    .filter((item): item is string => Boolean(item));
-}
-
-function asUspLabels(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-
-  if (value.every((item) => typeof item === "string")) {
-    return asStringArray(value);
-  }
-
-  return (value as UspMetadataItem[])
-    .filter((item) => asBoolean(item.active, true))
-    .sort((a, b) => asNumber(a.sortOrder, 0) - asNumber(b.sortOrder, 0))
-    .map((item) => asSingleLineText(item.label) ?? asSingleLineText(item.text))
-    .filter((item): item is string => Boolean(item));
-}
-
-function asFaqItems(value: unknown): Array<{ q: string; a: string }> {
-  if (!Array.isArray(value)) return [];
-  return (value as FaqMetadataItem[])
-    .filter((item) => asBoolean(item.active, true))
-    .sort((a, b) => asNumber(a.sortOrder, 0) - asNumber(b.sortOrder, 0))
-    .map((item) => ({
-      q: typeof item.q === "string" ? item.q.trim() : "",
-      a: typeof item.a === "string" ? item.a.trim() : ""
-    }))
-    .filter((item) => item.q.length > 0 && item.a.length > 0);
-}
-
-function asDoYouKnowCards(value: unknown): Array<{
-  title: string;
-  excerpt: string;
-  image?: string;
-  linkUrl?: string;
-  buttonText?: string;
-  postedAt?: string;
-}> {
-  if (!Array.isArray(value)) return [];
-
-  return (value as DoYouKnowMetadataCard[])
-    .filter((item) => asBoolean(item.active, true))
-    .sort((a, b) => asNumber(a.sortOrder, 0) - asNumber(b.sortOrder, 0))
-    .map((item) => {
-      const title = asSingleLineText(item.title) ?? "";
-      const excerpt = asSingleLineText(item.body) ?? asSingleLineText(item.excerpt) ?? "";
-      const imageUrl = asSingleLineText(item.imageUrl);
-      return {
-        title,
-        excerpt,
-        image: imageUrl && isRenderableCmsImageUrl(imageUrl) ? imageUrl : undefined,
-        linkUrl: asSingleLineText(item.linkUrl),
-        buttonText: asSingleLineText(item.buttonText),
-        postedAt: asSingleLineText(item.postedAt)
-      };
-    })
-    .filter((item) => item.title.length > 0 && item.excerpt.length > 0);
+      q: item.q.trim(),
+      a: item.a.trim()
+    }));
 }
 
 export default async function HomePage() {
@@ -196,34 +62,34 @@ export default async function HomePage() {
   const reviews = byKey.get("reviews");
   const featuredCore = byKey.get("featured_core_product");
 
-  const announcementMetadata = metadataObject(announcement);
-  const announcementItems = [
-    ...asAnnouncementItems(announcementMetadata.items),
-    ...(announcement?.body
-      ? announcement.body
-          .split("\n")
-          .map((line) => line.trim())
-          .filter(Boolean)
-      : [])
-  ];
+  const heroMode = getSectionDisplayMode(hero);
+  const announcementMode = getSectionDisplayMode(announcement);
+  const doYouKnowMode = getSectionDisplayMode(doYouKnow);
+  const whyMode = getSectionDisplayMode(whyAuraville);
+  const uspMode = getSectionDisplayMode(uspFeatures);
+  const faqMode = getSectionDisplayMode(faq);
+  const reviewsMode = getSectionDisplayMode(reviews);
+  const featuredCoreMode = getSectionDisplayMode(featuredCore);
 
-  const uspMetadata = metadataObject(uspFeatures);
-  const faqMetadata = metadataObject(faq);
-  const doYouKnowMetadata = metadataObject(doYouKnow);
-  const heroMetadata = metadataObject(hero);
-  const featuredCoreMetadata = metadataObject(featuredCore);
+  const heroSlides = parseHeroSlides(hero);
+  const announcementItems = sortedActiveTexts(parseAnnouncementItems(announcement));
+  const doYouKnowCards = parseDoYouKnowCards(doYouKnow);
+  const uspLabels = parseUspLabels(uspFeatures);
+  const faqItems = sortedActiveFaq(parseFaqItems(faq));
 
-  const heroSlides = asCmsHeroSlides(heroMetadata.slides);
-  const doYouKnowCards = asDoYouKnowCards(doYouKnowMetadata.cards);
+  const featuredCoreMeta =
+    featuredCore?.metadata && typeof featuredCore.metadata === "object" && !Array.isArray(featuredCore.metadata)
+      ? (featuredCore.metadata as Record<string, unknown>)
+      : {};
 
-  const heroMode = getHomepageSectionDisplayMode(hero);
-  const uspMode = getHomepageSectionDisplayMode(uspFeatures);
-  const announcementMode = getHomepageSectionDisplayMode(announcement);
-  const reviewsMode = getHomepageSectionDisplayMode(reviews);
-  const whyAuravilleMode = getHomepageSectionDisplayMode(whyAuraville);
-  const doYouKnowMode = getHomepageSectionDisplayMode(doYouKnow);
-  const faqMode = getHomepageSectionDisplayMode(faq);
-  const featuredCoreMode = getHomepageSectionDisplayMode(featuredCore);
+  const featuredCoreButtonText =
+    typeof featuredCoreMeta.buttonText === "string" && featuredCoreMeta.buttonText.trim().length > 0
+      ? featuredCoreMeta.buttonText.trim()
+      : undefined;
+  const featuredCoreEyebrow =
+    typeof featuredCoreMeta.eyebrow === "string" && featuredCoreMeta.eyebrow.trim().length > 0
+      ? featuredCoreMeta.eyebrow.trim()
+      : undefined;
 
   return (
     <>
@@ -231,18 +97,15 @@ export default async function HomePage() {
         <Hero
           imageUrl={hero?.imageUrl ?? undefined}
           linkUrl={hero?.linkUrl ?? undefined}
-          title={hero?.title ?? undefined}
           slides={heroSlides}
+          title={hero?.title ?? undefined}
         />
       ) : (
         <Hero />
       )}
       <ScrollingBanner />
       {uspMode === "hidden" ? null : uspMode === "custom" ? (
-        <UspFeatures
-          title={uspFeatures?.title ?? undefined}
-          labels={asUspLabels(uspMetadata.labels)}
-        />
+        <UspFeatures title={uspFeatures?.title ?? undefined} labels={uspLabels} />
       ) : (
         <UspFeatures />
       )}
@@ -255,26 +118,13 @@ export default async function HomePage() {
       <BestSellersSection />
       {featuredCoreMode === "hidden" ? null : featuredCoreMode === "custom" ? (
         <FeaturedCoreProduct
-          eyebrow={
-            typeof featuredCoreMetadata.eyebrow === "string"
-              ? featuredCoreMetadata.eyebrow
-              : featuredCore?.subtitle ?? undefined
-          }
-          title={featuredCore?.title ?? undefined}
-          subtitle={
-            typeof featuredCoreMetadata.subtitle === "string"
-              ? featuredCoreMetadata.subtitle
-              : featuredCore?.subtitle ?? undefined
-          }
-          description={featuredCore?.body ?? undefined}
+          body={featuredCore?.body ?? undefined}
+          buttonText={featuredCoreButtonText}
+          eyebrow={featuredCoreEyebrow}
           imageUrl={featuredCore?.imageUrl ?? undefined}
-          ctaText={typeof featuredCoreMetadata.buttonText === "string" ? featuredCoreMetadata.buttonText : undefined}
-          ctaLink={featuredCore?.linkUrl ?? undefined}
-          secondaryText={
-            typeof featuredCoreMetadata.secondaryText === "string"
-              ? featuredCoreMetadata.secondaryText
-              : undefined
-          }
+          linkUrl={featuredCore?.linkUrl ?? undefined}
+          subtitle={featuredCore?.subtitle ?? undefined}
+          title={featuredCore?.title ?? undefined}
         />
       ) : (
         <FeaturedCoreProduct />
@@ -284,13 +134,13 @@ export default async function HomePage() {
       ) : (
         <ReviewsSlider />
       )}
-      {whyAuravilleMode === "hidden" ? null : whyAuravilleMode === "custom" ? (
+      {whyMode === "hidden" ? null : whyMode === "custom" ? (
         <BrandStoryImage
-          eyebrow={whyAuraville?.subtitle ?? undefined}
-          title={whyAuraville?.title ?? undefined}
           body={whyAuraville?.body ?? undefined}
+          eyebrow={whyAuraville?.subtitle ?? undefined}
           imageUrl={whyAuraville?.imageUrl ?? undefined}
           linkUrl={whyAuraville?.linkUrl ?? undefined}
+          title={whyAuraville?.title ?? undefined}
         />
       ) : (
         <BrandStoryImage />
@@ -298,14 +148,14 @@ export default async function HomePage() {
       {doYouKnowMode === "hidden" ? null : doYouKnowMode === "custom" ? (
         <DoYouKnowSection
           cards={doYouKnowCards}
-          title={doYouKnow?.title ?? undefined}
           subtitle={doYouKnow?.subtitle ?? undefined}
+          title={doYouKnow?.title ?? undefined}
         />
       ) : (
         <DoYouKnowSection />
       )}
       {faqMode === "hidden" ? null : faqMode === "custom" ? (
-        <FaqSection title={faq?.title ?? undefined} items={asFaqItems(faqMetadata.items)} />
+        <FaqSection title={faq?.title ?? undefined} items={faqItems} />
       ) : (
         <FaqSection />
       )}

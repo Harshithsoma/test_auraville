@@ -2,64 +2,26 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useSectionInView } from "@/hooks/use-section-in-view";
+import {
+  HOMEPAGE_DEFAULT_DO_YOU_KNOW_CARDS,
+  HOMEPAGE_DEFAULT_DO_YOU_KNOW_SUBTITLE,
+  HOMEPAGE_DEFAULT_DO_YOU_KNOW_TITLE,
+  type HomepageDoYouKnowCard
+} from "@/lib/homepage-defaults";
 
-export type DoYouKnowCard = {
+type DoYouKnowCardView = {
   title: string;
   excerpt: string;
-  image?: string;
-  linkUrl?: string;
-  buttonText?: string;
-  postedAt?: string;
+  image: string;
+  postedAt: string;
+  linkUrl: string;
+  buttonText: string;
 };
 
-const defaultCards: DoYouKnowCard[] = [
-  {
-    title: "Palmyra Sprout, Reintroduced",
-    excerpt: "Why this traditional ingredient deserves a modern daily place.",
-    image: "/sections/dyk-1.svg",
-    postedAt: "2 days ago"
-  },
-  {
-    title: "Clean Ingredient Notes",
-    excerpt: "How we keep labels simple and meaningful for real families.",
-    image: "/sections/dyk-2.svg",
-    postedAt: "4 days ago"
-  },
-  {
-    title: "Everyday Energy Thinking",
-    excerpt: "Built for office breaks, school boxes, and travel days.",
-    image: "/sections/dyk-3.svg",
-    postedAt: "6 days ago"
-  },
-  {
-    title: "Taste and Simplicity",
-    excerpt: "Balanced sweetness with an Indian-rooted nutrition story.",
-    image: "/sections/dyk-4.svg",
-    postedAt: "1 week ago"
-  },
-  {
-    title: "Palmyra-First Recipes",
-    excerpt: "From snacks to shelves, every format starts with purpose.",
-    image: "/sections/dyk-1.svg",
-    postedAt: "1 week ago"
-  },
-  {
-    title: "Auraville Journal",
-    excerpt: "Small updates from our ingredient sourcing and recipe desk.",
-    image: "/sections/dyk-2.svg",
-    postedAt: "2 weeks ago"
-  }
-];
-
-function isExternalLink(href: string): boolean {
-  return /^https?:\/\//i.test(href);
-}
-
-function isRemoteImage(src: string): boolean {
-  return /^https?:\/\//i.test(src);
-}
+const defaultInstagramUrl =
+  "https://www.instagram.com/p/DT--hjFk77y/?utm_source=ig_web_copy_link&igsh=MzRlODBiNWFlZA==";
 
 function subscribeToViewport(callback: () => void) {
   window.addEventListener("resize", callback);
@@ -79,6 +41,49 @@ function isInteractiveTarget(target: EventTarget | null) {
   );
 }
 
+function isRenderableImage(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith("/")) return true;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    const blockedHosts = new Set(["example.com", "www.example.com", "localhost", "127.0.0.1"]);
+    return !blockedHosts.has(parsed.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+function normalizeCards(cards?: HomepageDoYouKnowCard[]): DoYouKnowCardView[] {
+  const source = cards && cards.length > 0 ? cards : HOMEPAGE_DEFAULT_DO_YOU_KNOW_CARDS;
+  const normalized = [...source]
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    .filter((card) => card.isActive !== false)
+    .map((card) => ({
+      title: card.title?.trim() || "",
+      excerpt: card.body?.trim() || "",
+      image: card.imageUrl?.trim() || "",
+      postedAt: card.postedAt?.trim() || "",
+      linkUrl: card.linkUrl?.trim() || defaultInstagramUrl,
+      buttonText: card.buttonText?.trim() || "View on Instagram"
+    }))
+    .filter((card) => card.title.length > 0 && card.excerpt.length > 0 && isRenderableImage(card.image));
+
+  if (normalized.length > 0) {
+    return normalized;
+  }
+
+  return HOMEPAGE_DEFAULT_DO_YOU_KNOW_CARDS.map((card) => ({
+    title: card.title,
+    excerpt: card.body,
+    image: card.imageUrl || "/sections/dyk-1.svg",
+    postedAt: card.postedAt || "",
+    linkUrl: card.linkUrl || defaultInstagramUrl,
+    buttonText: card.buttonText || "View on Instagram"
+  }));
+}
+
 export function DoYouKnowSection({
   title,
   subtitle,
@@ -86,11 +91,11 @@ export function DoYouKnowSection({
 }: {
   title?: string;
   subtitle?: string;
-  cards?: DoYouKnowCard[];
+  cards?: HomepageDoYouKnowCard[];
 }) {
-  const feedCards = cards && cards.length > 0 ? cards : defaultCards;
+  const renderedCards = useMemo(() => normalizeCards(cards), [cards]);
   const visibleCards = useSyncExternalStore(subscribeToViewport, getVisibleCards, () => 2);
-  const maxIndex = Math.max(0, feedCards.length - visibleCards);
+  const maxIndex = Math.max(0, renderedCards.length - visibleCards);
   const [active, setActive] = useState(0);
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -171,11 +176,11 @@ export function DoYouKnowSection({
       <div className="mb-6 flex items-end justify-between gap-3 sm:mb-8">
         <div>
           <h2 id="do-you-know-title" className="text-2xl font-bold sm:text-3xl">
-            {title?.trim() || "Do You Know?"}
+            {title?.trim() || HOMEPAGE_DEFAULT_DO_YOU_KNOW_TITLE}
           </h2>
-          {subtitle?.trim() ? (
-            <p className="mt-2 text-sm text-[var(--muted)]">{subtitle.trim()}</p>
-          ) : null}
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            {subtitle?.trim() || HOMEPAGE_DEFAULT_DO_YOU_KNOW_SUBTITLE}
+          </p>
         </div>
       </div>
 
@@ -204,13 +209,8 @@ export function DoYouKnowSection({
               transform: `translate3d(calc(-${(clampedIndex * 100) / visibleCards}% + ${dragOffset}px), 0, 0)`
             }}
           >
-            {feedCards.map((card, index) => {
-              const isCenter = visibleCards >= 3 && index === Math.min(centerIndex, feedCards.length - 1);
-              const href = card.linkUrl?.trim() || "https://www.instagram.com/auraville.in/";
-              const cardImage = card.image?.trim() || defaultCards[index % defaultCards.length]?.image;
-              const ctaText = card.buttonText?.trim() || (isExternalLink(href) ? "View post" : "Read more");
-              const postedAt = card.postedAt?.trim() || defaultCards[index % defaultCards.length]?.postedAt || "";
-              const openExternal = isExternalLink(href);
+            {renderedCards.map((card, index) => {
+              const isCenter = visibleCards >= 3 && index === Math.min(centerIndex, renderedCards.length - 1);
               return (
                 <div
                   className={`min-w-0 shrink-0 basis-1/2 px-2 transition-[transform,opacity] duration-300 md:px-2.5 lg:basis-1/3 xl:basis-1/4 ${
@@ -226,9 +226,9 @@ export function DoYouKnowSection({
                 >
                   <Link
                     className="focus-ring group block h-full overflow-hidden rounded-xl border border-[var(--line)] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]"
-                    href={href}
-                    rel={openExternal ? "noopener noreferrer" : undefined}
-                    target={openExternal ? "_blank" : undefined}
+                    href={card.linkUrl}
+                    rel="noopener noreferrer"
+                    target="_blank"
                   >
                     <div className="p-3.5">
                       <div className="flex items-center gap-2.5">
@@ -237,31 +237,22 @@ export function DoYouKnowSection({
                         </span>
                         <div>
                           <p className="text-sm font-semibold text-[var(--leaf-deep)]">auraville.india</p>
-                          <p className="text-[11px] text-[var(--muted)]">{postedAt}</p>
+                          <p className="text-[11px] text-[var(--muted)]">{card.postedAt}</p>
                         </div>
                       </div>
                       <div className="relative mt-3 aspect-[4/5] overflow-hidden rounded-lg bg-[var(--mint)]">
-                        {cardImage ? isRemoteImage(cardImage) ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            alt={card.title}
-                            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
-                            src={cardImage}
-                          />
-                        ) : (
-                          <Image
-                            alt={card.title}
-                            className="object-cover transition duration-500 group-hover:scale-[1.04]"
-                            fill
-                            sizes="(min-width: 1280px) 22vw, (min-width: 1024px) 30vw, 48vw"
-                            src={cardImage}
-                          />
-                        ) : null}
+                        <Image
+                          alt={card.title}
+                          className="object-cover transition duration-500 group-hover:scale-[1.04]"
+                          fill
+                          sizes="(min-width: 1280px) 22vw, (min-width: 1024px) 30vw, 48vw"
+                          src={card.image}
+                        />
                       </div>
                       <p className="mt-3 line-clamp-2 text-sm font-semibold leading-5 text-[var(--leaf-deep)]">{card.title}</p>
                       <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--muted)]">{card.excerpt}</p>
                       <span className="mt-3 inline-flex items-center text-xs font-semibold text-[var(--leaf)]">
-                        {ctaText}
+                        {card.buttonText}
                         <span className="ml-1.5 text-sm">↗</span>
                       </span>
                     </div>

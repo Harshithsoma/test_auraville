@@ -1,3 +1,5 @@
+import { HOMEPAGE_DEFAULT_ANNOUNCEMENTS } from "@/lib/homepage-defaults";
+
 const defaultAnnouncements = [
   {
     text: "Free shipping above Rs.499",
@@ -18,7 +20,11 @@ const defaultAnnouncements = [
 ];
 
 export function AnnouncementBar({ items }: { items?: string[] }) {
-  const messages = items && items.length > 0 ? items : defaultAnnouncements.map((entry) => entry.text);
+  const fallbackMessages =
+    HOMEPAGE_DEFAULT_ANNOUNCEMENTS.length > 0
+      ? HOMEPAGE_DEFAULT_ANNOUNCEMENTS.map((entry) => entry.text)
+      : defaultAnnouncements.map((entry) => entry.text);
+  const messages = items && items.length > 0 ? items : fallbackMessages;
   const iconSource = defaultAnnouncements;
   const announcements = messages.map((text, index) => ({
     text,
