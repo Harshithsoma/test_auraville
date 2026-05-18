@@ -7,6 +7,7 @@ function getCookieBaseOptions(expiresAt?: Date) {
     httpOnly: true,
     secure: env.NODE_ENV === "production",
     sameSite: (env.NODE_ENV === "production" ? "none" : "lax") as "none" | "lax",
+    partitioned: env.NODE_ENV === "production",
     path: "/",
     ...(expiresAt ? { expires: expiresAt } : {})
   };
@@ -25,6 +26,7 @@ function getCsrfCookieOptions(expiresAt?: Date) {
     httpOnly: false,
     secure: env.NODE_ENV === "production",
     sameSite: (env.NODE_ENV === "production" ? "none" : "lax") as "none" | "lax",
+    partitioned: env.NODE_ENV === "production",
     path: "/",
     ...(expiresAt ? { expires: expiresAt } : {})
   };

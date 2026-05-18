@@ -1,7 +1,12 @@
 "use client";
 
 import { create } from "zustand";
-import { clearCsrfToken, commerceApi, setAccessToken } from "@/services/api";
+import {
+  clearCsrfToken,
+  commerceApi,
+  setAccessToken,
+  setAuthInvalidationHandler
+} from "@/services/api";
 
 export type AuthUser = {
   id: string;
@@ -28,6 +33,12 @@ type AuthResponse = {
 };
 
 let hydrationPromise: Promise<void> | null = null;
+
+function resetAuthStateFromInvalidSession() {
+  setAccessToken(null);
+  clearCsrfToken();
+  useAuthStore.setState({ user: null, hasHydrated: true, isHydrating: false });
+}
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
@@ -71,3 +82,5 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   }
 }));
+
+setAuthInvalidationHandler(resetAuthStateFromInvalidSession);

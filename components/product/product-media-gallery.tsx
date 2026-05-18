@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { KeyboardEvent, PointerEvent, useCallback, useMemo, useRef, useState } from "react";
 
 type ProductMediaGalleryProps = {
   name: string;
@@ -17,13 +17,101 @@ export function ProductMediaGallery({ name, image, gallery }: ProductMediaGaller
   }, [gallery, image]);
 
   const [activeIndex, setActiveIndex] = useState(0);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const activeImage = images[activeIndex] ?? images[0];
+  const hasMultipleImages = images.length > 1;
+
+  const goToPrevious = useCallback(() => {
+    if (!hasMultipleImages) {
+      return;
+    }
+    setActiveIndex((current) => (current - 1 + images.length) % images.length);
+  }, [hasMultipleImages, images.length]);
+
+  const goToNext = useCallback(() => {
+    if (!hasMultipleImages) {
+      return;
+    }
+    setActiveIndex((current) => (current + 1) % images.length);
+  }, [hasMultipleImages, images.length]);
+
+  const handlePointerDown = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (!hasMultipleImages) {
+        return;
+      }
+
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+
+      pointerStartRef.current = { x: event.clientX, y: event.clientY };
+    },
+    [hasMultipleImages]
+  );
+
+  const handlePointerEnd = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (!hasMultipleImages || !pointerStartRef.current) {
+        pointerStartRef.current = null;
+        return;
+      }
+
+      const deltaX = event.clientX - pointerStartRef.current.x;
+      const deltaY = event.clientY - pointerStartRef.current.y;
+      pointerStartRef.current = null;
+
+      const SWIPE_THRESHOLD_PX = 42;
+      if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX || Math.abs(deltaX) <= Math.abs(deltaY)) {
+        return;
+      }
+
+      if (deltaX < 0) {
+        goToNext();
+        return;
+      }
+
+      goToPrevious();
+    },
+    [goToNext, goToPrevious, hasMultipleImages]
+  );
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (!hasMultipleImages) {
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        goToPrevious();
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        goToNext();
+      }
+    },
+    [goToNext, goToPrevious, hasMultipleImages]
+  );
 
   return (
     <section aria-label={`${name} image gallery`}>
       <div className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-white soft-shadow">
         <div className="absolute inset-x-0 top-0 z-10 h-20 bg-gradient-to-b from-white/50 to-transparent" />
-        <div className="relative aspect-[4/4.35] sm:aspect-[4/4] lg:aspect-[5/4]">
+        <div
+          aria-label={hasMultipleImages ? "Swipe left or right to change product image" : undefined}
+          className="relative aspect-[4/4.35] touch-pan-y sm:aspect-[4/4] lg:aspect-[5/4]"
+          role={hasMultipleImages ? "group" : undefined}
+          tabIndex={hasMultipleImages ? 0 : -1}
+          onKeyDown={handleKeyDown}
+          onPointerCancel={() => {
+            pointerStartRef.current = null;
+          }}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerEnd}
+        >
           <Image
             alt={name}
             className="object-cover"

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ApiError, commerceApi } from "@/services/api";
 import { useSectionInView } from "@/hooks/use-section-in-view";
 import { Button } from "@/components/ui/button";
@@ -151,6 +151,7 @@ export function ReviewsSlider({
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
@@ -201,13 +202,22 @@ export function ReviewsSlider({
     offsetRef.current = offset;
   }, [offset]);
 
+  const shiftOffset = useCallback(
+    (delta: number) => {
+      if (!canSlide || delta === 0 || isTransitioning) return;
+      setIsTransitioning(true);
+      setOffset((current) => current + delta);
+    },
+    [canSlide, isTransitioning]
+  );
+
   useEffect(() => {
-    if (!canSlide || isDragging || !isTransitionEnabled) return;
+    if (!canSlide || isDragging || !isTransitionEnabled || isTransitioning) return;
     const timer = window.setInterval(() => {
-      setOffset((current) => current + 1);
+      shiftOffset(1);
     }, 4300);
     return () => window.clearInterval(timer);
-  }, [canSlide, isDragging, isTransitionEnabled]);
+  }, [canSlide, isDragging, isTransitionEnabled, isTransitioning, shiftOffset]);
 
   useEffect(() => {
     if (!isComposerOpen) return;
@@ -231,7 +241,7 @@ export function ReviewsSlider({
   }
 
   function beginDrag(pointerId: number, clientX: number, target: HTMLDivElement) {
-    if (!canSlide) return;
+    if (!canSlide || isTransitioning) return;
     pointerIdRef.current = pointerId;
     startXRef.current = clientX;
     target.setPointerCapture(pointerId);
@@ -253,9 +263,9 @@ export function ReviewsSlider({
     const threshold = Math.max(40, Math.round(width * 0.11));
 
     if (finalOffset > threshold) {
-      setOffset((current) => current - 1);
+      shiftOffset(-1);
     } else if (finalOffset < -threshold) {
-      setOffset((current) => current + 1);
+      shiftOffset(1);
     }
 
     setDragOffset(0);
@@ -368,6 +378,7 @@ export function ReviewsSlider({
                 if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
 
                 const current = offsetRef.current;
+                setIsTransitioning(false);
                 if (current >= reviews.length) {
                   silentJump(0);
                 } else if (current < 0) {
@@ -405,7 +416,7 @@ export function ReviewsSlider({
                 aria-label="Show previous reviews"
                 className="focus-ring absolute -left-5 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-lg text-[var(--leaf-deep)] shadow-sm transition active:scale-95 md:inline-flex"
                 type="button"
-                onClick={() => setOffset((current) => current - 1)}
+                onClick={() => shiftOffset(-1)}
               >
                 ‹
               </button>
@@ -413,7 +424,7 @@ export function ReviewsSlider({
                 aria-label="Show next reviews"
                 className="focus-ring absolute -right-5 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-lg text-[var(--leaf-deep)] shadow-sm transition active:scale-95 md:inline-flex"
                 type="button"
-                onClick={() => setOffset((current) => current + 1)}
+                onClick={() => shiftOffset(1)}
               >
                 ›
               </button>

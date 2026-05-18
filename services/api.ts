@@ -40,6 +40,11 @@ export class ApiError extends Error {
 let accessToken: string | null = null;
 let refreshPromise: Promise<void> | null = null;
 let csrfToken: string | null = null;
+let authInvalidationHandler: (() => void) | null = null;
+
+export function setAuthInvalidationHandler(handler: (() => void) | null): void {
+  authInvalidationHandler = handler;
+}
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
@@ -244,6 +249,14 @@ async function refreshAccessToken(): Promise<void> {
     })()
       .catch((error) => {
         setAccessToken(null);
+        clearCsrfToken();
+        if (authInvalidationHandler) {
+          try {
+            authInvalidationHandler();
+          } catch {
+            // Keep auth failure handling non-fatal.
+          }
+        }
         throw error;
       })
       .finally(() => {
