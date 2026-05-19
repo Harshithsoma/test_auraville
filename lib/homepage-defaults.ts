@@ -88,6 +88,16 @@ export const HOMEPAGE_DEFAULT_ANNOUNCEMENTS: HomepageAnnouncementItem[] = [
   { text: "Secure checkout", sortOrder: 3, isActive: true }
 ];
 
+export const HOMEPAGE_DEFAULT_SCROLLING_BANNER_ITEMS: HomepageAnnouncementItem[] = [
+  { text: "CLEAN EVERYDAY ENERGY", sortOrder: 0, isActive: true },
+  { text: "MADE IN INDIA", sortOrder: 1, isActive: true },
+  { text: "100% NATURAL", sortOrder: 2, isActive: true },
+  { text: "NO PRESERVATIVES", sortOrder: 3, isActive: true },
+  { text: "PALMYRA SPROUT FIRST", sortOrder: 4, isActive: true },
+  { text: "GLUTEN FREE", sortOrder: 5, isActive: true },
+  { text: "RICH IN FIBER", sortOrder: 6, isActive: true }
+];
+
 export const HOMEPAGE_DEFAULT_DO_YOU_KNOW_TITLE = "Do You Know?";
 export const HOMEPAGE_DEFAULT_DO_YOU_KNOW_SUBTITLE = "";
 export const HOMEPAGE_DEFAULT_DO_YOU_KNOW_CARDS: HomepageDoYouKnowCard[] = [

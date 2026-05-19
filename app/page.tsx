@@ -55,23 +55,24 @@ export default async function HomePage() {
 
   const hero = byKey.get("hero");
   const announcement = byKey.get("announcement");
+  const scrollingBanner = byKey.get("infinite_scrolling_banner");
   const doYouKnow = byKey.get("do_you_know");
   const whyAuraville = byKey.get("why_auraville");
   const uspFeatures = byKey.get("usp_features");
   const faq = byKey.get("faq");
-  const reviews = byKey.get("reviews");
   const featuredCore = byKey.get("featured_core_product");
 
   const heroMode = getSectionDisplayMode(hero);
+  const scrollingBannerMode = getSectionDisplayMode(scrollingBanner);
   const announcementMode = getSectionDisplayMode(announcement);
   const doYouKnowMode = getSectionDisplayMode(doYouKnow);
   const whyMode = getSectionDisplayMode(whyAuraville);
   const uspMode = getSectionDisplayMode(uspFeatures);
   const faqMode = getSectionDisplayMode(faq);
-  const reviewsMode = getSectionDisplayMode(reviews);
   const featuredCoreMode = getSectionDisplayMode(featuredCore);
 
   const heroSlides = parseHeroSlides(hero);
+  const scrollingBannerItems = sortedActiveTexts(parseAnnouncementItems(scrollingBanner));
   const announcementItems = sortedActiveTexts(parseAnnouncementItems(announcement));
   const doYouKnowCards = parseDoYouKnowCards(doYouKnow);
   const uspLabels = parseUspLabels(uspFeatures);
@@ -103,7 +104,11 @@ export default async function HomePage() {
       ) : (
         <Hero />
       )}
-      <ScrollingBanner />
+      {scrollingBannerMode === "hidden" ? null : scrollingBannerMode === "custom" ? (
+        <ScrollingBanner items={scrollingBannerItems} />
+      ) : (
+        <ScrollingBanner />
+      )}
       {uspMode === "hidden" ? null : uspMode === "custom" ? (
         <UspFeatures title={uspFeatures?.title ?? undefined} labels={uspLabels} />
       ) : (
@@ -129,11 +134,7 @@ export default async function HomePage() {
       ) : (
         <FeaturedCoreProduct />
       )}
-      {reviewsMode === "hidden" ? null : reviewsMode === "custom" ? (
-        <ReviewsSlider title={reviews?.title ?? undefined} subtitle={reviews?.subtitle ?? undefined} />
-      ) : (
-        <ReviewsSlider />
-      )}
+      <ReviewsSlider />
       {whyMode === "hidden" ? null : whyMode === "custom" ? (
         <BrandStoryImage
           body={whyAuraville?.body ?? undefined}

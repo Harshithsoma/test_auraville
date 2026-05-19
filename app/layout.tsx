@@ -4,7 +4,6 @@ import { AuthSessionBootstrap } from "@/components/auth/auth-session-bootstrap";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
-import { fetchHomepageSections, getSectionDisplayMode, sectionMap } from "@/lib/homepage-cms";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -47,20 +46,13 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const sections = await fetchHomepageSections();
-  const footerSection = sectionMap(sections).get("footer");
-  const footerMode = getSectionDisplayMode(footerSection);
-
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body>
         <AuthSessionBootstrap />
         <Header />
         <main>{children}</main>
-        <Footer
-          brandBlurb={footerMode === "custom" ? (footerSection?.body ?? undefined) : undefined}
-          hidden={footerMode === "hidden"}
-        />
+        <Footer />
         <CartDrawer />
       </body>
     </html>

@@ -160,10 +160,26 @@ export function parseUspLabels(section?: HomepageSection): string[] {
   const metadata = metadataObject(section);
   const source = metadata.labels;
   if (!Array.isArray(source)) return [];
-  return source
-    .filter((item): item is string => typeof item === "string")
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const labels: string[] = [];
+  for (const item of source) {
+    if (typeof item === "string") {
+      const value = item.trim();
+      if (value) labels.push(value);
+      continue;
+    }
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const row = item as Record<string, unknown>;
+    const isActive = typeof row.isActive === "boolean" ? row.isActive : true;
+    if (!isActive) continue;
+    const label =
+      typeof row.label === "string"
+        ? row.label.trim()
+        : typeof row.text === "string"
+          ? row.text.trim()
+          : "";
+    if (label) labels.push(label);
+  }
+  return labels;
 }
 
 export function parseFaqItems(section?: HomepageSection): HomepageFaqItem[] {

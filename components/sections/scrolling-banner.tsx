@@ -1,14 +1,10 @@
-const messages = [
-  "Clean Everyday Energy",
-  "Made in India",
-  "100% Natural",
-  "No Preservatives",
-  "Palmyra Sprout First",
-  "Gluten Free",
-  "Rich in Fiber"
-];
+import { HOMEPAGE_DEFAULT_SCROLLING_BANNER_ITEMS } from "@/lib/homepage-defaults";
 
-export function ScrollingBanner() {
+const FALLBACK_MESSAGES = HOMEPAGE_DEFAULT_SCROLLING_BANNER_ITEMS.map((item) => item.text);
+
+export function ScrollingBanner({ items }: { items?: string[] }) {
+  const messages = items && items.length > 0 ? items : FALLBACK_MESSAGES;
+
   return (
     <section className="overflow-hidden border-y border-[var(--line)] bg-white py-3" aria-label="Auraville highlights">
       <div className="marquee-track">
