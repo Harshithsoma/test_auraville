@@ -351,62 +351,64 @@ export function ReviewsSlider({
         </div>
       ) : (
         <div className="relative mt-6" ref={carouselRef}>
-          <div
-            className="overflow-hidden"
-            ref={viewportRef}
-            style={{ touchAction: "pan-y" }}
-            onPointerCancel={() => endDrag()}
-            onPointerDown={(event) => {
-              if (event.pointerType === "mouse" && event.button !== 0) return;
-              beginDrag(event.pointerId, event.clientX, event.currentTarget);
-            }}
-            onPointerMove={(event) => moveDrag(event.pointerId, event.clientX)}
-            onPointerUp={(event) => {
-              if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                event.currentTarget.releasePointerCapture(event.pointerId);
-              }
-              endDrag(event.pointerId, event.clientX);
-            }}
-          >
+          <div className="px-6 sm:px-8 md:px-10">
             <div
-              className={`-mx-2 flex ${isDragging || !isTransitionEnabled ? "" : "transition-transform duration-500 ease-out"} lg:-mx-2.5`}
-              style={{
-                transform: `translate3d(calc(-${(trackIndex * 100) / visibleCards}% + ${dragOffset}px), 0, 0)`
+              className="overflow-hidden"
+              ref={viewportRef}
+              style={{ touchAction: "pan-y" }}
+              onPointerCancel={() => endDrag()}
+              onPointerDown={(event) => {
+                if (event.pointerType === "mouse" && event.button !== 0) return;
+                beginDrag(event.pointerId, event.clientX, event.currentTarget);
               }}
-              onTransitionEnd={(event) => {
-                if (!canSlide) return;
-                if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
-
-                const current = offsetRef.current;
-                setIsTransitioning(false);
-                if (current >= reviews.length) {
-                  silentJump(0);
-                } else if (current < 0) {
-                  silentJump(reviews.length - 1);
+              onPointerMove={(event) => moveDrag(event.pointerId, event.clientX)}
+              onPointerUp={(event) => {
+                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                  event.currentTarget.releasePointerCapture(event.pointerId);
                 }
+                endDrag(event.pointerId, event.clientX);
               }}
             >
-              {loopReviews.map((review, loopIndex) => (
-                <article
-                  className="shrink-0 basis-full px-2 lg:basis-1/3 lg:px-2.5"
-                  key={`${review.id}-${loopIndex}`}
-                >
-                  <div className="h-full min-h-[230px] rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-bold">{review.name}</p>
-                        <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                          {review.subject}
-                        </p>
+              <div
+                className={`-mx-2 flex ${isDragging || !isTransitionEnabled ? "" : "transition-transform duration-500 ease-out"} lg:-mx-2.5`}
+                style={{
+                  transform: `translate3d(calc(-${(trackIndex * 100) / visibleCards}% + ${dragOffset}px), 0, 0)`
+                }}
+                onTransitionEnd={(event) => {
+                  if (!canSlide) return;
+                  if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
+
+                  const current = offsetRef.current;
+                  setIsTransitioning(false);
+                  if (current >= reviews.length) {
+                    silentJump(0);
+                  } else if (current < 0) {
+                    silentJump(reviews.length - 1);
+                  }
+                }}
+              >
+                {loopReviews.map((review, loopIndex) => (
+                  <article
+                    className="shrink-0 basis-full px-2 lg:basis-1/3 lg:px-2.5"
+                    key={`${review.id}-${loopIndex}`}
+                  >
+                    <div className="h-full min-h-[230px] rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-bold">{review.name}</p>
+                          <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                            {review.subject}
+                          </p>
+                        </div>
+                        <p className="text-sm font-semibold text-[var(--leaf-deep)]">{"★".repeat(review.rating)}</p>
                       </div>
-                      <p className="text-sm font-semibold text-[var(--leaf-deep)]">{"★".repeat(review.rating)}</p>
+                      <div className="mt-4">
+                        <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">{review.text}</p>
+                      </div>
                     </div>
-                    <div className="mt-4 max-h-36 overflow-y-auto pr-1">
-                      <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">{review.text}</p>
-                    </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -414,7 +416,7 @@ export function ReviewsSlider({
             <>
               <button
                 aria-label="Show previous reviews"
-                className="focus-ring absolute -left-5 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-lg text-[var(--leaf-deep)] shadow-sm transition active:scale-95 md:inline-flex"
+                className="focus-ring absolute left-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-lg text-[var(--leaf-deep)] shadow-sm transition active:scale-95"
                 type="button"
                 onClick={() => shiftOffset(-1)}
               >
@@ -422,7 +424,7 @@ export function ReviewsSlider({
               </button>
               <button
                 aria-label="Show next reviews"
-                className="focus-ring absolute -right-5 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-lg text-[var(--leaf-deep)] shadow-sm transition active:scale-95 md:inline-flex"
+                className="focus-ring absolute right-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-lg text-[var(--leaf-deep)] shadow-sm transition active:scale-95"
                 type="button"
                 onClick={() => shiftOffset(1)}
               >

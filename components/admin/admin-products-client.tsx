@@ -1943,54 +1943,10 @@ function buildProductPatchPayload(effectiveSlug: string) {
               onChange={(event) => setFormState((current) => ({ ...current, longDescription: event.target.value }))}
             />
           </label>
-          <label>
-            <span className="text-sm font-semibold">Projected Selling Price (legacy product field)</span>
-            <Input
-              className="mt-2 bg-[var(--mint)]/35"
-              type="number"
-              min={0}
-              value={
-                getPrimaryVariantForProjection(formState.variants)
-                  ? String(
-                      computeSellingPrice(
-                        getPrimaryVariantForProjection(formState.variants)?.compareAtPrice ?? "0",
-                        getPrimaryVariantForProjection(formState.variants)?.discountPercent ?? "0"
-                      )
-                    )
-                  : formState.price
-              }
-              readOnly
-            />
-            <p className="mt-1 text-xs text-[var(--muted)]">Prices are managed per variant in the Variants section.</p>
-          </label>
-          <label>
-            <span className="text-sm font-semibold">Projected Compare-at Price (legacy product field)</span>
-            <Input
-              className="mt-2 bg-[var(--mint)]/35"
-              type="number"
-              min={0}
-              value={
-                getPrimaryVariantForProjection(formState.variants)?.compareAtPrice ??
-                formState.compareAtPrice
-              }
-              readOnly
-            />
-            <p className="mt-1 text-xs text-[var(--muted)]">This is auto-derived from the primary variant.</p>
-          </label>
-          <label>
-            <span className="text-sm font-semibold">Promo Badge Text</span>
-            <Input
-              className="mt-2"
-              value={formState.promoLabel}
-              onChange={(event) => setFormState((current) => ({ ...current, promoLabel: event.target.value }))}
-            />
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              Optional marketing badge shown on product cards, e.g. Launch Offer, Best Seller, New Arrival.
-            </p>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              This does not change price, discount, tax, or coupon logic.
-            </p>
-          </label>
+          <div className="rounded-lg border border-[var(--line)] bg-[var(--mint)]/35 p-3 text-xs text-[var(--muted)] sm:col-span-2">
+            Pricing is managed per variant in the Variants section. Product-level projected price fields are legacy-only
+            compatibility values and are not edited here.
+          </div>
           <label>
             <span className="text-sm font-semibold">Currency</span>
             <Input className="mt-2" value={formState.currency} disabled />
@@ -2159,7 +2115,10 @@ function buildProductPatchPayload(effectiveSlug: string) {
               onChange={(event) => setFormState((current) => ({ ...current, badgeLabel: event.target.value }))}
             />
             <p className="mt-1 text-xs text-[var(--muted)]">
-              Small marketing label shown on product cards, for example New, Trending, Limited.
+              Primary storefront marketing badge shown on product cards and best-seller chips, for example New, Trending, Limited.
+            </p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Promo Badge Text is a legacy backend field and is intentionally hidden from this form to avoid duplication.
             </p>
           </label>
           <label>

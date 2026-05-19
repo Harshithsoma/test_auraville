@@ -109,44 +109,46 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
 
   return (
     <div className="relative" ref={sectionRef}>
-      <div
-        className="overflow-hidden"
-        ref={viewportRef}
-        style={{ touchAction: "pan-y" }}
-        onPointerCancel={() => endDrag()}
-        onPointerDown={(event) => {
-          if (!isDragPointerType(event.pointerType)) return;
-          if (isInteractiveTarget(event.target)) return;
-          beginDrag(event.pointerId, event.clientX, event.currentTarget);
-        }}
-        onPointerMove={(event) => moveDrag(event.pointerId, event.clientX)}
-        onPointerUp={(event) => {
-          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-            event.currentTarget.releasePointerCapture(event.pointerId);
-          }
-          endDrag(event.pointerId, event.clientX);
-        }}
-      >
+      <div className="px-6 sm:px-8 md:px-10">
         <div
-          className={`-mx-2 flex ${isDragging ? "" : "transition-transform duration-500 ease-out"} md:-mx-2.5`}
-          style={{
-            transform: `translate3d(calc(-${(clampedIndex * 100) / clampedVisibleCards}% + ${dragOffset}px), 0, 0)`
+          className="overflow-hidden"
+          ref={viewportRef}
+          style={{ touchAction: "pan-y" }}
+          onPointerCancel={() => endDrag()}
+          onPointerDown={(event) => {
+            if (!isDragPointerType(event.pointerType)) return;
+            if (isInteractiveTarget(event.target)) return;
+            beginDrag(event.pointerId, event.clientX, event.currentTarget);
+          }}
+          onPointerMove={(event) => moveDrag(event.pointerId, event.clientX)}
+          onPointerUp={(event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            }
+            endDrag(event.pointerId, event.clientX);
           }}
         >
-          {products.map((product, index) => (
-            <div
-              className="min-w-0 shrink-0 basis-1/2 px-2 md:basis-1/3 md:px-2.5 xl:basis-1/4"
-              key={product.id}
-              onClickCapture={(event) => {
-                if (suppressClickRef.current) {
-                  event.preventDefault();
-                  event.stopPropagation();
-                }
-              }}
-            >
-              <BestSellerCard priority={index < clampedVisibleCards} product={product} />
-            </div>
-          ))}
+          <div
+            className={`-mx-2 flex ${isDragging ? "" : "transition-transform duration-500 ease-out"} md:-mx-2.5`}
+            style={{
+              transform: `translate3d(calc(-${(clampedIndex * 100) / clampedVisibleCards}% + ${dragOffset}px), 0, 0)`
+            }}
+          >
+            {products.map((product, index) => (
+              <div
+                className="min-w-0 shrink-0 basis-1/2 px-2 md:basis-1/3 md:px-2.5 xl:basis-1/4"
+                key={product.id}
+                onClickCapture={(event) => {
+                  if (suppressClickRef.current) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }
+                }}
+              >
+                <BestSellerCard priority={index < clampedVisibleCards} product={product} />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -154,7 +156,7 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
         <>
           <button
             aria-label="Show previous best sellers"
-            className="focus-ring absolute -left-3 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:-left-5"
+            className="focus-ring absolute left-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
             disabled={clampedIndex <= 0}
             type="button"
             onClick={() => setActive((current) => Math.max(0, Math.min(current, maxIndex) - 1))}
@@ -163,7 +165,7 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
           </button>
           <button
             aria-label="Show next best sellers"
-            className="focus-ring absolute -right-3 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:-right-5"
+            className="focus-ring absolute right-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
             disabled={clampedIndex >= maxIndex}
             type="button"
             onClick={() => setActive((current) => Math.min(maxIndex, Math.min(current, maxIndex) + 1))}

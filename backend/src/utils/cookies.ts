@@ -6,8 +6,9 @@ function getCookieBaseOptions(expiresAt?: Date) {
   return {
     httpOnly: true,
     secure: env.NODE_ENV === "production",
-    sameSite: (env.NODE_ENV === "production" ? "none" : "lax") as "none" | "lax",
-    partitioned: env.NODE_ENV === "production",
+    // auraville.in -> api.auraville.in is same-site; Lax keeps cookies scoped safely
+    // without requiring CHIPS/Partitioned behavior intended for third-party contexts.
+    sameSite: "lax" as const,
     path: "/",
     ...(expiresAt ? { expires: expiresAt } : {})
   };
@@ -25,8 +26,7 @@ function getCsrfCookieOptions(expiresAt?: Date) {
   return {
     httpOnly: false,
     secure: env.NODE_ENV === "production",
-    sameSite: (env.NODE_ENV === "production" ? "none" : "lax") as "none" | "lax",
-    partitioned: env.NODE_ENV === "production",
+    sameSite: "lax" as const,
     path: "/",
     ...(expiresAt ? { expires: expiresAt } : {})
   };
