@@ -7,6 +7,7 @@ import {
   setCsrfCookie,
   setRefreshCookie
 } from "../../utils/cookies";
+import { getCookieCandidates } from "../../utils/cookie-candidates";
 import { HttpError } from "../../utils/http-error";
 import {
   forgotPasswordOtpSend,
@@ -43,6 +44,12 @@ function setCsrfForSessionResponse(params: {
   const csrfToken = generateCsrfToken();
   setCsrfCookie(params.response, csrfToken, params.expiresAt);
   params.response.setHeader("X-CSRF-Token", csrfToken);
+}
+
+function readCookieHeader(value: string | string[] | undefined): string {
+  if (!value) return "";
+  if (Array.isArray(value)) return value.join("; ");
+  return value;
 }
 
 export const sendOtpController: RequestHandler = async (req, res, next) => {
@@ -170,13 +177,33 @@ export const refreshController: RequestHandler = async (req, res, next) => {
   try {
     const _validated = req as unknown as RefreshValidatedInput;
 
-    const refreshToken = req.cookies?.[env.REFRESH_COOKIE_NAME] as string | undefined;
+    const cookieHeader = readCookieHeader(req.headers.cookie as string | string[] | undefined);
+    const refreshTokenCandidates = getCookieCandidates({
+      cookieHeader,
+      cookieName: env.REFRESH_COOKIE_NAME,
+      parsedCookieValue: req.cookies?.[env.REFRESH_COOKIE_NAME] as string | undefined
+    });
 
-    if (!refreshToken) {
+    if (refreshTokenCandidates.length === 0) {
       throw new HttpError(401, "Unauthorized");
     }
 
-    const result = await refreshSession(refreshToken);
+    let lastError: unknown = null;
+    let result: Awaited<ReturnType<typeof refreshSession>> | null = null;
+
+    for (const refreshToken of refreshTokenCandidates) {
+      try {
+        result = await refreshSession(refreshToken);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (!result) {
+      throw (lastError ?? new HttpError(401, "Unauthorized"));
+    }
+
     setRefreshCookie(res, result.refreshToken, result.refreshExpiresAt);
     setCsrfForSessionResponse({ response: res, expiresAt: result.refreshExpiresAt });
 
@@ -192,9 +219,18 @@ export const logoutController: RequestHandler = async (req, res, next) => {
   try {
     const _validated = req as unknown as LogoutValidatedInput;
 
-    const refreshToken = req.cookies?.[env.REFRESH_COOKIE_NAME] as string | undefined;
+    const cookieHeader = readCookieHeader(req.headers.cookie as string | string[] | undefined);
+    const refreshTokenCandidates = getCookieCandidates({
+      cookieHeader,
+      cookieName: env.REFRESH_COOKIE_NAME,
+      parsedCookieValue: req.cookies?.[env.REFRESH_COOKIE_NAME] as string | undefined
+    });
 
-    await logoutSession(refreshToken);
+    if (refreshTokenCandidates.length > 0) {
+      await Promise.allSettled(refreshTokenCandidates.map((refreshToken) => logoutSession(refreshToken)));
+    } else {
+      await logoutSession(undefined);
+    }
     clearRefreshCookie(res);
     clearCsrfCookie(res);
 
