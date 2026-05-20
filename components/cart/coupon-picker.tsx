@@ -4,6 +4,16 @@ import { useEffect, useState } from "react";
 import { ApiError, commerceApi } from "@/services/api";
 import { formatPrice } from "@/components/ui/price";
 
+function normalizeCouponText(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function descriptionIncludesSavings(description: string, savingsLabel: string): boolean {
+  const normalizedDescription = normalizeCouponText(description);
+  const normalizedSavings = normalizeCouponText(savingsLabel);
+  return normalizedDescription.includes(normalizedSavings);
+}
+
 type CouponPickerProps = {
   items: Array<{ productId: string; variantId: string; quantity: number }>;
   promoCode: string | null;
@@ -285,6 +295,7 @@ export function CouponPicker({
                     ? `${coupon.discountValue}% off`
                     : `Flat ${formatPrice(coupon.discountValue)} off`;
                 const primaryDescription = coupon.description?.trim() || coupon.displayText;
+                const shouldShowSavingsLabel = !descriptionIncludesSavings(primaryDescription, savingsLabel);
                 const metaParts: string[] = [];
                 if (coupon.minOrderAmount && coupon.minOrderAmount > 0) {
                   metaParts.push(`Min order ${formatPrice(coupon.minOrderAmount)}`);
@@ -310,7 +321,9 @@ export function CouponPicker({
                         <p className="text-sm font-semibold">{coupon.code}</p>
                         <p className="mt-1 text-xs">{primaryDescription}</p>
                         <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-[var(--muted)]">
-                          <span className="font-medium text-[var(--leaf-deep)]">{savingsLabel}</span>
+                          {shouldShowSavingsLabel ? (
+                            <span className="font-medium text-[var(--leaf-deep)]">{savingsLabel}</span>
+                          ) : null}
                           {metaParts.map((part) => (
                             <span key={part}>{part}</span>
                           ))}

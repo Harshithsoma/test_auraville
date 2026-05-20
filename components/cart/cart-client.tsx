@@ -10,6 +10,14 @@ import { formatPrice } from "@/components/ui/price";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { CouponPicker } from "@/components/cart/coupon-picker";
 
+function getDiscountPercent(compareAtUnitPrice: number, unitPrice: number): number {
+  if (compareAtUnitPrice <= unitPrice || compareAtUnitPrice <= 0) {
+    return 0;
+  }
+  const percent = Math.round(((compareAtUnitPrice - unitPrice) / compareAtUnitPrice) * 100);
+  return percent > 0 ? percent : 0;
+}
+
 export default function CartClient() {
   const hasMounted = useHasMounted();
   const items = useCartStore((state) => state.items);
@@ -72,6 +80,11 @@ export default function CartClient() {
               <p className="mt-1 text-sm text-[var(--muted)]">
                 {item.variantLabel}
               </p>
+              {getDiscountPercent(item.compareAtUnitPrice, item.unitPrice) > 0 ? (
+                <p className="mt-1 text-xs font-semibold text-[var(--leaf)]">
+                  Saved {getDiscountPercent(item.compareAtUnitPrice, item.unitPrice)}%
+                </p>
+              ) : null}
               {!item.available ? (
                 <p className="mt-1 text-xs font-semibold text-[var(--coral)]">Currently unavailable</p>
               ) : null}

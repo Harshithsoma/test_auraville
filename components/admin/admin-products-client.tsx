@@ -2115,7 +2115,7 @@ function buildProductPatchPayload(effectiveSlug: string) {
               onChange={(event) => setFormState((current) => ({ ...current, badgeLabel: event.target.value }))}
             />
             <p className="mt-1 text-xs text-[var(--muted)]">
-              Primary storefront marketing badge shown on product cards and best-seller chips, for example New, Trending, Limited.
+              Optional storefront badge shown on product cards, for example New, Best Value, Limited Batch. Leave empty for no marketing badge.
             </p>
             <p className="mt-1 text-xs text-[var(--muted)]">
               Promo Badge Text is a legacy backend field and is intentionally hidden from this form to avoid duplication.

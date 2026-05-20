@@ -160,11 +160,11 @@ export function parseUspLabels(section?: HomepageSection): string[] {
   const metadata = metadataObject(section);
   const source = metadata.labels;
   if (!Array.isArray(source)) return [];
-  const labels: string[] = [];
+  const labels: Array<{ label: string; sortOrder?: number }> = [];
   for (const item of source) {
     if (typeof item === "string") {
       const value = item.trim();
-      if (value) labels.push(value);
+      if (value) labels.push({ label: value });
       continue;
     }
     if (!item || typeof item !== "object" || Array.isArray(item)) continue;
@@ -177,9 +177,16 @@ export function parseUspLabels(section?: HomepageSection): string[] {
         : typeof row.text === "string"
           ? row.text.trim()
           : "";
-    if (label) labels.push(label);
+    if (label) {
+      labels.push({
+        label,
+        sortOrder: toNumber(row.sortOrder)
+      });
+    }
   }
-  return labels;
+  return labels
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    .map((entry) => entry.label);
 }
 
 export function parseFaqItems(section?: HomepageSection): HomepageFaqItem[] {

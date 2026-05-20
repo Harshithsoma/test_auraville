@@ -42,6 +42,8 @@ export function ProductCard({ product, priority = false, variantContext = "defau
   const displayPrice = variant?.price ?? product.price;
   const availableStock = variant ? getAvailableStock(product.id, variant.id) ?? variant.stock ?? null : null;
   const canPurchase = isAvailable && Boolean(variant) && !isOutOfStock;
+  const marketingBadge = product.badgeLabel?.trim() ?? "";
+  const badgeText = !isAvailable ? "Coming Soon" : !canPurchase ? "Out of Stock" : marketingBadge || null;
 
   function addToCart(openCart = false) {
     if (!variant) return;
@@ -105,9 +107,11 @@ export function ProductCard({ product, priority = false, variantContext = "defau
             sizes="(min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw"
             src={product.image}
           />
-          <span className="absolute left-2 top-2 rounded-full bg-white px-2 py-1 text-[10px] font-bold uppercase text-[var(--leaf-deep)]">
-            {isAvailable ? (canPurchase ? "Available Now" : "Out of Stock") : "Out of Stock"}
-          </span>
+          {badgeText ? (
+            <span className="absolute left-2 top-2 rounded-full bg-white px-2 py-1 text-[10px] font-bold uppercase text-[var(--leaf-deep)]">
+              {badgeText}
+            </span>
+          ) : null}
         </div>
       </Link>
 

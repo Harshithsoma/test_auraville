@@ -1,6 +1,14 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { ApiError, commerceApi } from "@/services/api";
 import { useSectionInView } from "@/hooks/use-section-in-view";
 import { Button } from "@/components/ui/button";
@@ -51,7 +59,7 @@ const baseReviews: Review[] = [
     subject: "Balanced sweetness",
     rating: 5,
     text: "The energy bar feels clean and filling without being too sweet. Easy daily snack.",
-    productId: null
+    productId: null,
   },
   {
     id: "dev",
@@ -59,7 +67,7 @@ const baseReviews: Review[] = [
     subject: "Honest launch",
     rating: 4,
     text: "Good ingredient profile and honest launch approach. Looking forward to the cookies.",
-    productId: null
+    productId: null,
   },
   {
     id: "meera",
@@ -67,7 +75,7 @@ const baseReviews: Review[] = [
     subject: "Great ingredient story",
     rating: 5,
     text: "Palmyra sprout in a modern format is exactly what I wanted for office snacking.",
-    productId: null
+    productId: null,
   },
   {
     id: "pranav",
@@ -75,7 +83,7 @@ const baseReviews: Review[] = [
     subject: "Works on busy days",
     rating: 4,
     text: "Texture is solid and travel-friendly. Works well for pre-workout days.",
-    productId: null
+    productId: null,
   },
   {
     id: "ishita",
@@ -83,7 +91,7 @@ const baseReviews: Review[] = [
     subject: "Clean label",
     rating: 5,
     text: "Loved the taste and clean label. The brand story also feels meaningful.",
-    productId: null
+    productId: null,
   },
   {
     id: "harish",
@@ -91,12 +99,12 @@ const baseReviews: Review[] = [
     subject: "Reliable quality",
     rating: 4,
     text: "Simple product, good quality, and straightforward checkout experience.",
-    productId: null
-  }
+    productId: null,
+  },
 ];
 
 const REVIEW_SUBJECT_MAX_LENGTH = 80;
-const REVIEW_BODY_MAX_LENGTH = 500;
+const REVIEW_BODY_MAX_LENGTH = 450;
 
 function subscribeToViewport(callback: () => void) {
   window.addEventListener("resize", callback);
@@ -110,7 +118,9 @@ function getVisibleCards() {
 function isInteractiveTarget(target: EventTarget | null) {
   return (
     target instanceof Element &&
-    target.closest("button, input, select, textarea, label, a, [role='button']") !== null
+    target.closest(
+      "button, input, select, textarea, label, a, [role='button']",
+    ) !== null
   );
 }
 
@@ -121,19 +131,23 @@ function mapBackendReviews(response: ReviewsListResponse): Review[] {
     subject: item.subject,
     text: item.body,
     rating: item.rating,
-    productId: item.productId
+    productId: item.productId,
   }));
 }
 
 export function ReviewsSlider({
   title,
-  subtitle
+  subtitle,
 }: {
   title?: string;
   subtitle?: string;
 }) {
   const user = useAuthStore((state) => state.user);
-  const visibleCards = useSyncExternalStore(subscribeToViewport, getVisibleCards, () => 1);
+  const visibleCards = useSyncExternalStore(
+    subscribeToViewport,
+    getVisibleCards,
+    () => 1,
+  );
 
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
@@ -180,7 +194,10 @@ export function ReviewsSlider({
       setReviewsError(null);
 
       try {
-        const response = await commerceApi.reviews.list<ReviewsListResponse>({ page: 1, limit: 30 });
+        const response = await commerceApi.reviews.list<ReviewsListResponse>({
+          page: 1,
+          limit: 30,
+        });
         if (!isCancelled) {
           setReviews(mapBackendReviews(response));
         }
@@ -190,7 +207,9 @@ export function ReviewsSlider({
           if (error instanceof ApiError) {
             setReviewsError(error.message);
           } else {
-            setReviewsError("Unable to load live reviews right now. Showing featured testimonials.");
+            setReviewsError(
+              "Unable to load live reviews right now. Showing featured testimonials.",
+            );
           }
         }
       } finally {
@@ -217,16 +236,30 @@ export function ReviewsSlider({
       setIsTransitioning(true);
       setOffset((current) => current + delta);
     },
-    [canSlide, isTransitioning]
+    [canSlide, isTransitioning],
   );
 
   useEffect(() => {
-    if (!canSlide || isDragging || !isTransitionEnabled || isTransitioning || isPointerHovering) return;
+    if (
+      !canSlide ||
+      isDragging ||
+      !isTransitionEnabled ||
+      isTransitioning ||
+      isPointerHovering
+    )
+      return;
     const timer = window.setInterval(() => {
       shiftOffset(1);
     }, 4300);
     return () => window.clearInterval(timer);
-  }, [canSlide, isDragging, isTransitionEnabled, isTransitioning, isPointerHovering, shiftOffset]);
+  }, [
+    canSlide,
+    isDragging,
+    isTransitionEnabled,
+    isTransitioning,
+    isPointerHovering,
+    shiftOffset,
+  ]);
 
   useEffect(() => {
     if (!isComposerOpen) return;
@@ -249,7 +282,11 @@ export function ReviewsSlider({
     });
   }
 
-  function beginDrag(pointerId: number, clientX: number, target: HTMLDivElement) {
+  function beginDrag(
+    pointerId: number,
+    clientX: number,
+    target: HTMLDivElement,
+  ) {
     if (!canSlide || isTransitioning) return;
     pointerIdRef.current = pointerId;
     startXRef.current = clientX;
@@ -270,9 +307,11 @@ export function ReviewsSlider({
 
   function endDrag(pointerId?: number, clientX?: number) {
     if (!isDragging) return;
-    if (typeof pointerId === "number" && pointerIdRef.current !== pointerId) return;
+    if (typeof pointerId === "number" && pointerIdRef.current !== pointerId)
+      return;
 
-    const finalOffset = typeof clientX === "number" ? clientX - startXRef.current : dragOffset;
+    const finalOffset =
+      typeof clientX === "number" ? clientX - startXRef.current : dragOffset;
     const width = viewportRef.current?.clientWidth ?? 0;
     const threshold = Math.max(32, Math.round(width * 0.1));
 
@@ -321,7 +360,7 @@ export function ReviewsSlider({
       >({
         rating,
         subject: subject.trim(),
-        body: body.trim()
+        body: body.trim(),
       });
 
       setSubject("");
@@ -341,17 +380,26 @@ export function ReviewsSlider({
   }
 
   return (
-    <section className="container-page py-12 sm:py-16" aria-labelledby="reviews-title">
+    <section
+      className="container-page py-12 sm:py-16"
+      aria-labelledby="reviews-title"
+    >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 id="reviews-title" className="text-2xl font-bold sm:text-3xl">
             {title?.trim() || "Reviews"}
           </h2>
           {subtitle?.trim() ? (
-            <p className="mt-2 text-sm text-[var(--muted)]">{subtitle.trim()}</p>
+            <p className="mt-2 text-sm text-[var(--muted)]">
+              {subtitle.trim()}
+            </p>
           ) : null}
         </div>
-        <Button type="button" variant="secondary" onClick={() => setIsComposerOpen(true)}>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => setIsComposerOpen(true)}
+        >
           Write a Review
         </Button>
       </div>
@@ -382,7 +430,9 @@ export function ReviewsSlider({
                 if (isInteractiveTarget(event.target)) return;
                 beginDrag(event.pointerId, event.clientX, event.currentTarget);
               }}
-              onPointerMove={(event) => moveDrag(event.pointerId, event.clientX)}
+              onPointerMove={(event) =>
+                moveDrag(event.pointerId, event.clientX)
+              }
               onPointerUp={(event) => {
                 if (event.currentTarget.hasPointerCapture(event.pointerId)) {
                   event.currentTarget.releasePointerCapture(event.pointerId);
@@ -393,11 +443,15 @@ export function ReviewsSlider({
               <div
                 className={`-mx-2 flex ${isDragging || !isTransitionEnabled ? "" : "transition-transform duration-500 ease-out"} lg:-mx-2.5`}
                 style={{
-                  transform: `translate3d(calc(-${(trackIndex * 100) / visibleCards}% + ${dragOffset}px), 0, 0)`
+                  transform: `translate3d(calc(-${(trackIndex * 100) / visibleCards}% + ${dragOffset}px), 0, 0)`,
                 }}
                 onTransitionEnd={(event) => {
                   if (!canSlide) return;
-                  if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
+                  if (
+                    event.target !== event.currentTarget ||
+                    event.propertyName !== "transform"
+                  )
+                    return;
 
                   const current = offsetRef.current;
                   setIsTransitioning(false);
@@ -421,10 +475,14 @@ export function ReviewsSlider({
                             {review.subject}
                           </p>
                         </div>
-                        <p className="text-sm font-semibold text-[var(--leaf-deep)]">{"★".repeat(review.rating)}</p>
+                        <p className="text-sm font-semibold text-[var(--leaf-deep)]">
+                          {"★".repeat(review.rating)}
+                        </p>
                       </div>
                       <div className="mt-4">
-                        <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">{review.text}</p>
+                        <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">
+                          {review.text}
+                        </p>
                       </div>
                     </div>
                   </article>
@@ -457,7 +515,11 @@ export function ReviewsSlider({
       )}
 
       {reviewsError ? (
-        <p className="mt-4 text-sm font-semibold text-[var(--muted)]" role="status" aria-live="polite">
+        <p
+          className="mt-4 text-sm font-semibold text-[var(--muted)]"
+          role="status"
+          aria-live="polite"
+        >
           {reviewsError}
         </p>
       ) : null}
@@ -484,7 +546,10 @@ export function ReviewsSlider({
             </div>
 
             {user ? (
-              <form className="mt-5 space-y-4" onSubmit={(event) => void submitReview(event)}>
+              <form
+                className="mt-5 space-y-4"
+                onSubmit={(event) => void submitReview(event)}
+              >
                 <label className="block">
                   <span className="text-sm font-semibold">Subject</span>
                   <Input
@@ -519,7 +584,9 @@ export function ReviewsSlider({
                         <button
                           aria-label={`Rate ${nextRating} stars`}
                           className={`focus-ring text-3xl leading-none transition sm:text-4xl ${
-                            nextRating <= rating ? "text-[var(--gold)]" : "text-[var(--line)]"
+                            nextRating <= rating
+                              ? "text-[var(--gold)]"
+                              : "text-[var(--line)]"
                           }`}
                           key={nextRating}
                           type="button"
@@ -532,14 +599,24 @@ export function ReviewsSlider({
                   </div>
                 </div>
 
-                <Button className="w-full" type="submit" disabled={isSubmittingReview}>
+                <Button
+                  className="w-full"
+                  type="submit"
+                  disabled={isSubmittingReview}
+                >
                   {isSubmittingReview ? "Submitting..." : "Submit Review"}
                 </Button>
               </form>
             ) : (
               <div className="mt-5 rounded-lg border border-[var(--line)] bg-[var(--mint)] p-4">
-                <p className="text-sm text-[var(--muted)]">Login is required to submit a review.</p>
-                <Button className="mt-4" href="/auth?next=/" variant="secondary">
+                <p className="text-sm text-[var(--muted)]">
+                  Login is required to submit a review.
+                </p>
+                <Button
+                  className="mt-4"
+                  href="/auth?next=/"
+                  variant="secondary"
+                >
                   Login to review
                 </Button>
               </div>
@@ -549,7 +626,11 @@ export function ReviewsSlider({
       ) : null}
 
       {formMessage ? (
-        <p className="mt-4 text-sm font-semibold text-[var(--leaf-deep)]" role="status" aria-live="polite">
+        <p
+          className="mt-4 text-sm font-semibold text-[var(--leaf-deep)]"
+          role="status"
+          aria-live="polite"
+        >
           {formMessage}
         </p>
       ) : null}

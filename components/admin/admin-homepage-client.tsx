@@ -411,8 +411,30 @@ function hydrateWithDefaults(section: SectionState): SectionState {
     if (!next.featuredEyebrow.trim()) next.featuredEyebrow = HOMEPAGE_DEFAULT_FEATURED_CORE.eyebrow ?? "";
     if (!next.featuredSecondaryText.trim()) next.featuredSecondaryText = HOMEPAGE_DEFAULT_FEATURED_CORE.secondaryText ?? "";
   }
-  if (section.key === "usp_features" && next.uspLabels.length === 0) {
-    next.uspLabels = HOMEPAGE_DEFAULT_USP_LABELS.map((label, index) => ({ label, isActive: true, sortOrder: index }));
+  if (section.key === "usp_features") {
+    const normalizedDefaults = HOMEPAGE_DEFAULT_USP_LABELS.map((label) => label.trim().toLowerCase());
+    const defaultSet = new Set(normalizedDefaults);
+    const activeLabels = next.uspLabels
+      .map((item) => item.label.trim().toLowerCase())
+      .filter((label) => label.length > 0);
+    const looksLikeLegacyDefaultSubset =
+      activeLabels.length > 0 &&
+      activeLabels.length < HOMEPAGE_DEFAULT_USP_LABELS.length &&
+      activeLabels.every((label) => defaultSet.has(label));
+
+    if (next.uspLabels.length === 0 || looksLikeLegacyDefaultSubset) {
+      const byLabel = new Map(
+        next.uspLabels.map((item) => [item.label.trim().toLowerCase(), item] as const)
+      );
+      next.uspLabels = HOMEPAGE_DEFAULT_USP_LABELS.map((label, index) => {
+        const existing = byLabel.get(label.trim().toLowerCase());
+        return {
+          label,
+          isActive: existing?.isActive ?? true,
+          sortOrder: index
+        };
+      });
+    }
   }
   if (section.key === "faq" && next.faqItems.length === 0) {
     next.faqItems = HOMEPAGE_DEFAULT_FAQ_ITEMS.map((item) => ({ ...item }));
@@ -573,7 +595,7 @@ export function AdminHomepageClient() {
         linkUrl: slide.linkUrl?.trim() || null,
         buttonText: slide.buttonText?.trim() || null,
         objectPosition: slide.objectPosition?.trim() || "50% 50%",
-        sortOrder: slide.sortOrder ?? index,
+        sortOrder: index,
         isActive: slide.isActive !== false
       }));
     }
@@ -581,7 +603,7 @@ export function AdminHomepageClient() {
     if (key === "infinite_scrolling_banner" || key === "announcement") {
       metadata.items = current.messageItems.map((item, index) => ({
         text: item.text.trim(),
-        sortOrder: item.sortOrder ?? index,
+        sortOrder: index,
         isActive: item.isActive !== false
       }));
     }
@@ -594,7 +616,7 @@ export function AdminHomepageClient() {
         linkUrl: card.linkUrl?.trim() || "",
         buttonText: card.buttonText?.trim() || "",
         postedAt: card.postedAt?.trim() || "",
-        sortOrder: card.sortOrder ?? index,
+        sortOrder: index,
         isActive: card.isActive !== false
       }));
     }
@@ -602,7 +624,7 @@ export function AdminHomepageClient() {
     if (key === "usp_features") {
       metadata.labels = current.uspLabels.map((item, index) => ({
         label: item.label.trim(),
-        sortOrder: item.sortOrder ?? index,
+        sortOrder: index,
         isActive: item.isActive !== false
       }));
     }
@@ -611,7 +633,7 @@ export function AdminHomepageClient() {
       metadata.items = current.faqItems.map((item, index) => ({
         q: item.q?.trim() || "",
         a: item.a?.trim() || "",
-        sortOrder: item.sortOrder ?? index,
+        sortOrder: index,
         isActive: item.isActive !== false
       }));
     }
@@ -1014,7 +1036,7 @@ export function AdminHomepageClient() {
                           onClick={() =>
                             updateSection(key, (state) => ({
                               ...state,
-                              uspLabels: [...state.uspLabels, { label: "", isActive: true }],
+                              uspLabels: [...state.uspLabels, { label: "", isActive: true, sortOrder: state.uspLabels.length }],
                               message: null,
                               error: null
                             }))

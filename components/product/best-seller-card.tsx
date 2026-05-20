@@ -33,6 +33,8 @@ export function BestSellerCard({ product, priority = false }: { product: Product
   const displayPrice = variant?.price ?? product.price;
   const availableStock = variant ? getAvailableStock(product.id, variant.id) ?? variant.stock ?? null : null;
   const canPurchase = isAvailable && Boolean(variant) && !isOutOfStock;
+  const marketingBadge = product.badgeLabel?.trim() ?? "";
+  const badgeText = !isAvailable ? "Coming Soon" : !canPurchase ? "Out of Stock" : marketingBadge || null;
 
   function addToCart(openCart = false) {
     if (!isAvailable || !variant) return;
@@ -75,9 +77,11 @@ export function BestSellerCard({ product, priority = false }: { product: Product
             sizes="(min-width: 1280px) 21vw, (min-width: 768px) 28vw, (min-width: 480px) 46vw, 90vw"
             src={product.image}
           />
-          <span className="absolute left-2 top-2 rounded-md bg-[#1f2421] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-[#f4f1de]">
-            {product.badgeLabel ?? "Best Seller"}
-          </span>
+          {badgeText ? (
+            <span className="absolute left-2 top-2 rounded-md bg-[#1f2421] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-[#f4f1de]">
+              {badgeText}
+            </span>
+          ) : null}
         </div>
       </Link>
 

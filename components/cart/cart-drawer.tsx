@@ -13,6 +13,14 @@ import { CouponPicker } from "@/components/cart/coupon-picker";
 
 const CART_DRAWER_HISTORY_FLAG = "__auravilleCartDrawer";
 
+function getDiscountPercent(compareAtUnitPrice: number, unitPrice: number): number {
+  if (compareAtUnitPrice <= unitPrice || compareAtUnitPrice <= 0) {
+    return 0;
+  }
+  const percent = Math.round(((compareAtUnitPrice - unitPrice) / compareAtUnitPrice) * 100);
+  return percent > 0 ? percent : 0;
+}
+
 export function CartDrawer() {
   const hasMounted = useHasMounted();
   const pathname = usePathname();
@@ -248,7 +256,9 @@ export function CartDrawer() {
             </div>
           ) : (
             <div className="space-y-3">
-              {enrichedItems.map((item) => (
+              {enrichedItems.map((item) => {
+                const discountPercent = getDiscountPercent(item.compareAtUnitPrice, item.unitPrice);
+                return (
                 <article className="rounded-lg border border-[var(--line)] bg-white p-3" key={`${item.productId}-${item.variantId}`}>
                   <div className="grid grid-cols-[74px_1fr] gap-3 sm:grid-cols-[78px_1fr]">
                     <Link
@@ -277,6 +287,9 @@ export function CartDrawer() {
                       </div>
 
                       <p className="mt-0.5 text-xs text-[var(--muted)]">{item.variantLabel}</p>
+                      {discountPercent > 0 ? (
+                        <p className="mt-1 text-xs font-semibold text-[var(--leaf)]">Saved {discountPercent}%</p>
+                      ) : null}
                       {!item.available ? (
                         <p className="mt-1 text-xs font-semibold text-[var(--coral)]">Currently unavailable</p>
                       ) : null}
@@ -350,7 +363,8 @@ export function CartDrawer() {
                     </div>
                   </div>
                 </article>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
