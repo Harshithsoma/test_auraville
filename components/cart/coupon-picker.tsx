@@ -280,10 +280,21 @@ export function CouponPicker({
                   !coupon.isEligible || sameAsApplied || isPricingLoading || Boolean(activeCode);
 
                 const reason = coupon.eligibilityReason;
-                const detail =
+                const savingsLabel =
                   coupon.discountType === "PERCENT"
                     ? `${coupon.discountValue}% off`
                     : `Flat ${formatPrice(coupon.discountValue)} off`;
+                const primaryDescription = coupon.description?.trim() || coupon.displayText;
+                const metaParts: string[] = [];
+                if (coupon.minOrderAmount && coupon.minOrderAmount > 0) {
+                  metaParts.push(`Min order ${formatPrice(coupon.minOrderAmount)}`);
+                }
+                if (coupon.expiryDate) {
+                  const expiryDate = new Date(coupon.expiryDate);
+                  if (!Number.isNaN(expiryDate.getTime())) {
+                    metaParts.push(`Expires ${expiryDate.toLocaleDateString()}`);
+                  }
+                }
 
                 return (
                   <article
@@ -297,11 +308,14 @@ export function CouponPicker({
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold">{coupon.code}</p>
-                        <p className="mt-1 text-xs">{coupon.description || "Not applicable"}</p>
-                        <p className="mt-1 text-xs font-medium">{detail}</p>
-                        <p className="mt-1 text-xs">
-                          {reason ?? coupon.displayText}
-                        </p>
+                        <p className="mt-1 text-xs">{primaryDescription}</p>
+                        <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-[var(--muted)]">
+                          <span className="font-medium text-[var(--leaf-deep)]">{savingsLabel}</span>
+                          {metaParts.map((part) => (
+                            <span key={part}>{part}</span>
+                          ))}
+                        </div>
+                        {!coupon.isEligible && reason ? <p className="mt-1 text-xs">{reason}</p> : null}
                       </div>
                       <button
                         className="focus-ring inline-flex h-8 items-center justify-center rounded-lg border border-[var(--leaf)] px-3 text-xs font-semibold text-[var(--leaf-deep)] transition disabled:cursor-not-allowed disabled:opacity-50"

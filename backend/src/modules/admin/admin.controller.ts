@@ -7,6 +7,7 @@ import {
   adminCreateProduct,
   adminCreateVariant,
   adminDeleteCoupon,
+  adminHardDeleteCoupon,
   adminDeleteReview,
   adminDeleteCategory,
   adminGetProductById,
@@ -35,6 +36,7 @@ import type {
   AdminCreateProductValidatedInput,
   AdminCreateVariantValidatedInput,
   AdminDeleteCouponValidatedInput,
+  AdminHardDeleteCouponValidatedInput,
   AdminDeleteReviewValidatedInput,
   AdminDeleteCategoryValidatedInput,
   AdminDeleteProductValidatedInput,
@@ -227,6 +229,16 @@ export const adminDeleteCouponController: RequestHandler = async (req, res, next
   try {
     const { params } = req as unknown as AdminDeleteCouponValidatedInput;
     const result = await adminDeleteCoupon(params);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminHardDeleteCouponController: RequestHandler = async (req, res, next) => {
+  try {
+    const { params } = req as unknown as AdminHardDeleteCouponValidatedInput;
+    const result = await adminHardDeleteCoupon(params);
     res.status(200).json(result);
   } catch (error) {
     next(error);

@@ -300,6 +300,7 @@ model ProductImage {
 model Coupon {
   id                String      @id @default(cuid())
   code              String      @unique
+  description       String?
   type              CouponType
   discountValue     Int
   minOrderValue     Int?

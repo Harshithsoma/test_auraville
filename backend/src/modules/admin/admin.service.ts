@@ -19,6 +19,7 @@ import type {
   AdminCreateProductValidatedInput,
   AdminCreateVariantValidatedInput,
   AdminDeleteCouponValidatedInput,
+  AdminHardDeleteCouponValidatedInput,
   AdminDeleteReviewValidatedInput,
   AdminDeleteCategoryValidatedInput,
   AdminDeleteProductValidatedInput,
@@ -279,6 +280,7 @@ function normalizeCouponCode(code: string): string {
 function mapCoupon(coupon: {
   id: string;
   code: string;
+  description: string | null;
   type: "PERCENT" | "FLAT";
   discountValue: number;
   minOrderValue: number | null;
@@ -295,6 +297,7 @@ function mapCoupon(coupon: {
   return {
     id: coupon.id,
     code: coupon.code,
+    description: coupon.description,
     type: coupon.type,
     discountValue: coupon.discountValue,
     minOrderValue: coupon.minOrderValue,
@@ -1766,6 +1769,7 @@ export async function adminCreateCoupon(
   const created = await prisma.coupon.create({
     data: {
       code: normalizedCode,
+      description: payload.description ?? null,
       type: payload.type,
       discountValue: payload.discountValue,
       minOrderValue: payload.minOrderValue ?? null,
@@ -1801,6 +1805,7 @@ export async function adminPatchCoupon(params: {
   });
 
   const updateData: Record<string, unknown> = {
+    ...(payload.description !== undefined ? { description: payload.description } : {}),
     ...(payload.type !== undefined ? { type: payload.type } : {}),
     ...(payload.discountValue !== undefined ? { discountValue: payload.discountValue } : {}),
     ...(payload.minOrderValue !== undefined ? { minOrderValue: payload.minOrderValue } : {}),
@@ -1846,6 +1851,36 @@ export async function adminDeleteCoupon(
     data: {
       id: params.id,
       isActive: false
+    }
+  };
+}
+
+export async function adminHardDeleteCoupon(
+  params: AdminHardDeleteCouponValidatedInput["params"]
+): Promise<{ data: { id: string; deleted: boolean } }> {
+  await ensureCouponById(params.id);
+
+  const usageCount = await prisma.couponUsage.count({
+    where: { couponId: params.id }
+  });
+
+  if (usageCount > 0) {
+    throw new HttpError(
+      400,
+      "Cannot permanently delete coupon with historical usage. Disable it instead.",
+      { couponId: params.id, usageCount },
+      "COUPON_DELETE_BLOCKED_HISTORY"
+    );
+  }
+
+  await prisma.coupon.delete({
+    where: { id: params.id }
+  });
+
+  return {
+    data: {
+      id: params.id,
+      deleted: true
     }
   };
 }

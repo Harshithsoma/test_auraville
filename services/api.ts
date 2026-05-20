@@ -599,6 +599,10 @@ export const commerceApi = {
       delete: <TResponse>(id: string) =>
         request<TResponse>(`/admin/coupons/${encodeURIComponent(id)}`, {
           method: "DELETE"
+        }),
+      deletePermanent: <TResponse>(id: string) =>
+        request<TResponse>(`/admin/coupons/${encodeURIComponent(id)}/permanent`, {
+          method: "DELETE"
         })
     },
     products: {

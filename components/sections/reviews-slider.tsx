@@ -107,6 +107,13 @@ function getVisibleCards() {
   return window.innerWidth >= 1024 ? 3 : 1;
 }
 
+function isInteractiveTarget(target: EventTarget | null) {
+  return (
+    target instanceof Element &&
+    target.closest("button, input, select, textarea, label, a, [role='button']") !== null
+  );
+}
+
 function mapBackendReviews(response: ReviewsListResponse): Review[] {
   return response.data.map((item) => ({
     id: item.id,
@@ -152,11 +159,13 @@ export function ReviewsSlider({
   const [isDragging, setIsDragging] = useState(false);
   const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isPointerHovering, setIsPointerHovering] = useState(false);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
   const pointerIdRef = useRef<number | null>(null);
   const startXRef = useRef(0);
+  const dragMovedRef = useRef(false);
   const offsetRef = useRef(offset);
   const isSectionInView = useSectionInView(carouselRef);
 
@@ -212,12 +221,12 @@ export function ReviewsSlider({
   );
 
   useEffect(() => {
-    if (!canSlide || isDragging || !isTransitionEnabled || isTransitioning) return;
+    if (!canSlide || isDragging || !isTransitionEnabled || isTransitioning || isPointerHovering) return;
     const timer = window.setInterval(() => {
       shiftOffset(1);
     }, 4300);
     return () => window.clearInterval(timer);
-  }, [canSlide, isDragging, isTransitionEnabled, isTransitioning, shiftOffset]);
+  }, [canSlide, isDragging, isTransitionEnabled, isTransitioning, isPointerHovering, shiftOffset]);
 
   useEffect(() => {
     if (!isComposerOpen) return;
@@ -244,6 +253,7 @@ export function ReviewsSlider({
     if (!canSlide || isTransitioning) return;
     pointerIdRef.current = pointerId;
     startXRef.current = clientX;
+    dragMovedRef.current = false;
     target.setPointerCapture(pointerId);
     setIsDragging(true);
     setDragOffset(0);
@@ -251,7 +261,11 @@ export function ReviewsSlider({
 
   function moveDrag(pointerId: number, clientX: number) {
     if (!isDragging || pointerIdRef.current !== pointerId) return;
-    setDragOffset(clientX - startXRef.current);
+    const nextOffset = clientX - startXRef.current;
+    if (Math.abs(nextOffset) > 8) {
+      dragMovedRef.current = true;
+    }
+    setDragOffset(nextOffset);
   }
 
   function endDrag(pointerId?: number, clientX?: number) {
@@ -260,7 +274,7 @@ export function ReviewsSlider({
 
     const finalOffset = typeof clientX === "number" ? clientX - startXRef.current : dragOffset;
     const width = viewportRef.current?.clientWidth ?? 0;
-    const threshold = Math.max(40, Math.round(width * 0.11));
+    const threshold = Math.max(32, Math.round(width * 0.1));
 
     if (finalOffset > threshold) {
       shiftOffset(-1);
@@ -271,6 +285,7 @@ export function ReviewsSlider({
     setDragOffset(0);
     setIsDragging(false);
     pointerIdRef.current = null;
+    dragMovedRef.current = false;
   }
 
   async function submitReview(event: FormEvent<HTMLFormElement>) {
@@ -356,9 +371,15 @@ export function ReviewsSlider({
               className="overflow-hidden"
               ref={viewportRef}
               style={{ touchAction: "pan-y" }}
+              onPointerEnter={() => setIsPointerHovering(true)}
+              onPointerLeave={() => {
+                setIsPointerHovering(false);
+                endDrag();
+              }}
               onPointerCancel={() => endDrag()}
               onPointerDown={(event) => {
                 if (event.pointerType === "mouse" && event.button !== 0) return;
+                if (isInteractiveTarget(event.target)) return;
                 beginDrag(event.pointerId, event.clientX, event.currentTarget);
               }}
               onPointerMove={(event) => moveDrag(event.pointerId, event.clientX)}

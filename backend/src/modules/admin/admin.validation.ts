@@ -273,6 +273,7 @@ export const adminDeleteCategorySchema = z.object({
 
 const couponBodyObjectSchema = z.object({
   code: z.string().trim().min(1).max(64),
+  description: z.string().trim().max(220).nullable().optional(),
   type: z.enum(["PERCENT", "FLAT"]),
   discountValue: z.coerce.number().int().positive(),
   minOrderValue: z.coerce.number().int().min(0).nullable().optional(),
@@ -371,6 +372,14 @@ export const adminPatchCouponSchema = z.object({
 });
 
 export const adminDeleteCouponSchema = z.object({
+  body: z.object({}).passthrough(),
+  query: z.object({}).passthrough(),
+  params: z.object({
+    id: z.string().trim().min(1)
+  })
+});
+
+export const adminHardDeleteCouponSchema = z.object({
   body: z.object({}).passthrough(),
   query: z.object({}).passthrough(),
   params: z.object({
@@ -493,6 +502,7 @@ export type AdminListCouponsValidatedInput = z.infer<typeof adminListCouponsSche
 export type AdminCreateCouponValidatedInput = z.infer<typeof adminCreateCouponSchema>;
 export type AdminPatchCouponValidatedInput = z.infer<typeof adminPatchCouponSchema>;
 export type AdminDeleteCouponValidatedInput = z.infer<typeof adminDeleteCouponSchema>;
+export type AdminHardDeleteCouponValidatedInput = z.infer<typeof adminHardDeleteCouponSchema>;
 
 export type AdminListReviewsValidatedInput = z.infer<typeof adminListReviewsSchema>;
 export type AdminApproveReviewValidatedInput = z.infer<typeof adminApproveReviewSchema>;

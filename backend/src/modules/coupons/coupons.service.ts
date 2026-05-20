@@ -16,10 +16,16 @@ import {
 export { CouponValidationError };
 
 function buildCouponDescription(params: {
+  customDescription?: string | null;
   type: "PERCENT" | "FLAT";
   discountValue: number;
   minOrderValue: number | null;
 }): string {
+  const customDescription = params.customDescription?.trim();
+  if (customDescription) {
+    return customDescription;
+  }
+
   const base =
     params.type === "PERCENT"
       ? `${params.discountValue}% off`
@@ -33,10 +39,16 @@ function buildCouponDescription(params: {
 }
 
 function buildCouponDisplayText(params: {
+  customDescription?: string | null;
   type: "PERCENT" | "FLAT";
   discountValue: number;
   minOrderValue: number | null;
 }): string {
+  const customDescription = params.customDescription?.trim();
+  if (customDescription) {
+    return customDescription;
+  }
+
   const discountText =
     params.type === "PERCENT" ? `${params.discountValue}% off` : `Flat Rs ${params.discountValue} off`;
 
@@ -88,6 +100,7 @@ export async function listCoupons(): Promise<ListCouponsResponse> {
     orderBy: [{ expiresAt: "asc" }, { code: "asc" }],
     select: {
       code: true,
+      description: true,
       type: true,
       discountValue: true,
       minOrderValue: true,
@@ -100,6 +113,7 @@ export async function listCoupons(): Promise<ListCouponsResponse> {
     data: coupons.map((coupon) => ({
       code: coupon.code,
       description: buildCouponDescription({
+        customDescription: coupon.description,
         type: coupon.type,
         discountValue: coupon.discountValue,
         minOrderValue: coupon.minOrderValue
@@ -129,6 +143,7 @@ export async function listAvailableCoupons(params: {
       code: true,
       type: true,
       discountValue: true,
+      description: true,
       minOrderValue: true,
       startsAt: true,
       expiresAt: true,
@@ -172,6 +187,7 @@ export async function listAvailableCoupons(params: {
       return {
         code: coupon.code,
         description: buildCouponDescription({
+          customDescription: coupon.description,
           type: coupon.type,
           discountValue: coupon.discountValue,
           minOrderValue: coupon.minOrderValue
@@ -182,6 +198,7 @@ export async function listAvailableCoupons(params: {
         isEligible,
         eligibilityReason,
         displayText: buildCouponDisplayText({
+          customDescription: coupon.description,
           type: coupon.type,
           discountValue: coupon.discountValue,
           minOrderValue: coupon.minOrderValue

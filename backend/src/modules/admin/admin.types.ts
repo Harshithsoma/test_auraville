@@ -64,6 +64,7 @@ export type AdminCategoryResponse = {
 export type AdminCouponResponse = {
   id: string;
   code: string;
+  description: string | null;
   type: "PERCENT" | "FLAT";
   discountValue: number;
   minOrderValue: number | null;

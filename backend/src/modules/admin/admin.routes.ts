@@ -10,6 +10,7 @@ import {
   adminCreateProductController,
   adminCreateVariantController,
   adminDeleteCouponController,
+  adminHardDeleteCouponController,
   adminDeleteReviewController,
   adminDeleteCategoryController,
   adminDeleteProductController,
@@ -38,6 +39,7 @@ import {
   adminCreateProductSchema,
   adminCreateVariantSchema,
   adminDeleteCouponSchema,
+  adminHardDeleteCouponSchema,
   adminDeleteReviewSchema,
   adminDeleteCategorySchema,
   adminDeleteProductSchema,
@@ -123,6 +125,11 @@ adminRouter.delete(
   "/admin/coupons/:id",
   validateRequest(adminDeleteCouponSchema),
   adminDeleteCouponController
+);
+adminRouter.delete(
+  "/admin/coupons/:id/permanent",
+  validateRequest(adminHardDeleteCouponSchema),
+  adminHardDeleteCouponController
 );
 
 adminRouter.get("/admin/reviews", validateRequest(adminListReviewsSchema), adminListReviewsController);

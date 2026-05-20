@@ -10,6 +10,7 @@ type CouponType = "PERCENT" | "FLAT";
 type AdminCoupon = {
   id: string;
   code: string;
+  description: string | null;
   type: CouponType;
   discountValue: number;
   minOrderValue: number | null;
@@ -45,6 +46,13 @@ type DeleteCouponResponse = {
   };
 };
 
+type PermanentDeleteCouponResponse = {
+  data: {
+    id: string;
+    deleted: boolean;
+  };
+};
+
 type CouponFilters = {
   search: string;
   isActive: "all" | "true" | "false";
@@ -52,6 +60,7 @@ type CouponFilters = {
 
 type CouponFormState = {
   code: string;
+  description: string;
   type: CouponType;
   discountValue: string;
   minOrderValue: string;
@@ -72,6 +81,7 @@ const defaultFilters: CouponFilters = {
 
 const defaultForm: CouponFormState = {
   code: "",
+  description: "",
   type: "PERCENT",
   discountValue: "",
   minOrderValue: "",
@@ -147,8 +157,10 @@ function parseBooleanFilter(value: CouponFilters["isActive"]): boolean | undefin
 }
 
 function buildCouponPayload(state: CouponFormState) {
+  const trimmedDescription = state.description.trim();
   return {
     code: normalizeCode(state.code),
+    description: trimmedDescription ? trimmedDescription : null,
     type: state.type,
     discountValue: Number(state.discountValue.trim()),
     minOrderValue: toNullableInteger(state.minOrderValue),
@@ -178,6 +190,10 @@ function validateCouponForm(state: CouponFormState): string | null {
 
   if (state.type === "FLAT" && discountValue <= 0) {
     return "FLAT discount must be positive.";
+  }
+
+  if (state.description.length > 220) {
+    return "Customer display text must be at most 220 characters.";
   }
 
   const minOrderValue = toNullableInteger(state.minOrderValue);
@@ -232,6 +248,7 @@ export function AdminCouponsClient() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formState, setFormState] = useState<CouponFormState>(defaultForm);
   const [busyDisableId, setBusyDisableId] = useState<string | null>(null);
+  const [busyDeleteId, setBusyDeleteId] = useState<string | null>(null);
 
   const loadCoupons = useCallback(async (nextPage: number, nextLimit: number, nextFilters: CouponFilters) => {
     setIsLoading(true);
@@ -277,6 +294,7 @@ export function AdminCouponsClient() {
     setFormMessage(null);
     setFormState({
       code: coupon.code,
+      description: coupon.description ?? "",
       type: coupon.type,
       discountValue: String(coupon.discountValue),
       minOrderValue: coupon.minOrderValue === null ? "" : String(coupon.minOrderValue),
@@ -354,6 +372,39 @@ export function AdminCouponsClient() {
       }
     } finally {
       setBusyDisableId(null);
+    }
+  }
+
+  async function deleteCoupon(coupon: AdminCoupon) {
+    if (coupon.usedCount > 0) {
+      setListError("Cannot permanently delete coupon with historical usage. Disable it instead.");
+      setListMessage(null);
+      return;
+    }
+
+    if (!window.confirm(`Permanently delete coupon "${coupon.code}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setBusyDeleteId(coupon.id);
+    setListError(null);
+    setListMessage(null);
+
+    try {
+      await commerceApi.admin.coupons.deletePermanent<PermanentDeleteCouponResponse>(coupon.id);
+      setCoupons((current) => current.filter((entry) => entry.id !== coupon.id));
+      setListMessage(`Coupon "${coupon.code}" deleted.`);
+      if (editingId === coupon.id) {
+        resetForm("create");
+      }
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setListError(error.message);
+      } else {
+        setListError("Unable to delete coupon.");
+      }
+    } finally {
+      setBusyDeleteId(null);
     }
   }
 
@@ -445,6 +496,7 @@ export function AdminCouponsClient() {
                 <thead className="bg-[var(--mint)] text-left uppercase tracking-wide text-[var(--muted)]">
                   <tr>
                     <th className="px-3 py-3">Code</th>
+                    <th className="px-3 py-3">Customer Text</th>
                     <th className="px-3 py-3">Type</th>
                     <th className="px-3 py-3">Discount</th>
                     <th className="px-3 py-3">Min / Max</th>
@@ -460,6 +512,7 @@ export function AdminCouponsClient() {
                   {coupons.map((coupon) => (
                     <tr className="border-t border-[var(--line)]" key={coupon.id}>
                       <td className="px-3 py-3 font-semibold">{coupon.code}</td>
+                      <td className="px-3 py-3">{coupon.description ?? "-"}</td>
                       <td className="px-3 py-3">{coupon.type}</td>
                       <td className="px-3 py-3">{coupon.discountValue}</td>
                       <td className="px-3 py-3">
@@ -488,10 +541,18 @@ export function AdminCouponsClient() {
                           <Button
                             type="button"
                             variant="destructive"
-                            disabled={!coupon.isActive || busyDisableId === coupon.id}
+                            disabled={!coupon.isActive || busyDisableId === coupon.id || busyDeleteId === coupon.id}
                             onClick={() => void disableCoupon(coupon)}
                           >
                             {busyDisableId === coupon.id ? "Disabling..." : "Disable Coupon"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            disabled={busyDeleteId === coupon.id || busyDisableId === coupon.id}
+                            onClick={() => void deleteCoupon(coupon)}
+                          >
+                            {busyDeleteId === coupon.id ? "Deleting..." : "Delete Coupon"}
                           </Button>
                         </div>
                       </td>
@@ -509,6 +570,9 @@ export function AdminCouponsClient() {
                     <span className="text-xs text-[var(--muted)]">{coupon.type}</span>
                   </div>
                   <p className="mt-2 text-xs text-[var(--muted)]">
+                    Customer text: {coupon.description ?? "-"}
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--muted)]">
                     Discount: {coupon.discountValue} | Min: {coupon.minOrderValue ?? "-"} | Max: {coupon.maxDiscount ?? "-"}
                   </p>
                   <p className="mt-1 text-xs text-[var(--muted)]">
@@ -527,10 +591,19 @@ export function AdminCouponsClient() {
                       className="flex-1"
                       type="button"
                       variant="destructive"
-                      disabled={!coupon.isActive || busyDisableId === coupon.id}
+                      disabled={!coupon.isActive || busyDisableId === coupon.id || busyDeleteId === coupon.id}
                       onClick={() => void disableCoupon(coupon)}
                     >
                       {busyDisableId === coupon.id ? "Disabling..." : "Disable Coupon"}
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      type="button"
+                      variant="destructive"
+                      disabled={busyDeleteId === coupon.id || busyDisableId === coupon.id}
+                      onClick={() => void deleteCoupon(coupon)}
+                    >
+                      {busyDeleteId === coupon.id ? "Deleting..." : "Delete Coupon"}
                     </Button>
                   </div>
                 </article>
@@ -571,6 +644,9 @@ export function AdminCouponsClient() {
             <p className="mt-2 text-sm text-[var(--muted)]">
               Coupon code is normalized to uppercase before submit.
             </p>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Customer display text is shown to shoppers in the cart coupon list.
+            </p>
           </div>
           {mode === "edit" ? (
             <Button type="button" variant="secondary" onClick={() => resetForm("create")}>
@@ -600,6 +676,19 @@ export function AdminCouponsClient() {
                 setFormState((current) => ({ ...current, code: event.target.value.toUpperCase() }))
               }
             />
+          </label>
+          <label className="sm:col-span-2 lg:col-span-3">
+            <span className="text-sm font-semibold">Customer Display Text</span>
+            <Input
+              className="mt-2"
+              maxLength={220}
+              placeholder="Example: 20% off on orders above ₹100"
+              value={formState.description}
+              onChange={(event) => setFormState((current) => ({ ...current, description: event.target.value }))}
+            />
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Shown to customers in cart coupon cards. Leave empty to auto-generate from discount rules.
+            </p>
           </label>
           <label>
             <span className="text-sm font-semibold">Type</span>
