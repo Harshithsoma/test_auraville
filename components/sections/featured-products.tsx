@@ -4,7 +4,10 @@ import { sortStorefrontProducts } from "@/lib/storefront-product-order";
 import { ProductShelfCarousel } from "@/components/product/product-shelf-carousel";
 
 export async function FeaturedProducts() {
-  let featuredProducts = sortStorefrontProducts(fallbackProducts.filter((product) => product.isFeatured));
+  const isProduction = process.env.NODE_ENV === "production";
+  let featuredProducts = isProduction
+    ? []
+    : sortStorefrontProducts(fallbackProducts.filter((product) => product.isFeatured));
 
   try {
     const response = await fetchProducts({
@@ -14,7 +17,11 @@ export async function FeaturedProducts() {
     });
     featuredProducts = sortStorefrontProducts(response.data);
   } catch {
-    // Fallback keeps homepage resilient when API is unavailable.
+    // Keep bundled fallback for development only.
+  }
+
+  if (featuredProducts.length === 0) {
+    return null;
   }
 
   return (

@@ -154,60 +154,79 @@ export async function listAvailableCoupons(params: {
     }
   });
 
-  const couponRows = await Promise.all(
-    coupons.map(async (coupon) => {
-      let isEligible = true;
-      let eligibilityReason: string | null = null;
+  const hasUsageScope = Boolean(context?.userId || context?.email);
+  const couponIds = coupons.map((coupon) => coupon.id);
+  const usageByCouponId = new Map<string, number>();
 
-      if (!coupon.isActive || (coupon.startsAt && now < coupon.startsAt)) {
-        isEligible = false;
-        eligibilityReason = "Not active";
-      } else if (coupon.expiresAt && now > coupon.expiresAt) {
-        isEligible = false;
-        eligibilityReason = "Expired";
-      } else if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
-        isEligible = false;
-        eligibilityReason = "Usage limit reached";
-      } else if (coupon.minOrderValue !== null && subtotal < coupon.minOrderValue) {
-        isEligible = false;
-        eligibilityReason = `Minimum order Rs ${coupon.minOrderValue} required`;
-      } else if (coupon.usageLimitPerUser !== null && (context?.userId || context?.email)) {
-        const usageCount = await prisma.couponUsage.count({
-          where: context?.userId
-            ? { couponId: coupon.id, userId: context.userId }
-            : { couponId: coupon.id, email: context?.email?.toLowerCase() }
-        });
-
-        if (usageCount >= coupon.usageLimitPerUser) {
-          isEligible = false;
-          eligibilityReason = coupon.usageLimitPerUser === 1 ? "Already used" : "Usage limit reached";
-        }
+  if (hasUsageScope && couponIds.length > 0) {
+    const usageRows = await prisma.couponUsage.groupBy({
+      by: ["couponId"],
+      where: context?.userId
+        ? {
+            couponId: { in: couponIds },
+            userId: context.userId
+          }
+        : {
+            couponId: { in: couponIds },
+            email: context?.email?.toLowerCase()
+          },
+      _count: {
+        _all: true
       }
+    });
 
-      return {
-        code: coupon.code,
-        description: buildCouponDescription({
-          customDescription: coupon.description,
-          type: coupon.type,
-          discountValue: coupon.discountValue,
-          minOrderValue: coupon.minOrderValue
-        }),
-        discountType: coupon.type,
+    for (const row of usageRows) {
+      usageByCouponId.set(row.couponId, row._count._all);
+    }
+  }
+
+  const couponRows = coupons.map((coupon) => {
+    let isEligible = true;
+    let eligibilityReason: string | null = null;
+
+    if (!coupon.isActive || (coupon.startsAt && now < coupon.startsAt)) {
+      isEligible = false;
+      eligibilityReason = "Not active";
+    } else if (coupon.expiresAt && now > coupon.expiresAt) {
+      isEligible = false;
+      eligibilityReason = "Expired";
+    } else if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
+      isEligible = false;
+      eligibilityReason = "Usage limit reached";
+    } else if (coupon.minOrderValue !== null && subtotal < coupon.minOrderValue) {
+      isEligible = false;
+      eligibilityReason = `Minimum order Rs ${coupon.minOrderValue} required`;
+    } else if (coupon.usageLimitPerUser !== null && hasUsageScope) {
+      const usageCount = usageByCouponId.get(coupon.id) ?? 0;
+      if (usageCount >= coupon.usageLimitPerUser) {
+        isEligible = false;
+        eligibilityReason = coupon.usageLimitPerUser === 1 ? "Already used" : "Usage limit reached";
+      }
+    }
+
+    return {
+      code: coupon.code,
+      description: buildCouponDescription({
+        customDescription: coupon.description,
+        type: coupon.type,
         discountValue: coupon.discountValue,
-        minOrderAmount: coupon.minOrderValue,
-        isEligible,
-        eligibilityReason,
-        displayText: buildCouponDisplayText({
-          customDescription: coupon.description,
-          type: coupon.type,
-          discountValue: coupon.discountValue,
-          minOrderValue: coupon.minOrderValue
-        }),
-        isActive: coupon.isActive,
-        expiryDate: coupon.expiresAt ? coupon.expiresAt.toISOString() : null
-      };
-    })
-  );
+        minOrderValue: coupon.minOrderValue
+      }),
+      discountType: coupon.type,
+      discountValue: coupon.discountValue,
+      minOrderAmount: coupon.minOrderValue,
+      isEligible,
+      eligibilityReason,
+      displayText: buildCouponDisplayText({
+        customDescription: coupon.description,
+        type: coupon.type,
+        discountValue: coupon.discountValue,
+        minOrderValue: coupon.minOrderValue
+      }),
+      isActive: coupon.isActive,
+      expiryDate: coupon.expiresAt ? coupon.expiresAt.toISOString() : null
+    };
+  });
 
   return { data: couponRows };
 }

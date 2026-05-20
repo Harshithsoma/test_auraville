@@ -12,6 +12,16 @@ const booleanFromQuery = z
   .transform((value) => (typeof value === "boolean" ? value : value === "true"));
 
 const availabilitySchema = z.enum(["available", "coming-soon"]);
+const homepageSectionKeySchema = z.enum([
+  "hero",
+  "infinite_scrolling_banner",
+  "usp_features",
+  "announcement",
+  "featured_core_product",
+  "why_auraville",
+  "do_you_know",
+  "faq"
+]);
 const orderStatusSchema = z.enum([
   "pending",
   "confirmed",
@@ -464,7 +474,7 @@ export const adminListHomepageSchema = z.object({
 export const adminPatchHomepageSchema = z.object({
   query: z.object({}).passthrough(),
   params: z.object({
-    key: z.string().trim().min(1).max(120)
+    key: homepageSectionKeySchema
   }),
   body: z
     .object({

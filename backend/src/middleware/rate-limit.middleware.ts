@@ -1,4 +1,5 @@
 import rateLimit from "express-rate-limit";
+import type { Request } from "express";
 
 const defaultMessage = {
   error: {
@@ -7,12 +8,17 @@ const defaultMessage = {
   }
 };
 
+function isWebhookPath(request: Request): boolean {
+  return request.path === "/payments/webhook/razorpay";
+}
+
 export const globalRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 500,
   standardHeaders: true,
   legacyHeaders: false,
-  message: defaultMessage
+  message: defaultMessage,
+  skip: isWebhookPath
 });
 
 export const authRateLimiter = rateLimit({

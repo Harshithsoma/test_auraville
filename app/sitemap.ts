@@ -1,8 +1,10 @@
 import type { MetadataRoute } from "next";
+import { fetchProducts } from "@/lib/catalog-api";
 import { products } from "@/lib/products";
 import { absoluteUrl } from "@/lib/site";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const isProduction = process.env.NODE_ENV === "production";
   const now = new Date();
   const routes = [
     "",
@@ -28,10 +30,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: route === "" ? 1 : 0.7
   }));
 
+  let productSlugs: string[] = [];
+  try {
+    const response = await fetchProducts({
+      page: 1,
+      limit: 200,
+      sort: "popular"
+    });
+    productSlugs = response.data.map((product) => product.slug);
+  } catch {
+    if (!isProduction) {
+      productSlugs = products.map((product) => product.slug);
+    }
+  }
+
   return [
     ...routes,
-    ...products.map((product) => ({
-      url: absoluteUrl(`/product/${product.slug}`),
+    ...productSlugs.map((slug) => ({
+      url: absoluteUrl(`/product/${slug}`),
       lastModified: now,
       changeFrequency: "weekly" as const,
       priority: 0.9

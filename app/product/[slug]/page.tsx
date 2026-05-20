@@ -17,6 +17,7 @@ type ProductPageProps = {
 };
 
 export const dynamic = "force-dynamic";
+const isProduction = process.env.NODE_ENV === "production";
 
 async function getProduct(slug: string): Promise<Product | null> {
   try {
@@ -26,7 +27,10 @@ async function getProduct(slug: string): Promise<Product | null> {
     if (error instanceof ApiError && error.status === 404) {
       return null;
     }
-    return getProductBySlug(slug) ?? null;
+    if (!isProduction) {
+      return getProductBySlug(slug) ?? null;
+    }
+    return null;
   }
 }
 
@@ -42,10 +46,14 @@ async function getRelated(product: Product): Promise<Product[]> {
       return related;
     }
   } catch {
-    // Fall through to bundled fallback.
+    // Fall through only in non-production development mode.
   }
 
-  return getRelatedProducts(product);
+  if (!isProduction) {
+    return getRelatedProducts(product);
+  }
+
+  return [];
 }
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
@@ -109,16 +117,18 @@ export default async function ProductPage({ params }: ProductPageProps) {
         <ProductDetailAsideClient product={product} />
       </div>
 
-      <section className="mt-16 sm:mt-20" aria-labelledby="related-products">
-        <h2 id="related-products" className="text-2xl font-semibold sm:text-3xl">
-          More from the palmyra shelf
-        </h2>
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {relatedProducts.map((relatedProduct) => (
-            <ProductCard key={relatedProduct.id} product={relatedProduct} />
-          ))}
-        </div>
-      </section>
+      {relatedProducts.length > 0 ? (
+        <section className="mt-16 sm:mt-20" aria-labelledby="related-products">
+          <h2 id="related-products" className="text-2xl font-semibold sm:text-3xl">
+            More from the palmyra shelf
+          </h2>
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {relatedProducts.map((relatedProduct) => (
+              <ProductCard key={relatedProduct.id} product={relatedProduct} />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
