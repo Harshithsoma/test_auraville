@@ -66,6 +66,7 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
   const [isDragging, setIsDragging] = useState(false);
   const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
   const [isPageVisible, setIsPageVisible] = useState(true);
+  const [viewportWidth, setViewportWidth] = useState(0);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const pointerIdRef = useRef<number | null>(null);
@@ -76,6 +77,26 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
   useEffect(() => {
     positionRef.current = position;
   }, [position]);
+
+  useEffect(() => {
+    const node = viewportRef.current;
+    if (!node) return;
+
+    const updateWidth = () => {
+      setViewportWidth(node.clientWidth);
+    };
+
+    updateWidth();
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(node);
+    window.addEventListener("resize", updateWidth);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateWidth);
+    };
+  }, []);
 
   useEffect(() => {
     function normalizeToCoreSlides(next: number) {
@@ -161,7 +182,7 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
   return (
     <section className="relative overflow-hidden bg-[var(--leaf-deep)]">
       <div
-        className="relative aspect-[1440/780] w-full max-h-[620px]"
+        className="relative aspect-[1440/780] w-full max-h-[620px] overflow-hidden"
         ref={viewportRef}
         style={{ touchAction: "pan-y" }}
         onPointerCancel={() => endDrag()}
@@ -180,7 +201,10 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
         <div
           className={`flex h-full ${isDragging || !isTransitionEnabled ? "" : "transition-transform duration-500 ease-out"}`}
           style={{
-            transform: `translate3d(calc(-${position * 100}% + ${dragOffset}px), 0, 0)`
+            transform:
+              viewportWidth > 0
+                ? `translate3d(${-(position * viewportWidth) + dragOffset}px, 0, 0)`
+                : `translate3d(calc(-${position * 100}% + ${dragOffset}px), 0, 0)`
           }}
           onTransitionEnd={(event) => {
             if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
@@ -196,7 +220,7 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
           {loopSlides.map((item, index) => (
             <Link
               aria-label={item.title}
-              className="relative block min-w-full shrink-0"
+              className="relative block h-full w-full min-w-full shrink-0"
               href={item.linkUrl ?? "#"}
               key={`${item.title}-${index}`}
               onClick={(event) => {

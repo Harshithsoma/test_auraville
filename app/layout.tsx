@@ -4,6 +4,7 @@ import { AuthSessionBootstrap } from "@/components/auth/auth-session-bootstrap";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
+import { RouteProgress } from "@/components/layout/route-progress";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -49,6 +50,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body>
+        <RouteProgress />
         <AuthSessionBootstrap />
         <Header />
         <main>{children}</main>

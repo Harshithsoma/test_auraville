@@ -66,8 +66,8 @@ export function BestSellerCard({ product, priority = false }: { product: Product
   }
 
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white">
-      <Link className="focus-ring block rounded-lg" href={`/product/${product.slug}`}>
+    <article className="flex h-full flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99]">
+      <Link className="focus-ring block rounded-lg transition active:opacity-90" href={`/product/${product.slug}`}>
         <div className="relative aspect-[4/4.2] overflow-hidden bg-[var(--mint)]">
           <Image
             alt={product.name}
@@ -86,7 +86,7 @@ export function BestSellerCard({ product, priority = false }: { product: Product
       </Link>
 
       <div className="flex flex-1 flex-col px-3 pb-3 pt-3.5">
-        <Link className="focus-ring block rounded-lg" href={`/product/${product.slug}`}>
+        <Link className="focus-ring block rounded-lg transition active:opacity-90" href={`/product/${product.slug}`}>
           <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5">{product.name}</h3>
         </Link>
         <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-[var(--muted)] sm:text-xs">

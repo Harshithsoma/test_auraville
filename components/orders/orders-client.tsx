@@ -90,7 +90,7 @@ function orderItemKey(orderId: string, orderItemId: string): string {
 }
 
 const REVIEW_SUBJECT_MAX_LENGTH = 80;
-const REVIEW_BODY_MAX_LENGTH = 500;
+const REVIEW_BODY_MAX_LENGTH = 450;
 
 export function OrdersClient() {
   const hasMounted = useHasMounted();
@@ -102,10 +102,13 @@ export function OrdersClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [reviewMessage, setReviewMessage] = useState<string>("");
-  const [activeEditor, setActiveEditor] = useState<ActiveReviewEditor | null>(null);
+  const [activeEditor, setActiveEditor] = useState<ActiveReviewEditor | null>(
+    null,
+  );
   const [isSavingRating, setIsSavingRating] = useState(false);
   const [isSavingText, setIsSavingText] = useState(false);
-  const [pendingPrompt, setPendingPrompt] = useState<VerifiedPromptResponse["data"]>(null);
+  const [pendingPrompt, setPendingPrompt] =
+    useState<VerifiedPromptResponse["data"]>(null);
 
   const deliveredItemCount = useMemo(
     () =>
@@ -115,7 +118,7 @@ export function OrdersClient() {
         }
         return count + order.items.length;
       }, 0),
-    [orders]
+    [orders],
   );
 
   const loadOrders = useCallback(async () => {
@@ -127,7 +130,10 @@ export function OrdersClient() {
     setErrorMessage(null);
 
     try {
-      const response = await commerceApi.orders.list<OrdersListResponse>({ page: 1, limit: 20 });
+      const response = await commerceApi.orders.list<OrdersListResponse>({
+        page: 1,
+        limit: 20,
+      });
       setOrders(response.data);
     } catch (error) {
       if (error instanceof ApiError) {
@@ -147,7 +153,8 @@ export function OrdersClient() {
     }
 
     try {
-      const response = await commerceApi.reviews.verifiedPrompt<VerifiedPromptResponse>();
+      const response =
+        await commerceApi.reviews.verifiedPrompt<VerifiedPromptResponse>();
       setPendingPrompt(response.data);
     } catch {
       setPendingPrompt(null);
@@ -191,12 +198,12 @@ export function OrdersClient() {
                 reviewId: params.reviewId,
                 rating: params.rating,
                 subject: params.subject ?? item.verifiedReview?.subject ?? null,
-                body: params.body ?? item.verifiedReview?.body ?? ""
-              }
+                body: params.body ?? item.verifiedReview?.body ?? "",
+              },
             };
-          })
+          }),
         };
-      })
+      }),
     );
   }
 
@@ -217,19 +224,24 @@ export function OrdersClient() {
     try {
       const response = await commerceApi.reviews.verifiedRate<
         VerifiedRateResponse,
-        { orderId: string; orderItemId: string; productId: string; rating: number }
+        {
+          orderId: string;
+          orderItemId: string;
+          productId: string;
+          rating: number;
+        }
       >({
         orderId: params.orderId,
         orderItemId: params.orderItemId,
         productId: params.productId,
-        rating: params.rating
+        rating: params.rating,
       });
 
       patchOrderItemReview({
         orderId: params.orderId,
         orderItemId: params.orderItemId,
         reviewId: response.data.reviewId,
-        rating: params.rating
+        rating: params.rating,
       });
 
       setReviewMessage(response.data.message);
@@ -267,7 +279,7 @@ export function OrdersClient() {
       >({
         reviewId: activeEditor.reviewId,
         subject: activeEditor.subject.trim() || undefined,
-        body: activeEditor.body.trim() || undefined
+        body: activeEditor.body.trim() || undefined,
       });
 
       patchOrderItemReview({
@@ -276,7 +288,7 @@ export function OrdersClient() {
         reviewId: activeEditor.reviewId,
         rating: activeEditor.selectedRating,
         subject: activeEditor.subject.trim() || undefined,
-        body: activeEditor.body.trim() || undefined
+        body: activeEditor.body.trim() || undefined,
       });
       setReviewMessage(response.data.message);
       setActiveEditor(null);
@@ -292,14 +304,20 @@ export function OrdersClient() {
   }
 
   if (!hasMounted || isHydrating || !hasHydrated) {
-    return <div className="rounded-lg border border-[var(--line)] bg-white p-8">Loading orders...</div>;
+    return (
+      <div className="rounded-lg border border-[var(--line)] bg-white p-8">
+        Loading orders...
+      </div>
+    );
   }
 
   if (!user && hasHydrated) {
     return (
       <section className="rounded-lg border border-[var(--line)] bg-white p-8 text-center">
         <h1 className="text-3xl font-semibold">Login to view orders.</h1>
-        <p className="mt-3 text-[var(--muted)]">Past and pending orders are linked to your account email.</p>
+        <p className="mt-3 text-[var(--muted)]">
+          Past and pending orders are linked to your account email.
+        </p>
         <Button className="mt-6" href="/auth?next=/orders">
           Login
         </Button>
@@ -308,13 +326,19 @@ export function OrdersClient() {
   }
 
   if (isLoading) {
-    return <div className="rounded-lg border border-[var(--line)] bg-white p-8">Loading your orders...</div>;
+    return (
+      <div className="rounded-lg border border-[var(--line)] bg-white p-8">
+        Loading your orders...
+      </div>
+    );
   }
 
   if (errorMessage) {
     return (
       <section className="rounded-lg border border-[var(--line)] bg-white p-8 text-center">
-        <h1 className="text-2xl font-semibold">We could not load your orders.</h1>
+        <h1 className="text-2xl font-semibold">
+          We could not load your orders.
+        </h1>
         <p className="mt-3 text-[var(--muted)]">{errorMessage}</p>
         <Button
           className="mt-6"
@@ -333,7 +357,9 @@ export function OrdersClient() {
     return (
       <section className="rounded-lg border border-[var(--line)] bg-white p-8 text-center">
         <h1 className="text-3xl font-semibold">No orders yet.</h1>
-        <p className="mt-3 text-[var(--muted)]">Your palmyra sprout orders will appear here after checkout.</p>
+        <p className="mt-3 text-[var(--muted)]">
+          Your palmyra sprout orders will appear here after checkout.
+        </p>
         <Button className="mt-6" href="/product/palmyra-sprout-energy-bar">
           Shop best selling
         </Button>
@@ -345,8 +371,12 @@ export function OrdersClient() {
     <section className="space-y-4" aria-label="Your orders">
       {pendingPrompt ? (
         <article className="rounded-lg border border-[var(--line)] bg-[var(--mint)]/45 p-4">
-          <p className="text-sm font-semibold">How was your {pendingPrompt.productName}?</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">Select your star rating first. Written feedback is optional.</p>
+          <p className="text-sm font-semibold">
+            How was your {pendingPrompt.productName}?
+          </p>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            Select your star rating first. Written feedback is optional.
+          </p>
           <div className="mt-3 flex items-center gap-2">
             {Array.from({ length: 5 }).map((_, idx) => {
               const nextRating = idx + 1;
@@ -362,7 +392,7 @@ export function OrdersClient() {
                       orderId: pendingPrompt.orderId,
                       orderItemId: pendingPrompt.orderItemId,
                       productId: pendingPrompt.productId,
-                      rating: nextRating
+                      rating: nextRating,
                     }).then((reviewId) => {
                       if (!reviewId) {
                         return;
@@ -375,7 +405,7 @@ export function OrdersClient() {
                         reviewId,
                         selectedRating: nextRating,
                         subject: "",
-                        body: ""
+                        body: "",
                       });
                     });
                   }}
@@ -389,14 +419,17 @@ export function OrdersClient() {
       ) : null}
 
       {orders.map((order) => (
-        <article className="rounded-lg border border-[var(--line)] bg-white p-5" key={order.id}>
+        <article
+          className="rounded-lg border border-[var(--line)] bg-white p-5"
+          key={order.id}
+        >
           <div className="flex flex-col justify-between gap-3 border-b border-[var(--line)] pb-4 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-lg font-semibold">Order {order.id}</h2>
               <p className="mt-1 text-sm text-[var(--muted)]">
                 {new Intl.DateTimeFormat("en-IN", {
                   dateStyle: "medium",
-                  timeStyle: "short"
+                  timeStyle: "short",
                 }).format(new Date(order.createdAt))}
               </p>
             </div>
@@ -407,12 +440,21 @@ export function OrdersClient() {
           <ul className="mt-4 space-y-3">
             {order.items.map((item) => {
               const itemKey = orderItemKey(order.id, item.id);
-              const isEditing = activeEditor && orderItemKey(activeEditor.orderId, activeEditor.orderItemId) === itemKey;
+              const isEditing =
+                activeEditor &&
+                orderItemKey(activeEditor.orderId, activeEditor.orderItemId) ===
+                  itemKey;
               return (
-                <li className="rounded-lg border border-transparent p-2 -mx-2" key={`${order.id}-${item.id}`}>
+                <li
+                  className="rounded-lg border border-transparent p-2 -mx-2"
+                  key={`${order.id}-${item.id}`}
+                >
                   <div className="flex justify-between gap-4 text-sm">
                     <div>
-                      <Link className="focus-ring rounded-lg font-semibold" href={`/product/${item.slug}`}>
+                      <Link
+                        className="focus-ring rounded-lg font-semibold"
+                        href={`/product/${item.slug}`}
+                      >
                         {item.quantity} x {item.name} ({item.variantLabel})
                       </Link>
                       {item.canRate ? (
@@ -432,13 +474,16 @@ export function OrdersClient() {
                                 productId: item.productId,
                                 productName: item.name,
                                 reviewId: item.verifiedReview?.reviewId ?? null,
-                                selectedRating: item.verifiedReview?.rating ?? 0,
+                                selectedRating:
+                                  item.verifiedReview?.rating ?? 0,
                                 subject: item.verifiedReview?.subject ?? "",
-                                body: item.verifiedReview?.body ?? ""
+                                body: item.verifiedReview?.body ?? "",
                               })
                             }
                           >
-                            {item.verifiedReview ? "Edit review" : "Rate product"}
+                            {item.verifiedReview
+                              ? "Edit review"
+                              : "Rate product"}
                           </button>
                         </div>
                       ) : null}
@@ -448,7 +493,9 @@ export function OrdersClient() {
 
                   {isEditing ? (
                     <div className="mt-3 rounded-lg border border-[var(--line)] bg-[var(--background)] p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Rating</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                        Rating
+                      </p>
                       <div className="mt-2 flex items-center gap-2">
                         {Array.from({ length: 5 }).map((_, idx) => {
                           const nextRating = idx + 1;
@@ -456,24 +503,30 @@ export function OrdersClient() {
                             <button
                               aria-label={`Rate ${nextRating} stars`}
                               className={`focus-ring text-3xl leading-none transition ${
-                                nextRating <= activeEditor.selectedRating ? "text-[var(--gold)]" : "text-[var(--line)]"
+                                nextRating <= activeEditor.selectedRating
+                                  ? "text-[var(--gold)]"
+                                  : "text-[var(--line)]"
                               }`}
                               disabled={isSavingRating}
                               key={nextRating}
                               type="button"
                               onClick={() => {
                                 setActiveEditor((current) =>
-                                  current ? { ...current, selectedRating: nextRating } : current
+                                  current
+                                    ? { ...current, selectedRating: nextRating }
+                                    : current,
                                 );
                                 void submitRating({
                                   orderId: order.id,
                                   orderItemId: item.id,
                                   productId: item.productId,
-                                  rating: nextRating
+                                  rating: nextRating,
                                 }).then((reviewId) => {
                                   if (!reviewId) return;
                                   setActiveEditor((current) =>
-                                    current ? { ...current, reviewId } : current
+                                    current
+                                      ? { ...current, reviewId }
+                                      : current,
                                   );
                                 });
                               }}
@@ -484,7 +537,9 @@ export function OrdersClient() {
                         })}
                       </div>
 
-                      <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Optional written review</p>
+                      <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                        Optional written review
+                      </p>
                       <label className="mt-2 block">
                         <span className="text-xs font-semibold">Subject</span>
                         <Input
@@ -493,12 +548,15 @@ export function OrdersClient() {
                           value={activeEditor.subject}
                           onChange={(event) =>
                             setActiveEditor((current) =>
-                              current ? { ...current, subject: event.target.value } : current
+                              current
+                                ? { ...current, subject: event.target.value }
+                                : current,
                             )
                           }
                         />
                         <p className="mt-1 text-right text-[11px] text-[var(--muted)]">
-                          {activeEditor.subject.length}/{REVIEW_SUBJECT_MAX_LENGTH}
+                          {activeEditor.subject.length}/
+                          {REVIEW_SUBJECT_MAX_LENGTH}
                         </p>
                       </label>
                       <label className="mt-2 block">
@@ -509,7 +567,9 @@ export function OrdersClient() {
                           value={activeEditor.body}
                           onChange={(event) =>
                             setActiveEditor((current) =>
-                              current ? { ...current, body: event.target.value } : current
+                              current
+                                ? { ...current, body: event.target.value }
+                                : current,
                             )
                           }
                         />
@@ -548,7 +608,11 @@ export function OrdersClient() {
       ))}
 
       {deliveredItemCount > 0 && reviewMessage ? (
-        <p className="text-sm font-semibold text-[var(--leaf-deep)]" role="status" aria-live="polite">
+        <p
+          className="text-sm font-semibold text-[var(--leaf-deep)]"
+          role="status"
+          aria-live="polite"
+        >
           {reviewMessage}
         </p>
       ) : null}

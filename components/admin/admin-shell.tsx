@@ -98,8 +98,8 @@ export function AdminShell({ children }: AdminShellProps) {
               <Link
                 className={`focus-ring whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold transition ${
                   active
-                    ? "bg-[var(--leaf-deep)] text-white"
-                    : "border border-[var(--line)] bg-[var(--mint)] text-[var(--leaf-deep)]"
+                    ? "bg-[var(--leaf-deep)] text-white active:scale-[0.98] active:opacity-90"
+                    : "border border-[var(--line)] bg-[var(--mint)] text-[var(--leaf-deep)] active:scale-[0.98] active:opacity-80"
                 }`}
                 href={item.href}
                 key={item.href}
@@ -121,8 +121,8 @@ export function AdminShell({ children }: AdminShellProps) {
                 <Link
                   className={`focus-ring block rounded-lg px-3 py-2 text-sm font-semibold transition ${
                     active
-                      ? "bg-[var(--leaf-deep)] text-white"
-                      : "text-[var(--leaf-deep)] hover:bg-[var(--mint)]"
+                      ? "bg-[var(--leaf-deep)] text-white active:scale-[0.99] active:opacity-90"
+                      : "text-[var(--leaf-deep)] hover:bg-[var(--mint)] active:scale-[0.99] active:opacity-80"
                   }`}
                   href={item.href}
                   key={item.href}

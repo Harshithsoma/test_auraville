@@ -118,7 +118,7 @@ export function Header() {
   }
 
   function navLinkClass(active: boolean): string {
-    return `focus-ring relative rounded-lg px-1 py-1 text-sm font-medium transition after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:origin-left after:rounded-full after:bg-[var(--leaf)] after:transition-transform ${
+    return `focus-ring relative rounded-lg px-1 py-1 text-sm font-medium transition active:scale-[0.98] active:opacity-80 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:origin-left after:rounded-full after:bg-[var(--leaf)] after:transition-transform ${
       active
         ? "font-semibold text-[var(--leaf-deep)] after:scale-x-100"
         : "text-[var(--muted)] hover:text-[var(--foreground)] after:scale-x-0 hover:after:scale-x-100"
@@ -154,8 +154,8 @@ export function Header() {
               aria-haspopup="menu"
               className={`focus-ring relative inline-flex items-center gap-1 rounded-lg px-1 py-1 text-sm font-medium transition after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:origin-left after:rounded-full after:bg-[var(--leaf)] after:transition-transform ${
                 shopActive
-                  ? "font-semibold text-[var(--leaf-deep)] after:scale-x-100"
-                  : "text-[var(--muted)] hover:text-[var(--foreground)] after:scale-x-0 hover:after:scale-x-100"
+                  ? "font-semibold text-[var(--leaf-deep)] after:scale-x-100 active:scale-[0.98] active:opacity-80"
+                  : "text-[var(--muted)] hover:text-[var(--foreground)] after:scale-x-0 hover:after:scale-x-100 active:scale-[0.98] active:opacity-80"
               }`}
               type="button"
               onClick={() => setIsShopOpen((current) => !current)}

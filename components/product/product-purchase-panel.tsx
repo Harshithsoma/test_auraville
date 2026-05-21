@@ -17,6 +17,13 @@ type ProductPurchasePanelProps = {
   onSelectedVariantIdChange?: (variantId: string) => void;
 };
 
+function shouldShowVariantUnit(label: string, unit: string): boolean {
+  const normalizedLabel = label.trim().toLowerCase();
+  const normalizedUnit = unit.trim().toLowerCase();
+  if (!normalizedUnit) return false;
+  return !normalizedLabel.includes(normalizedUnit);
+}
+
 export function ProductPurchasePanel({
   product,
   selectedVariantId,
@@ -210,7 +217,9 @@ export function ProductPurchasePanel({
                   onChange={() => setCurrentVariant(variant.id)}
                 />
                 <span className="block text-sm font-semibold">{variant.label}</span>
-                <span className="mt-1 block text-xs text-[var(--muted)]">{variant.unit}</span>
+                {shouldShowVariantUnit(variant.label, variant.unit) ? (
+                  <span className="mt-1 block text-xs text-[var(--muted)]">{variant.unit}</span>
+                ) : null}
                 <span className="mt-2 block text-sm font-semibold">
                   <Price currency={product.currency} value={variant.price} />
                 </span>
