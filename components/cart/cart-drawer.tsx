@@ -280,6 +280,9 @@ export function CartDrawer() {
                         </Link>
                         <div className="shrink-0 text-right">
                           <p className="text-sm font-bold">{formatPrice(item.lineTotal)}</p>
+                          {item.quantity > 1 ? (
+                            <p className="text-[11px] text-[var(--muted)]">{formatPrice(item.unitPrice)} each</p>
+                          ) : null}
                           {item.compareAtTotal > item.lineTotal ? (
                             <p className="text-xs text-[var(--muted)] line-through">{formatPrice(item.compareAtTotal)}</p>
                           ) : null}

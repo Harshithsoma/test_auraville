@@ -13,7 +13,8 @@ function subscribeToViewport(callback: () => void) {
 function getVisibleCards() {
   if (window.innerWidth >= 1280) return 4;
   if (window.innerWidth >= 768) return 3;
-  return 2;
+  if (window.innerWidth >= 560) return 2;
+  return 1;
 }
 
 function isInteractiveTarget(target: EventTarget | null) {
@@ -28,7 +29,7 @@ function isDragPointerType(pointerType: string): boolean {
 }
 
 export function BestSellersCarousel({ products }: { products: Product[] }) {
-  const visibleCards = useSyncExternalStore(subscribeToViewport, getVisibleCards, () => 2);
+  const visibleCards = useSyncExternalStore(subscribeToViewport, getVisibleCards, () => 1);
   const maxIndex = Math.max(0, products.length - visibleCards);
   const clampedVisibleCards = Math.min(visibleCards, Math.max(products.length, 1));
 
@@ -109,7 +110,7 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
 
   return (
     <div className="relative" ref={sectionRef}>
-      <div className="px-6 sm:px-8 md:px-10">
+      <div className="px-10 sm:px-10 md:px-12">
         <div
           className="overflow-hidden"
           ref={viewportRef}
@@ -136,7 +137,7 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
           >
             {products.map((product, index) => (
               <div
-                className="min-w-0 shrink-0 basis-1/2 px-2 md:basis-1/3 md:px-2.5 xl:basis-1/4"
+                className="h-full min-w-0 shrink-0 basis-full px-2 min-[560px]:basis-1/2 md:basis-1/3 md:px-2.5 xl:basis-1/4"
                 key={product.id}
                 onClickCapture={(event) => {
                   if (suppressClickRef.current) {
@@ -156,7 +157,7 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
         <>
           <button
             aria-label="Show previous best sellers"
-            className="focus-ring absolute left-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
+            className="focus-ring absolute left-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9"
             disabled={clampedIndex <= 0}
             type="button"
             onClick={() => setActive((current) => Math.max(0, Math.min(current, maxIndex) - 1))}
@@ -165,7 +166,7 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
           </button>
           <button
             aria-label="Show next best sellers"
-            className="focus-ring absolute right-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
+            className="focus-ring absolute right-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9"
             disabled={clampedIndex >= maxIndex}
             type="button"
             onClick={() => setActive((current) => Math.min(maxIndex, Math.min(current, maxIndex) + 1))}

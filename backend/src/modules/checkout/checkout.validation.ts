@@ -9,16 +9,16 @@ const itemSchema = z.object({
 const customerSchema = z.object({
   name: z.string().trim().min(2).max(120),
   email: z.string().trim().email().transform((value) => value.toLowerCase()),
-  phone: z.string().trim().regex(/^\+?[0-9]{10,15}$/)
+  phone: z.string().trim().regex(/^(?:\+91|91)?[6-9]\d{9}$/, "Enter a valid Indian mobile number")
 });
 
 const shippingAddressSchema = z.object({
-  addressLine1: z.string().trim().min(3).max(255),
+  addressLine1: z.string().trim().min(3, "Address line 1 is required").max(255),
   addressLine2: z.string().trim().max(255).optional(),
-  city: z.string().trim().min(2).max(120),
-  state: z.string().trim().max(120).optional(),
-  pincode: z.string().trim().min(4).max(12),
-  country: z.string().trim().max(120).optional()
+  city: z.string().trim().min(2, "City is required").max(120),
+  state: z.string().trim().min(2, "State is required").max(120),
+  pincode: z.string().trim().regex(/^[1-9]\d{5}$/, "Enter a valid 6-digit Indian pincode"),
+  country: z.string().trim().min(2).max(120).optional()
 });
 
 export const checkoutCreateOrderSchema = z.object({

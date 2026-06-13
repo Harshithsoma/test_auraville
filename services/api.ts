@@ -531,6 +531,11 @@ export const commerceApi = {
         request<TResponse, TBody>(`/admin/orders/${encodeURIComponent(id)}/status`, {
           method: "PATCH",
           body: payload
+        }),
+      updateFulfillmentStage: <TResponse, TBody>(id: string, payload: TBody) =>
+        request<TResponse, TBody>(`/admin/orders/${encodeURIComponent(id)}/fulfillment-stage`, {
+          method: "PATCH",
+          body: payload
         })
     },
     reviews: {

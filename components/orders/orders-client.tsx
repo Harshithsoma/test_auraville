@@ -36,8 +36,16 @@ type BackendOrder = {
   items: BackendOrderItem[];
   total: number;
   status: string;
+  fulfillmentStage?: OrderFulfillmentStage | null;
   createdAt: string;
 };
+
+type OrderFulfillmentStage =
+  | "order_placed"
+  | "processing"
+  | "shipped"
+  | "out_for_delivery"
+  | "delivered";
 
 type OrdersListResponse = {
   data: BackendOrder[];
@@ -91,6 +99,73 @@ function orderItemKey(orderId: string, orderItemId: string): string {
 
 const REVIEW_SUBJECT_MAX_LENGTH = 80;
 const REVIEW_BODY_MAX_LENGTH = 450;
+
+const ORDER_TRACKING_STAGES: Array<{ key: OrderFulfillmentStage; label: string }> = [
+  { key: "order_placed", label: "Order Placed" },
+  { key: "processing", label: "Processing" },
+  { key: "shipped", label: "Shipped" },
+  { key: "out_for_delivery", label: "Out for Delivery" },
+  { key: "delivered", label: "Delivered" }
+];
+
+function formatOrderStatus(value: string): string {
+  return value.replace(/_/g, " ");
+}
+
+function OrderTrackingProgress({ order }: { order: BackendOrder }) {
+  const currentStage = order.fulfillmentStage ?? "order_placed";
+  const currentIndex = Math.max(
+    0,
+    ORDER_TRACKING_STAGES.findIndex((stage) => stage.key === currentStage)
+  );
+  const isStopped = order.status === "cancelled" || order.status === "payment_failed";
+
+  return (
+    <div className="mt-4 rounded-2xl border border-[var(--line)] bg-[var(--background)] p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">Order tracking</p>
+          <p className="mt-1 text-sm font-semibold text-[var(--leaf-deep)]">
+            {isStopped ? `Order ${formatOrderStatus(order.status)}` : ORDER_TRACKING_STAGES[Math.max(currentIndex, 0)]?.label}
+          </p>
+        </div>
+        {isStopped ? (
+          <span className="rounded-full border border-[#e7c9c6] bg-[#fff7f7] px-3 py-1 text-xs font-semibold text-[var(--coral)]">
+            Stopped
+          </span>
+        ) : null}
+      </div>
+
+      <ol className="mt-4 grid gap-3 sm:grid-cols-5" aria-label="Order progress stages">
+        {ORDER_TRACKING_STAGES.map((stage, index) => {
+          const isDone = !isStopped && index < currentIndex;
+          const isCurrent = !isStopped && index === currentIndex;
+          return (
+            <li
+              className={`rounded-xl border px-3 py-3 text-xs font-semibold transition ${
+                isDone
+                  ? "border-[var(--leaf)] bg-[var(--mint)] text-[var(--leaf-deep)]"
+                  : isCurrent
+                    ? "border-[var(--coral)] bg-[#fff7f1] text-[var(--coral)]"
+                    : "border-[var(--line)] bg-white text-[var(--muted)]"
+              }`}
+              key={stage.key}
+            >
+              <span className="mb-2 flex h-6 w-6 items-center justify-center rounded-full border bg-white text-[11px]">
+                {isDone ? "✓" : index + 1}
+              </span>
+              {stage.label}
+            </li>
+          );
+        })}
+      </ol>
+
+      <p className="mt-3 text-xs text-[var(--muted)]">
+        Tracking is updated manually by Auraville support for now.
+      </p>
+    </div>
+  );
+}
 
 export function OrdersClient() {
   const hasMounted = useHasMounted();
@@ -434,9 +509,10 @@ export function OrdersClient() {
               </p>
             </div>
             <span className="w-fit rounded-full bg-[var(--mint)] px-3 py-1 text-sm font-bold capitalize text-[var(--leaf-deep)]">
-              {order.status}
+              {formatOrderStatus(order.status)}
             </span>
           </div>
+          <OrderTrackingProgress order={order} />
           <ul className="mt-4 space-y-3">
             {order.items.map((item) => {
               const itemKey = orderItemKey(order.id, item.id);

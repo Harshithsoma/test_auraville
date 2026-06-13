@@ -118,9 +118,7 @@ export function filterSearchIndex(query: string, limit = 7): Product[] {
     .sort((a, b) => {
       const rankDelta = getAvailabilityRank(a) - getAvailabilityRank(b);
       if (rankDelta !== 0) return rankDelta;
-      const aScore = Number(a.isFeatured) * 3 + a.popularity + Number(a.reviewCount > 0);
-      const bScore = Number(b.isFeatured) * 3 + b.popularity + Number(b.reviewCount > 0);
-      return bScore - aScore;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
     })
     .slice(0, limit);
 }

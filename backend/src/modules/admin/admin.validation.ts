@@ -31,6 +31,13 @@ const orderStatusSchema = z.enum([
   "cancelled",
   "payment_failed"
 ]);
+const orderFulfillmentStageSchema = z.enum([
+  "order_placed",
+  "processing",
+  "shipped",
+  "out_for_delivery",
+  "delivered"
+]);
 
 const metadataObjectSchema = z
   .custom<Record<string, unknown>>(
@@ -465,6 +472,16 @@ export const adminPatchOrderStatusSchema = z.object({
   })
 });
 
+export const adminPatchOrderFulfillmentStageSchema = z.object({
+  query: z.object({}).passthrough(),
+  params: z.object({
+    id: z.string().trim().min(1)
+  }),
+  body: z.object({
+    fulfillmentStage: orderFulfillmentStageSchema
+  })
+});
+
 export const adminListHomepageSchema = z.object({
   body: z.object({}).passthrough(),
   params: z.object({}).passthrough(),
@@ -521,5 +538,6 @@ export type AdminDeleteReviewValidatedInput = z.infer<typeof adminDeleteReviewSc
 export type AdminListOrdersValidatedInput = z.infer<typeof adminListOrdersSchema>;
 export type AdminGetOrderByIdValidatedInput = z.infer<typeof adminGetOrderByIdSchema>;
 export type AdminPatchOrderStatusValidatedInput = z.infer<typeof adminPatchOrderStatusSchema>;
+export type AdminPatchOrderFulfillmentStageValidatedInput = z.infer<typeof adminPatchOrderFulfillmentStageSchema>;
 export type AdminListHomepageValidatedInput = z.infer<typeof adminListHomepageSchema>;
 export type AdminPatchHomepageValidatedInput = z.infer<typeof adminPatchHomepageSchema>;

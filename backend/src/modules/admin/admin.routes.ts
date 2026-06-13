@@ -25,6 +25,7 @@ import {
   adminListProductsController,
   adminListReviewsController,
   adminPatchHomepageController,
+  adminPatchOrderFulfillmentStageController,
   adminPatchOrderStatusController,
   adminPatchCouponController,
   adminPatchCategoryController,
@@ -54,6 +55,7 @@ import {
   adminListProductsSchema,
   adminListReviewsSchema,
   adminPatchHomepageSchema,
+  adminPatchOrderFulfillmentStageSchema,
   adminPatchOrderStatusSchema,
   adminPatchCouponSchema,
   adminPatchCategorySchema,
@@ -150,6 +152,11 @@ adminRouter.patch(
   "/admin/orders/:id/status",
   validateRequest(adminPatchOrderStatusSchema),
   adminPatchOrderStatusController
+);
+adminRouter.patch(
+  "/admin/orders/:id/fulfillment-stage",
+  validateRequest(adminPatchOrderFulfillmentStageSchema),
+  adminPatchOrderFulfillmentStageController
 );
 
 adminRouter.get("/admin/homepage", validateRequest(adminListHomepageSchema), adminListHomepageController);

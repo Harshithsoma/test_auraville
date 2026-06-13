@@ -102,6 +102,13 @@ export type AdminOrderStatus =
   | "cancelled"
   | "payment_failed";
 
+export type AdminOrderFulfillmentStage =
+  | "order_placed"
+  | "processing"
+  | "shipped"
+  | "out_for_delivery"
+  | "delivered";
+
 export type AdminOrderItemResponse = {
   productId: string;
   variantId: string;
@@ -117,6 +124,7 @@ export type AdminOrderItemResponse = {
 export type AdminOrderSummaryResponse = {
   id: string;
   status: AdminOrderStatus;
+  fulfillmentStage: AdminOrderFulfillmentStage;
   createdAt: string;
   customer: {
     userId: string | null;

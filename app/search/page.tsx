@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { SearchClient } from "@/components/search/search-client";
 import { fetchProducts } from "@/lib/catalog-api";
 import { products as fallbackProducts } from "@/lib/products";
+import { sortProductsByName } from "@/lib/product-name-sort";
 import { sortStorefrontProducts } from "@/lib/storefront-product-order";
 import { absoluteUrl } from "@/lib/site";
 
@@ -27,7 +28,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const rawSearch = resolvedSearchParams.search;
   const initialQuery = typeof rawSearch === "string" ? rawSearch.trim() : "";
-  let initialProducts = initialQuery ? [] : sortStorefrontProducts(fallbackProducts);
+  let initialProducts = initialQuery ? [] : sortProductsByName(sortStorefrontProducts(fallbackProducts));
 
   try {
     const response = await fetchProducts({
@@ -36,7 +37,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       sort: "popular",
       search: initialQuery || undefined
     });
-    initialProducts = sortStorefrontProducts(response.data);
+    initialProducts = sortProductsByName(sortStorefrontProducts(response.data));
   } catch {
     // Keep query-specific empty state if API is unavailable.
   }

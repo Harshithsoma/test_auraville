@@ -8,13 +8,21 @@ import { useCartStore } from "@/stores/cart-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { Button } from "@/components/ui/button";
-import { Input, Textarea } from "@/components/ui/input";
+import { Input, Select, Textarea } from "@/components/ui/input";
 import { formatPrice } from "@/components/ui/price";
 import type { UserAddress, UserAddressesResponse } from "@/types/address";
 
 type CheckoutErrors = Partial<
   Record<
-    "name" | "email" | "phone" | "addressLine1" | "city" | "state" | "country" | "pincode",
+    | "name"
+    | "email"
+    | "phone"
+    | "addressLine1"
+    | "addressLine2"
+    | "city"
+    | "state"
+    | "country"
+    | "pincode",
     string
   >
 >;
@@ -130,6 +138,57 @@ declare global {
 let razorpayScriptPromise: Promise<boolean> | null = null;
 const RAZORPAY_SCRIPT_URL = "https://checkout.razorpay.com/v1/checkout.js";
 const RAZORPAY_MODAL_WATCHDOG_MS = 120_000;
+const PAYMENT_CANCELLED_MESSAGE = "Payment cancelled. Your cart is safe. You can try again.";
+const PAYMENT_FAILED_MESSAGE = "Payment was not completed. Your cart is safe. Please try again.";
+
+const EMPTY_ADDRESS: AddressFormState = {
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  state: "",
+  pincode: "",
+  country: "India",
+  landmark: ""
+};
+
+const INDIAN_STATES = [
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Delhi",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Andaman and Nicobar Islands",
+  "Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Jammu and Kashmir",
+  "Ladakh",
+  "Lakshadweep",
+  "Puducherry"
+];
 
 function hasRazorpayOverlay(): boolean {
   if (typeof document === "undefined") {
@@ -230,7 +289,9 @@ function validateContact(contact: ContactFormState): CheckoutErrors {
 
   if (contact.name.trim().length < 2) errors.name = "Enter full name";
   if (!/^\S+@\S+\.\S+$/.test(contact.email.trim())) errors.email = "Enter a valid email";
-  if (!/^[6-9]\d{9}$/.test(contact.phone.trim())) errors.phone = "Enter a valid 10-digit Indian mobile number";
+  if (!/^(?:\+91|91)?[6-9]\d{9}$/.test(contact.phone.trim())) {
+    errors.phone = "Enter a valid Indian mobile number";
+  }
 
   return errors;
 }
@@ -238,30 +299,34 @@ function validateContact(contact: ContactFormState): CheckoutErrors {
 function validateAddress(address: AddressFormState): CheckoutErrors {
   const errors: CheckoutErrors = {};
 
-  if (address.addressLine1.trim().length < 3) errors.addressLine1 = "Address is required";
+  if (address.addressLine1.trim().length < 3) errors.addressLine1 = "Address line 1 is required";
   if (address.city.trim().length < 2) errors.city = "City is required";
   if (address.state.trim().length < 2) errors.state = "State is required";
-  if (!/^\d{6}$/.test(address.pincode.trim())) errors.pincode = "Enter a valid 6-digit pincode";
+  if (!/^[1-9]\d{5}$/.test(address.pincode.trim())) errors.pincode = "Enter a valid 6-digit Indian pincode";
   if (address.country.trim().length < 2) errors.country = "Country is required";
 
   return errors;
 }
 
+function isNoisyGatewayMessage(message: string): boolean {
+  return /browser\s+unsupported|unsupported\s+browser|browser.*not supported|not supported.*browser/i.test(message);
+}
+
 function parseRazorpayFailureMessage(payload: unknown): string {
   if (!payload || typeof payload !== "object") {
-    return "Payment failed. Your cart is safe. Please try again.";
+    return PAYMENT_FAILED_MESSAGE;
   }
 
   const errorPayload = (payload as { error?: unknown }).error;
   if (!errorPayload || typeof errorPayload !== "object") {
-    return "Payment failed. Your cart is safe. Please try again.";
+    return PAYMENT_FAILED_MESSAGE;
   }
 
   const descriptionRaw = (errorPayload as { description?: unknown }).description;
   const description = typeof descriptionRaw === "string" && descriptionRaw.trim().length > 0
     ? descriptionRaw.trim()
     : null;
-  if (description) {
+  if (description && !isNoisyGatewayMessage(description)) {
     return description;
   }
 
@@ -269,11 +334,11 @@ function parseRazorpayFailureMessage(payload: unknown): string {
   const reason = typeof reasonRaw === "string" && reasonRaw.trim().length > 0
     ? reasonRaw.trim()
     : null;
-  if (reason) {
+  if (reason && !isNoisyGatewayMessage(reason)) {
     return `Payment failed: ${reason}.`;
   }
 
-  return "Payment failed. Your cart is safe. Please try again.";
+  return PAYMENT_FAILED_MESSAGE;
 }
 
 function toAddressForm(address: UserAddress): AddressFormState {
@@ -289,14 +354,38 @@ function toAddressForm(address: UserAddress): AddressFormState {
 }
 
 function areAddressesEquivalent(address: AddressFormState, saved: UserAddress): boolean {
+  return isSameNormalizedAddress(address, saved);
+}
+
+function normalizeText(value?: string | null): string {
+  return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizePincode(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+function isSameNormalizedAddress(
+  left: Pick<AddressFormState, "addressLine1" | "addressLine2" | "city" | "state" | "pincode" | "country" | "landmark">,
+  right: Pick<UserAddress, "addressLine1" | "addressLine2" | "city" | "state" | "pincode" | "country" | "landmark">
+): boolean {
   return (
-    address.addressLine1.trim() === saved.addressLine1.trim() &&
-    address.addressLine2.trim() === (saved.addressLine2 ?? "").trim() &&
-    address.city.trim() === saved.city.trim() &&
-    address.state.trim() === saved.state.trim() &&
-    address.pincode.trim() === saved.pincode.trim() &&
-    address.country.trim() === saved.country.trim() &&
-    address.landmark.trim() === (saved.landmark ?? "").trim()
+    normalizeText(left.addressLine1) === normalizeText(right.addressLine1) &&
+    normalizeText(left.addressLine2) === normalizeText(right.addressLine2) &&
+    normalizeText(left.city) === normalizeText(right.city) &&
+    normalizeText(left.state) === normalizeText(right.state) &&
+    normalizePincode(left.pincode) === normalizePincode(right.pincode) &&
+    normalizeText(left.country || "India") === normalizeText(right.country || "India") &&
+    normalizeText(left.landmark) === normalizeText(right.landmark)
+  );
+}
+
+function getPreferredSavedAddress(addresses: UserAddress[], selectedAddressId: string | null): UserAddress | null {
+  return (
+    (selectedAddressId ? addresses.find((address) => address.id === selectedAddressId) : null) ??
+    addresses.find((address) => address.isDefault) ??
+    addresses[0] ??
+    null
   );
 }
 
@@ -314,16 +403,9 @@ export default function CheckoutClient() {
     email: "",
     phone: ""
   });
-  const [shippingAddress, setShippingAddress] = useState<AddressFormState>({
-    addressLine1: "",
-    addressLine2: "",
-    city: "",
-    state: "",
-    pincode: "",
-    country: "India",
-    landmark: ""
-  });
+  const [shippingAddress, setShippingAddress] = useState<AddressFormState>(EMPTY_ADDRESS);
   const [errors, setErrors] = useState<CheckoutErrors>({});
+  const [addressNotice, setAddressNotice] = useState<string | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<UserAddress[]>([]);
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
@@ -381,6 +463,7 @@ export default function CheckoutClient() {
       setSavedAddresses([]);
       setSelectedAddressId(null);
       setUseNewAddress(true);
+      setShippingAddress(EMPTY_ADDRESS);
       return;
     }
 
@@ -400,12 +483,14 @@ export default function CheckoutClient() {
         } else {
           setSelectedAddressId(null);
           setUseNewAddress(true);
+          setShippingAddress(EMPTY_ADDRESS);
         }
       } catch {
         if (cancelled) return;
         setSavedAddresses([]);
         setSelectedAddressId(null);
         setUseNewAddress(true);
+        setShippingAddress(EMPTY_ADDRESS);
       } finally {
         if (!cancelled) {
           setIsLoadingAddresses(false);
@@ -440,7 +525,7 @@ export default function CheckoutClient() {
       if (!mountedRef.current) return;
       if (!paymentModalOpenRef.current) return;
       if (hasRazorpayOverlay()) return;
-      resetPaymentState("Payment cancelled. You can try again.");
+      resetPaymentState(PAYMENT_CANCELLED_MESSAGE);
     }, 250);
   }
 
@@ -471,14 +556,47 @@ export default function CheckoutClient() {
     setShippingAddress(toAddressForm(address));
     setUseNewAddress(false);
     setSaveAddressForLater(false);
+    setAddressNotice(null);
     setErrors((current) => ({
       ...current,
       addressLine1: undefined,
+      addressLine2: undefined,
       city: undefined,
       state: undefined,
       pincode: undefined,
       country: undefined
     }));
+  }
+
+  function onUseSavedAddress() {
+    const savedAddress = getPreferredSavedAddress(savedAddresses, selectedAddressId);
+    if (savedAddress) {
+      onSelectSavedAddress(savedAddress);
+      return;
+    }
+
+    setUseNewAddress(false);
+  }
+
+  function onUseNewAddress() {
+    setUseNewAddress(true);
+    setShippingAddress(EMPTY_ADDRESS);
+    setSaveAddressForLater(false);
+    setAddressNotice(null);
+    setErrors((current) => ({
+      ...current,
+      addressLine1: undefined,
+      addressLine2: undefined,
+      city: undefined,
+      state: undefined,
+      pincode: undefined,
+      country: undefined
+    }));
+  }
+
+  function updateShippingAddress(patch: Partial<AddressFormState>) {
+    setShippingAddress((current) => ({ ...current, ...patch }));
+    setAddressNotice(null);
   }
 
   async function maybeSaveAddressForLoggedInUser() {
@@ -488,6 +606,7 @@ export default function CheckoutClient() {
 
     const alreadyExists = savedAddresses.some((saved) => areAddressesEquivalent(shippingAddress, saved));
     if (alreadyExists) {
+      setAddressNotice("This address is already saved.");
       return;
     }
 
@@ -518,7 +637,10 @@ export default function CheckoutClient() {
         landmark: shippingAddress.landmark.trim() || undefined,
         isDefault: savedAddresses.length === 0
       });
-    } catch {
+    } catch (saveAddressError) {
+      if (saveAddressError instanceof ApiError && saveAddressError.message) {
+        setAddressNotice(saveAddressError.message);
+      }
       // Address-book save should never block order placement.
     }
   }
@@ -528,6 +650,7 @@ export default function CheckoutClient() {
     if (!canSubmit) return;
 
     setCheckoutError(null);
+    setAddressNotice(null);
     const contactErrors = validateContact(contact);
     const addressErrors = validateAddress(shippingAddress);
     const nextErrors = { ...contactErrors, ...addressErrors };
@@ -627,9 +750,9 @@ export default function CheckoutClient() {
           ondismiss: () => {
             try {
               if (paymentSessionRef.current !== currentSession) return;
-              resetPaymentState("Payment cancelled. You can try again.");
+              resetPaymentState(PAYMENT_CANCELLED_MESSAGE);
             } catch {
-              resetPaymentState("Payment cancelled. You can try again.");
+              resetPaymentState(PAYMENT_CANCELLED_MESSAGE);
             }
           }
         },
@@ -705,9 +828,9 @@ export default function CheckoutClient() {
         try {
           if (paymentSessionRef.current !== currentSession) return;
           const failureMessage = parseRazorpayFailureMessage(payload);
-          resetPaymentState(failureMessage || "Payment failed. Your cart is safe. Please try again.");
+          resetPaymentState(failureMessage || PAYMENT_FAILED_MESSAGE);
         } catch {
-          resetPaymentState("Payment failed. Your cart is safe. Please try again.");
+          resetPaymentState(PAYMENT_FAILED_MESSAGE);
         }
       });
 
@@ -797,7 +920,7 @@ export default function CheckoutClient() {
                   type="button"
                   variant={!useNewAddress ? "primary" : "secondary"}
                   className="min-h-9 px-3 py-2 text-xs"
-                  onClick={() => setUseNewAddress(false)}
+                  onClick={onUseSavedAddress}
                 >
                   Use saved address
                 </Button>
@@ -805,10 +928,7 @@ export default function CheckoutClient() {
                   type="button"
                   variant={useNewAddress ? "primary" : "secondary"}
                   className="min-h-9 px-3 py-2 text-xs"
-                  onClick={() => {
-                    setUseNewAddress(true);
-                    setSelectedAddressId(null);
-                  }}
+                  onClick={onUseNewAddress}
                 >
                   Add new address
                 </Button>
@@ -878,7 +998,7 @@ export default function CheckoutClient() {
                 className="mt-2 min-h-20"
                 value={shippingAddress.addressLine1}
                 onChange={(event) =>
-                  setShippingAddress((current) => ({ ...current, addressLine1: event.target.value }))
+                  updateShippingAddress({ addressLine1: event.target.value })
                 }
                 aria-invalid={Boolean(errors.addressLine1)}
                 autoComplete="street-address"
@@ -893,10 +1013,14 @@ export default function CheckoutClient() {
                 className="mt-2"
                 value={shippingAddress.addressLine2}
                 onChange={(event) =>
-                  setShippingAddress((current) => ({ ...current, addressLine2: event.target.value }))
+                  updateShippingAddress({ addressLine2: event.target.value })
                 }
+                aria-invalid={Boolean(errors.addressLine2)}
                 autoComplete="address-line2"
               />
+              {errors.addressLine2 ? (
+                <span className="mt-1 block text-xs text-[var(--coral)]">{errors.addressLine2}</span>
+              ) : null}
             </label>
             <label className="block sm:col-span-2">
               <span className="text-sm font-semibold">Landmark (optional)</span>
@@ -904,7 +1028,7 @@ export default function CheckoutClient() {
                 className="mt-2"
                 value={shippingAddress.landmark}
                 onChange={(event) =>
-                  setShippingAddress((current) => ({ ...current, landmark: event.target.value }))
+                  updateShippingAddress({ landmark: event.target.value })
                 }
               />
             </label>
@@ -914,7 +1038,7 @@ export default function CheckoutClient() {
                 className="mt-2"
                 value={shippingAddress.city}
                 onChange={(event) =>
-                  setShippingAddress((current) => ({ ...current, city: event.target.value }))
+                  updateShippingAddress({ city: event.target.value })
                 }
                 aria-invalid={Boolean(errors.city)}
               />
@@ -922,14 +1046,24 @@ export default function CheckoutClient() {
             </label>
             <label className="block">
               <span className="text-sm font-semibold">State</span>
-              <Input
+              <Select
                 className="mt-2"
                 value={shippingAddress.state}
                 onChange={(event) =>
-                  setShippingAddress((current) => ({ ...current, state: event.target.value }))
+                  updateShippingAddress({ state: event.target.value })
                 }
                 aria-invalid={Boolean(errors.state)}
-              />
+              >
+                <option value="">Select state</option>
+                {shippingAddress.state && !INDIAN_STATES.includes(shippingAddress.state) ? (
+                  <option value={shippingAddress.state}>{shippingAddress.state}</option>
+                ) : null}
+                {INDIAN_STATES.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </Select>
               {errors.state ? <span className="mt-1 block text-xs text-[var(--coral)]">{errors.state}</span> : null}
             </label>
             <label className="block">
@@ -938,7 +1072,7 @@ export default function CheckoutClient() {
                 className="mt-2"
                 value={shippingAddress.pincode}
                 onChange={(event) =>
-                  setShippingAddress((current) => ({ ...current, pincode: event.target.value }))
+                  updateShippingAddress({ pincode: event.target.value })
                 }
                 aria-invalid={Boolean(errors.pincode)}
                 inputMode="numeric"
@@ -953,7 +1087,7 @@ export default function CheckoutClient() {
                 className="mt-2"
                 value={shippingAddress.country}
                 onChange={(event) =>
-                  setShippingAddress((current) => ({ ...current, country: event.target.value }))
+                  updateShippingAddress({ country: event.target.value })
                 }
                 aria-invalid={Boolean(errors.country)}
               />
@@ -964,14 +1098,24 @@ export default function CheckoutClient() {
           </div>
 
           {user && useNewAddress ? (
-            <label className="mt-4 inline-flex items-center gap-2 text-sm">
-              <input
-                checked={saveAddressForLater}
-                type="checkbox"
-                onChange={(event) => setSaveAddressForLater(event.target.checked)}
-              />
-              Save this address to my account
-            </label>
+            <div className="mt-4 space-y-2">
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input
+                  checked={saveAddressForLater}
+                  type="checkbox"
+                  onChange={(event) => {
+                    setSaveAddressForLater(event.target.checked);
+                    setAddressNotice(null);
+                  }}
+                />
+                Save this address to my account
+              </label>
+              {addressNotice ? (
+                <p className="rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 py-2 text-xs font-semibold text-[var(--leaf-deep)]">
+                  {addressNotice}
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </div>
 

@@ -57,6 +57,7 @@ export async function listUserOrders(params: {
         email: true,
         total: true,
         status: true,
+        fulfillmentStage: true,
         createdAt: true,
         items: {
           select: {
@@ -126,6 +127,7 @@ export async function listUserOrders(params: {
       email: string;
       total: number;
       status: "pending" | "confirmed" | "packed" | "shipped" | "delivered" | "cancelled" | "payment_failed";
+      fulfillmentStage: "order_placed" | "processing" | "shipped" | "out_for_delivery" | "delivered";
           createdAt: Date;
           items: Array<{
             id: string;
@@ -150,6 +152,7 @@ export async function listUserOrders(params: {
           })),
           total: order.total,
           status: order.status,
+          fulfillmentStage: order.fulfillmentStage,
           createdAt: order.createdAt.toISOString()
         })),
     pagination: {
@@ -181,6 +184,7 @@ export async function getUserOrderById(params: {
       shipping: true,
       total: true,
       status: true,
+      fulfillmentStage: true,
       createdAt: true,
       items: {
         select: {
@@ -257,6 +261,7 @@ export async function getUserOrderById(params: {
         total: order.total
       },
       status: order.status,
+      fulfillmentStage: order.fulfillmentStage,
       createdAt: order.createdAt.toISOString()
     }
   };

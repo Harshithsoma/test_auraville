@@ -9,7 +9,7 @@ import { useNotifyMe } from "@/hooks/use-notify-me";
 import { Button } from "@/components/ui/button";
 import { Price, PriceWithCompare } from "@/components/ui/price";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
-import { getVariantCompareAtPrice, selectDefaultProductVariant } from "@/components/product/card-variant";
+import { getVariantCompareAtPrice, selectDefaultProductVariant, sortVariantsLogically } from "@/components/product/card-variant";
 
 type ProductPurchasePanelProps = {
   product: Product;
@@ -41,7 +41,8 @@ export function ProductPurchasePanel({
   const [status, setStatus] = useState("");
   const attemptedAutoNotifyRef = useRef(false);
   const isAvailable = product.availability === "available";
-  const defaultVariant = useMemo(() => selectDefaultProductVariant(product.variants), [product.variants]);
+  const sortedVariants = useMemo(() => sortVariantsLogically(product.variants), [product.variants]);
+  const defaultVariant = useMemo(() => selectDefaultProductVariant(sortedVariants), [sortedVariants]);
   const isControlled = typeof selectedVariantId === "string" && typeof onSelectedVariantIdChange === "function";
   const [internalVariantId, setInternalVariantId] = useState(defaultVariant?.id ?? "");
   const effectiveVariantId = isControlled
@@ -57,22 +58,22 @@ export function ProductPurchasePanel({
       return;
     }
 
-    const exists = product.variants.some((variant) => variant.id === selectedVariantId);
+    const exists = sortedVariants.some((variant) => variant.id === selectedVariantId);
     if (!exists && defaultVariant) {
       onSelectedVariantIdChange(defaultVariant.id);
     }
-  }, [defaultVariant, isControlled, onSelectedVariantIdChange, product.variants, selectedVariantId]);
+  }, [defaultVariant, isControlled, onSelectedVariantIdChange, selectedVariantId, sortedVariants]);
 
   const selectedVariant = useMemo(() => {
-    const byId = product.variants.find((variant) => variant.id === effectiveVariantId);
+    const byId = sortedVariants.find((variant) => variant.id === effectiveVariantId);
     return byId ?? defaultVariant ?? null;
-  }, [defaultVariant, effectiveVariantId, product.variants]);
+  }, [defaultVariant, effectiveVariantId, sortedVariants]);
 
   const selectedVariantStock =
     selectedVariant
       ? getAvailableStock(product.id, selectedVariant.id) ?? selectedVariant.stock ?? null
       : null;
-  const hasAnyInStockVariant = product.variants.some(
+  const hasAnyInStockVariant = sortedVariants.some(
     (variant) => (getAvailableStock(product.id, variant.id) ?? variant.stock ?? 0) > 0
   );
   const isOutOfStock = typeof selectedVariantStock === "number" && selectedVariantStock <= 0;
@@ -192,7 +193,7 @@ export function ProductPurchasePanel({
           {isAvailable ? "Select Variant" : "Planned Variants"}
         </legend>
         <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
-          {product.variants.map((variant) => {
+          {sortedVariants.map((variant) => {
             const variantStock = getAvailableStock(product.id, variant.id) ?? variant.stock ?? null;
             const variantIsOut = typeof variantStock === "number" && variantStock <= 0;
             const variantIsLow = typeof variantStock === "number" && variantStock > 0 && variantStock <= 5;

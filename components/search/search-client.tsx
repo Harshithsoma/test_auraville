@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "@/services/api";
 import { fetchProducts } from "@/lib/catalog-api";
+import { sortProductsByName } from "@/lib/product-name-sort";
 import { filterSearchIndex, getSearchIndex } from "@/lib/search-index-cache";
 import type { Product } from "@/types/product";
 import { ProductCard } from "@/components/product/product-card";
@@ -38,7 +39,7 @@ export function SearchClient({ initialProducts, initialQuery, showSearchInput }:
     const searchTerm = query.trim();
     const localIndex = getSearchIndex();
     if (localIndex && localIndex.length > 0) {
-      setResults(filterSearchIndex(searchTerm, 24));
+      setResults(sortProductsByName(filterSearchIndex(searchTerm, 24)));
     }
 
     if (skipInitialFetchRef.current) {
@@ -63,7 +64,7 @@ export function SearchClient({ initialProducts, initialQuery, showSearchInput }:
           });
 
           if (requestId === requestIdRef.current) {
-            setResults(response.data);
+            setResults(sortProductsByName(response.data));
           }
         } catch (error) {
           if (requestId === requestIdRef.current) {

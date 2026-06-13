@@ -20,6 +20,7 @@ import {
   adminListProducts,
   adminListReviews,
   adminPatchHomepage,
+  adminPatchOrderFulfillmentStage,
   adminPatchOrderStatus,
   adminPatchCoupon,
   adminPatchCategory,
@@ -49,6 +50,7 @@ import type {
   AdminListProductsValidatedInput,
   AdminListReviewsValidatedInput,
   AdminPatchHomepageValidatedInput,
+  AdminPatchOrderFulfillmentStageValidatedInput,
   AdminPatchOrderStatusValidatedInput,
   AdminPatchCouponValidatedInput,
   AdminPatchCategoryValidatedInput,
@@ -299,6 +301,16 @@ export const adminPatchOrderStatusController: RequestHandler = async (req, res, 
   try {
     const { params, body } = req as unknown as AdminPatchOrderStatusValidatedInput;
     const result = await adminPatchOrderStatus({ route: params, payload: body });
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminPatchOrderFulfillmentStageController: RequestHandler = async (req, res, next) => {
+  try {
+    const { params, body } = req as unknown as AdminPatchOrderFulfillmentStageValidatedInput;
+    const result = await adminPatchOrderFulfillmentStage({ route: params, payload: body });
     res.status(200).json(result);
   } catch (error) {
     next(error);

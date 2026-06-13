@@ -5,7 +5,7 @@ import { ApiError, commerceApi } from "@/services/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { Button } from "@/components/ui/button";
-import { Input, Textarea } from "@/components/ui/input";
+import { Input, Select, Textarea } from "@/components/ui/input";
 import type { UserAddress, UserAddressesResponse } from "@/types/address";
 
 type AddressFormState = {
@@ -45,6 +45,45 @@ const defaultForm: AddressFormState = {
   isDefault: false
 };
 
+const INDIAN_STATES = [
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Delhi",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Andaman and Nicobar Islands",
+  "Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Jammu and Kashmir",
+  "Ladakh",
+  "Lakshadweep",
+  "Puducherry"
+];
+
 function toForm(address: UserAddress): AddressFormState {
   return {
     fullName: address.fullName,
@@ -62,13 +101,36 @@ function toForm(address: UserAddress): AddressFormState {
 
 function validateForm(form: AddressFormState): string | null {
   if (form.fullName.trim().length < 2) return "Full name is required.";
-  if (!/^\+?[0-9]{10,15}$/.test(form.phone.trim())) return "Enter a valid phone number.";
+  if (!/^(?:\+91|91)?[6-9]\d{9}$/.test(form.phone.trim())) return "Enter a valid Indian mobile number.";
   if (form.addressLine1.trim().length < 3) return "Address line 1 is required.";
   if (form.city.trim().length < 2) return "City is required.";
   if (form.state.trim().length < 2) return "State is required.";
-  if (form.pincode.trim().length < 4) return "Pincode is required.";
+  if (!/^[1-9]\d{5}$/.test(form.pincode.trim())) return "Enter a valid 6-digit Indian pincode.";
   if (form.country.trim().length < 2) return "Country is required.";
   return null;
+}
+
+function normalizeText(value?: string | null): string {
+  return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizePhone(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  return digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits;
+}
+
+function isSameNormalizedAddress(form: AddressFormState, address: UserAddress): boolean {
+  return (
+    normalizeText(form.fullName) === normalizeText(address.fullName) &&
+    normalizePhone(form.phone) === normalizePhone(address.phone) &&
+    normalizeText(form.addressLine1) === normalizeText(address.addressLine1) &&
+    normalizeText(form.addressLine2) === normalizeText(address.addressLine2) &&
+    normalizeText(form.city) === normalizeText(address.city) &&
+    normalizeText(form.state) === normalizeText(address.state) &&
+    form.pincode.replace(/\D/g, "") === address.pincode.replace(/\D/g, "") &&
+    normalizeText(form.country || "India") === normalizeText(address.country || "India") &&
+    normalizeText(form.landmark) === normalizeText(address.landmark)
+  );
 }
 
 export function SavedAddressesClient() {
@@ -127,6 +189,14 @@ export function SavedAddressesClient() {
     const validationError = validateForm(form);
     if (validationError) {
       setError(validationError);
+      return;
+    }
+
+    const duplicateAddress = addresses.some(
+      (address) => address.id !== editingAddressId && isSameNormalizedAddress(form, address)
+    );
+    if (duplicateAddress) {
+      setError("This address is already saved.");
       return;
     }
 
@@ -339,6 +409,8 @@ export function SavedAddressesClient() {
             <Input
               placeholder="Phone"
               value={form.phone}
+              inputMode="tel"
+              autoComplete="tel"
               onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
             />
             <Textarea
@@ -362,14 +434,25 @@ export function SavedAddressesClient() {
               value={form.city}
               onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))}
             />
-            <Input
-              placeholder="State"
+            <Select
               value={form.state}
               onChange={(event) => setForm((current) => ({ ...current, state: event.target.value }))}
-            />
+            >
+              <option value="">Select state</option>
+              {form.state && !INDIAN_STATES.includes(form.state) ? (
+                <option value={form.state}>{form.state}</option>
+              ) : null}
+              {INDIAN_STATES.map((state) => (
+                <option key={state} value={state}>
+                  {state}
+                </option>
+              ))}
+            </Select>
             <Input
               placeholder="Pincode"
               value={form.pincode}
+              inputMode="numeric"
+              autoComplete="postal-code"
               onChange={(event) => setForm((current) => ({ ...current, pincode: event.target.value }))}
             />
             <Input

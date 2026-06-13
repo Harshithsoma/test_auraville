@@ -27,6 +27,14 @@ enum OrderStatus {
   payment_failed
 }
 
+enum OrderFulfillmentStage {
+  order_placed
+  processing
+  shipped
+  out_for_delivery
+  delivered
+}
+
 enum PaymentStatus {
   created
   paid
@@ -364,6 +372,7 @@ model Order {
   shipping         Int
   total            Int
   status           OrderStatus @default(pending)
+  fulfillmentStage OrderFulfillmentStage @default(order_placed)
   razorpayOrderId  String?     @unique
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
@@ -378,6 +387,7 @@ model Order {
   @@index([email])
   @@index([userId])
   @@index([status])
+  @@index([fulfillmentStage])
   @@index([createdAt])
   @@index([razorpayOrderId])
   @@index([email, status, createdAt])

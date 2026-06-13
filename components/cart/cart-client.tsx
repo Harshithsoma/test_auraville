@@ -102,6 +102,9 @@ export default function CartClient() {
               ) : null}
               <div className="mt-3 text-sm">
                 <p className="font-semibold">{formatPrice(item.lineTotal)}</p>
+                {item.quantity > 1 ? (
+                  <p className="text-xs text-[var(--muted)]">{formatPrice(item.unitPrice)} each</p>
+                ) : null}
                 {item.compareAtTotal > item.lineTotal ? (
                   <p className="text-xs text-[var(--muted)] line-through">{formatPrice(item.compareAtTotal)}</p>
                 ) : null}

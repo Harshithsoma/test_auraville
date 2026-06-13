@@ -34,6 +34,7 @@ import type {
   AdminListReviewsValidatedInput,
   AdminPatchHomepageValidatedInput,
   AdminPatchCouponValidatedInput,
+  AdminPatchOrderFulfillmentStageValidatedInput,
   AdminPatchOrderStatusValidatedInput,
   AdminPatchCategoryValidatedInput,
   AdminPatchProductValidatedInput,
@@ -1979,6 +1980,7 @@ type AdminOrderRecord = {
   shipping: number;
   total: number;
   status: "pending" | "confirmed" | "packed" | "shipped" | "delivered" | "cancelled" | "payment_failed";
+  fulfillmentStage: "order_placed" | "processing" | "shipped" | "out_for_delivery" | "delivered";
   createdAt: Date;
   payment: {
     status: "created" | "paid" | "failed" | "refunded";
@@ -2004,6 +2006,7 @@ function mapAdminOrderSummary(order: AdminOrderRecord): AdminOrderSummaryRespons
   return {
     id: order.id,
     status: order.status,
+    fulfillmentStage: order.fulfillmentStage,
     createdAt: order.createdAt.toISOString(),
     customer: {
       userId: order.userId,
@@ -2097,6 +2100,7 @@ export async function adminListOrders(
         shipping: true,
         total: true,
         status: true,
+        fulfillmentStage: true,
         createdAt: true,
         payment: {
           select: {
@@ -2151,6 +2155,7 @@ export async function adminGetOrderById(
       shipping: true,
       total: true,
       status: true,
+      fulfillmentStage: true,
       createdAt: true,
       payment: {
         select: {
@@ -2261,6 +2266,40 @@ export async function adminPatchOrderStatus(params: {
     data: {
       id: updated.id,
       status: updated.status
+    }
+  };
+}
+
+export async function adminPatchOrderFulfillmentStage(params: {
+  route: AdminPatchOrderFulfillmentStageValidatedInput["params"];
+  payload: AdminPatchOrderFulfillmentStageValidatedInput["body"];
+}): Promise<{ data: { id: string; fulfillmentStage: AdminOrderRecord["fulfillmentStage"] } }> {
+  const order = await prisma.order.findUnique({
+    where: { id: params.route.id },
+    select: {
+      id: true
+    }
+  });
+
+  if (!order) {
+    throw new HttpError(404, "Order not found", undefined, "ORDER_NOT_FOUND");
+  }
+
+  const updated = await prisma.order.update({
+    where: { id: params.route.id },
+    data: {
+      fulfillmentStage: params.payload.fulfillmentStage
+    },
+    select: {
+      id: true,
+      fulfillmentStage: true
+    }
+  });
+
+  return {
+    data: {
+      id: updated.id,
+      fulfillmentStage: updated.fulfillmentStage
     }
   };
 }

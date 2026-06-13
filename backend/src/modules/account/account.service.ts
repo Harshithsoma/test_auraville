@@ -1,4 +1,5 @@
 import { prisma } from "../../prisma/prisma.service";
+import type { Prisma } from "@prisma/client";
 import { HttpError } from "../../utils/http-error";
 import { passwordHash, verifyPassword } from "../../utils/password";
 import type { UserAddressResponse, UserAddressesListResponse } from "./account.types";
@@ -6,6 +7,87 @@ import type {
   CreateAccountAddressValidatedInput,
   PatchAccountAddressValidatedInput
 } from "./account.validation";
+
+type ComparableAddress = {
+  fullName: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2?: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+  country?: string | null;
+  landmark?: string | null;
+};
+
+function normalizeText(value?: string | null): string {
+  return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizePhone(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  return digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits;
+}
+
+function normalizeAddress(address: ComparableAddress) {
+  return {
+    fullName: normalizeText(address.fullName),
+    phone: normalizePhone(address.phone),
+    addressLine1: normalizeText(address.addressLine1),
+    addressLine2: normalizeText(address.addressLine2),
+    city: normalizeText(address.city),
+    state: normalizeText(address.state),
+    pincode: address.pincode.replace(/\D/g, ""),
+    country: normalizeText(address.country || "India"),
+    landmark: normalizeText(address.landmark)
+  };
+}
+
+function isSameAddress(left: ComparableAddress, right: ComparableAddress): boolean {
+  const a = normalizeAddress(left);
+  const b = normalizeAddress(right);
+
+  return (
+    a.fullName === b.fullName &&
+    a.phone === b.phone &&
+    a.addressLine1 === b.addressLine1 &&
+    a.addressLine2 === b.addressLine2 &&
+    a.city === b.city &&
+    a.state === b.state &&
+    a.pincode === b.pincode &&
+    a.country === b.country &&
+    a.landmark === b.landmark
+  );
+}
+
+async function assertAddressIsUnique(params: {
+  tx: Prisma.TransactionClient;
+  userId: string;
+  candidate: ComparableAddress;
+  excludeAddressId?: string;
+}) {
+  const existingAddresses = await params.tx.userAddress.findMany({
+    where: {
+      userId: params.userId,
+      ...(params.excludeAddressId ? { NOT: { id: params.excludeAddressId } } : {})
+    },
+    select: {
+      fullName: true,
+      phone: true,
+      addressLine1: true,
+      addressLine2: true,
+      city: true,
+      state: true,
+      pincode: true,
+      country: true,
+      landmark: true
+    }
+  });
+
+  if (existingAddresses.some((address) => isSameAddress(params.candidate, address))) {
+    throw new HttpError(409, "This address is already saved.", undefined, "DUPLICATE_ADDRESS");
+  }
+}
 
 function mapAddress(address: {
   id: string;
@@ -70,10 +152,27 @@ export async function createUserAddress(params: {
   payload: CreateAccountAddressValidatedInput["body"];
 }): Promise<{ data: UserAddressResponse }> {
   const { userId, payload } = params;
-  const existingCount = await prisma.userAddress.count({ where: { userId } });
-  const shouldSetDefault = payload.isDefault === true || existingCount === 0;
 
   const created = await prisma.$transaction(async (tx) => {
+    await assertAddressIsUnique({
+      tx,
+      userId,
+      candidate: {
+        fullName: payload.fullName,
+        phone: payload.phone,
+        addressLine1: payload.addressLine1,
+        addressLine2: payload.addressLine2 || null,
+        city: payload.city,
+        state: payload.state,
+        pincode: payload.pincode,
+        country: payload.country || "India",
+        landmark: payload.landmark || null
+      }
+    });
+
+    const existingCount = await tx.userAddress.count({ where: { userId } });
+    const shouldSetDefault = payload.isDefault === true || existingCount === 0;
+
     if (shouldSetDefault) {
       await tx.userAddress.updateMany({
         where: { userId },
@@ -113,6 +212,23 @@ export async function patchUserAddress(params: {
   const shouldSetDefault = payload.isDefault === true;
 
   const updated = await prisma.$transaction(async (tx) => {
+    await assertAddressIsUnique({
+      tx,
+      userId,
+      excludeAddressId: address.id,
+      candidate: {
+        fullName: payload.fullName ?? address.fullName,
+        phone: payload.phone ?? address.phone,
+        addressLine1: payload.addressLine1 ?? address.addressLine1,
+        addressLine2: payload.addressLine2 !== undefined ? payload.addressLine2 || null : address.addressLine2,
+        city: payload.city ?? address.city,
+        state: payload.state ?? address.state,
+        pincode: payload.pincode ?? address.pincode,
+        country: payload.country ?? address.country,
+        landmark: payload.landmark !== undefined ? payload.landmark || null : address.landmark
+      }
+    });
+
     if (shouldSetDefault) {
       await tx.userAddress.updateMany({
         where: { userId },

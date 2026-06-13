@@ -225,12 +225,12 @@ export function DoYouKnowSection({
                   }}
                 >
                   <Link
-                    className="focus-ring group block h-full overflow-hidden rounded-xl border border-[var(--line)] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]"
+                    className="focus-ring group flex h-full min-h-[430px] flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]"
                     href={card.linkUrl}
                     rel="noopener noreferrer"
                     target="_blank"
                   >
-                    <div className="p-3.5">
+                    <div className="flex h-full flex-col p-3.5">
                       <div className="flex items-center gap-2.5">
                         <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--leaf-deep)] text-xs font-semibold text-white">
                           Au
@@ -249,9 +249,9 @@ export function DoYouKnowSection({
                           src={card.image}
                         />
                       </div>
-                      <p className="mt-3 line-clamp-2 text-sm font-semibold leading-5 text-[var(--leaf-deep)]">{card.title}</p>
-                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--muted)]">{card.excerpt}</p>
-                      <span className="mt-3 inline-flex items-center text-xs font-semibold text-[var(--leaf)]">
+                      <p className="mt-3 line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-[var(--leaf-deep)]">{card.title}</p>
+                      <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-[var(--muted)]">{card.excerpt}</p>
+                      <span className="mt-auto inline-flex items-center pt-3 text-xs font-semibold text-[var(--leaf)]">
                         {card.buttonText}
                         <span className="ml-1.5 text-sm">↗</span>
                       </span>

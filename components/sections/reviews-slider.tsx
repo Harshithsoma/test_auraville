@@ -419,15 +419,24 @@ export function ReviewsSlider({
               className="overflow-hidden"
               ref={viewportRef}
               style={{ touchAction: "pan-y" }}
-              onPointerEnter={() => setIsPointerHovering(true)}
-              onPointerLeave={() => {
-                setIsPointerHovering(false);
+              onPointerEnter={(event) => {
+                if (event.pointerType === "mouse") {
+                  setIsPointerHovering(true);
+                }
+              }}
+              onPointerLeave={(event) => {
+                if (event.pointerType === "mouse") {
+                  setIsPointerHovering(false);
+                }
                 endDrag();
               }}
               onPointerCancel={() => endDrag()}
               onPointerDown={(event) => {
                 if (event.pointerType === "mouse" && event.button !== 0) return;
                 if (isInteractiveTarget(event.target)) return;
+                if (event.pointerType !== "mouse") {
+                  setIsPointerHovering(false);
+                }
                 beginDrag(event.pointerId, event.clientX, event.currentTarget);
               }}
               onPointerMove={(event) =>

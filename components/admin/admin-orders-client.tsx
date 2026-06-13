@@ -15,11 +15,19 @@ type OrderStatus =
   | "cancelled"
   | "payment_failed";
 
+type OrderFulfillmentStage =
+  | "order_placed"
+  | "processing"
+  | "shipped"
+  | "out_for_delivery"
+  | "delivered";
+
 type PaymentStatus = "created" | "paid" | "failed" | "refunded" | null;
 
 type AdminOrderSummary = {
   id: string;
   status: OrderStatus;
+  fulfillmentStage: OrderFulfillmentStage;
   createdAt: string;
   customer: {
     userId: string | null;
@@ -87,6 +95,13 @@ type PatchOrderStatusResponse = {
   };
 };
 
+type PatchFulfillmentStageResponse = {
+  data: {
+    id: string;
+    fulfillmentStage: OrderFulfillmentStage;
+  };
+};
+
 type Filters = {
   status: "all" | OrderStatus;
   email: string;
@@ -103,6 +118,22 @@ const orderStatuses: OrderStatus[] = [
   "cancelled",
   "payment_failed"
 ];
+
+const fulfillmentStages: OrderFulfillmentStage[] = [
+  "order_placed",
+  "processing",
+  "shipped",
+  "out_for_delivery",
+  "delivered"
+];
+
+const fulfillmentStageLabels: Record<OrderFulfillmentStage, string> = {
+  order_placed: "Order Placed",
+  processing: "Processing",
+  shipped: "Shipped",
+  out_for_delivery: "Out for Delivery",
+  delivered: "Delivered"
+};
 
 const defaultFilters: Filters = {
   status: "all",
@@ -156,7 +187,9 @@ export function AdminOrdersClient() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailMessage, setDetailMessage] = useState<string | null>(null);
   const [statusDraft, setStatusDraft] = useState<OrderStatus>("pending");
+  const [fulfillmentStageDraft, setFulfillmentStageDraft] = useState<OrderFulfillmentStage>("order_placed");
   const [isSavingStatus, setIsSavingStatus] = useState(false);
+  const [isSavingFulfillmentStage, setIsSavingFulfillmentStage] = useState(false);
 
   const listQuery = useMemo(
     () => ({
@@ -203,6 +236,7 @@ export function AdminOrdersClient() {
       const response = await commerceApi.admin.orders.byId<GetOrderDetailResponse>(orderId);
       setDetail(response.data);
       setStatusDraft(response.data.status);
+      setFulfillmentStageDraft(response.data.fulfillmentStage);
     } catch (error) {
       setDetail(null);
       if (error instanceof ApiError) {
@@ -259,6 +293,39 @@ export function AdminOrdersClient() {
       }
     } finally {
       setIsSavingStatus(false);
+    }
+  }
+
+  async function onUpdateFulfillmentStage() {
+    if (!detail) return;
+
+    setIsSavingFulfillmentStage(true);
+    setDetailError(null);
+    setDetailMessage(null);
+
+    try {
+      const response = await commerceApi.admin.orders.updateFulfillmentStage<
+        PatchFulfillmentStageResponse,
+        { fulfillmentStage: OrderFulfillmentStage }
+      >(detail.id, { fulfillmentStage: fulfillmentStageDraft });
+
+      setDetail((current) =>
+        current ? { ...current, fulfillmentStage: response.data.fulfillmentStage } : current
+      );
+      setOrders((current) =>
+        current.map((entry) =>
+          entry.id === response.data.id ? { ...entry, fulfillmentStage: response.data.fulfillmentStage } : entry
+        )
+      );
+      setDetailMessage(`Customer tracking stage updated to ${fulfillmentStageLabels[response.data.fulfillmentStage]}.`);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setDetailError(error.message);
+      } else {
+        setDetailError("Unable to update customer tracking stage.");
+      }
+    } finally {
+      setIsSavingFulfillmentStage(false);
     }
   }
 
@@ -374,6 +441,7 @@ export function AdminOrdersClient() {
                   <tr>
                     <th className="px-3 py-3">Order</th>
                     <th className="px-3 py-3">Status</th>
+                    <th className="px-3 py-3">Tracking</th>
                     <th className="px-3 py-3">Customer</th>
                     <th className="px-3 py-3">Total</th>
                     <th className="px-3 py-3">Payment</th>
@@ -386,6 +454,7 @@ export function AdminOrdersClient() {
                     <tr className="border-t border-[var(--line)]" key={order.id}>
                       <td className="px-3 py-3 font-semibold">{order.id}</td>
                       <td className="px-3 py-3">{order.status}</td>
+                      <td className="px-3 py-3">{fulfillmentStageLabels[order.fulfillmentStage]}</td>
                       <td className="px-3 py-3 text-xs">
                         <p>{order.customer.name}</p>
                         <p>{order.customer.email}</p>
@@ -415,7 +484,7 @@ export function AdminOrdersClient() {
                 <article className="rounded-lg border border-[var(--line)] bg-white p-4" key={order.id}>
                   <p className="font-semibold">{order.id}</p>
                   <p className="mt-1 text-xs text-[var(--muted)]">
-                    {order.status} | {order.payment.status ?? "-"} | {formatDate(order.createdAt)}
+                    {order.status} | {fulfillmentStageLabels[order.fulfillmentStage]} | {order.payment.status ?? "-"} | {formatDate(order.createdAt)}
                   </p>
                   <p className="mt-2 text-sm">
                     {order.customer.name} ({order.customer.email})
@@ -553,8 +622,11 @@ export function AdminOrdersClient() {
             </div>
 
             <div className="rounded-lg border border-[var(--line)] bg-white p-4">
-              <h3 className="font-semibold">Update Status</h3>
-              <div className="mt-3 flex flex-wrap items-end gap-3">
+              <h3 className="font-semibold">Update Status & Tracking</h3>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Order status controls internal lifecycle and review eligibility. Customer tracking stage controls the progress badges shoppers see.
+              </p>
+              <div className="mt-3 grid gap-4 lg:grid-cols-2">
                 <label className="w-full max-w-xs">
                   <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Order Status</span>
                   <Select
@@ -568,14 +640,38 @@ export function AdminOrdersClient() {
                       </option>
                     ))}
                   </Select>
+                  <Button
+                    className="mt-3"
+                    type="button"
+                    disabled={isSavingStatus || statusDraft === detail.status}
+                    onClick={() => void onUpdateStatus()}
+                  >
+                    {isSavingStatus ? "Updating..." : "Update Status"}
+                  </Button>
                 </label>
-                <Button
-                  type="button"
-                  disabled={isSavingStatus || statusDraft === detail.status}
-                  onClick={() => void onUpdateStatus()}
-                >
-                  {isSavingStatus ? "Updating..." : "Update Status"}
-                </Button>
+
+                <label className="w-full max-w-xs">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Customer Tracking Stage</span>
+                  <Select
+                    className="mt-2"
+                    value={fulfillmentStageDraft}
+                    onChange={(event) => setFulfillmentStageDraft(event.target.value as OrderFulfillmentStage)}
+                  >
+                    {fulfillmentStages.map((stage) => (
+                      <option key={stage} value={stage}>
+                        {fulfillmentStageLabels[stage]}
+                      </option>
+                    ))}
+                  </Select>
+                  <Button
+                    className="mt-3"
+                    type="button"
+                    disabled={isSavingFulfillmentStage || fulfillmentStageDraft === detail.fulfillmentStage}
+                    onClick={() => void onUpdateFulfillmentStage()}
+                  >
+                    {isSavingFulfillmentStage ? "Updating..." : "Update Tracking Stage"}
+                  </Button>
+                </label>
               </div>
             </div>
           </div>

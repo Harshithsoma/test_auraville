@@ -12,12 +12,35 @@ function isInStock(variant: ProductVariant): boolean {
   return (variant.stock ?? 0) > 0;
 }
 
-function sortByDisplayPriority(variants: ProductVariant[]): ProductVariant[] {
+function extractVariantQuantity(variant: ProductVariant): number | null {
+  const value = `${variant.label} ${variant.unit}`.toLowerCase();
+  const match = value.match(/(?:pack|box)?\s*(?:of)?\s*(\d+(?:\.\d+)?)/i);
+  if (!match) return null;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function sortVariantsLogically(variants: ProductVariant[]): ProductVariant[] {
   return [...variants].sort((a, b) => {
+    const quantityA = extractVariantQuantity(a);
+    const quantityB = extractVariantQuantity(b);
+    if (quantityA !== null && quantityB !== null && quantityA !== quantityB) {
+      return quantityA - quantityB;
+    }
+    if (quantityA !== null && quantityB === null) return -1;
+    if (quantityA === null && quantityB !== null) return 1;
+    const sortDelta = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    if (sortDelta !== 0) return sortDelta;
+    return a.price - b.price;
+  });
+}
+
+function sortByDisplayPriority(variants: ProductVariant[]): ProductVariant[] {
+  return sortVariantsLogically(variants).sort((a, b) => {
     const stockRankA = isInStock(a) ? 0 : 1;
     const stockRankB = isInStock(b) ? 0 : 1;
     if (stockRankA !== stockRankB) return stockRankA - stockRankB;
-    return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    return 0;
   });
 }
 

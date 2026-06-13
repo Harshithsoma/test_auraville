@@ -26,6 +26,13 @@ export type OrderStatusView =
   | "cancelled"
   | "payment_failed";
 
+export type OrderFulfillmentStageView =
+  | "order_placed"
+  | "processing"
+  | "shipped"
+  | "out_for_delivery"
+  | "delivered";
+
 export type OrdersListQuery = {
   page: number;
   limit: number;
@@ -38,6 +45,7 @@ export type OrdersListResponse = {
     items: OrderItemView[];
     total: number;
     status: OrderStatusView;
+    fulfillmentStage: OrderFulfillmentStageView;
     createdAt: string;
   }>;
   pagination: {
@@ -61,6 +69,7 @@ export type OrderDetailResponse = {
       total: number;
     };
     status: OrderStatusView;
+    fulfillmentStage: OrderFulfillmentStageView;
     createdAt: string;
   };
 };
