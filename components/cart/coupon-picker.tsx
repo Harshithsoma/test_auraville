@@ -36,7 +36,7 @@ export function CouponPicker({
   isPricingLoading,
   pricingError,
   onApplyPromoCode,
-  onClearPromoCode
+  onClearPromoCode,
 }: CouponPickerProps) {
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
@@ -70,9 +70,15 @@ export function CouponPicker({
     try {
       const response = await commerceApi.coupons.available<
         AvailableCouponsResponse,
-        { items: Array<{ productId: string; variantId: string; quantity: number }> }
+        {
+          items: Array<{
+            productId: string;
+            variantId: string;
+            quantity: number;
+          }>;
+        }
       >({
-        items
+        items,
       });
       setCoupons(response.data);
     } catch (error) {
@@ -174,7 +180,9 @@ export function CouponPicker({
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Promo code</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+          Promo code
+        </p>
         <button
           className="focus-ring inline-flex h-8 items-center justify-center rounded-lg border border-[#ce6f6a] bg-[#fff1f0] px-3 text-xs font-semibold text-[#a84843] transition hover:bg-[#ffe8e6] active:scale-95 disabled:cursor-not-allowed disabled:opacity-55"
           type="button"
@@ -224,18 +232,32 @@ export function CouponPicker({
               void applyCode(promoInput);
             }}
           >
-            {activeCode && activeCode === promoInput.trim().toUpperCase() ? "Applying..." : "Apply"}
+            {activeCode && activeCode === promoInput.trim().toUpperCase()
+              ? "Applying..."
+              : "Apply"}
           </button>
         </div>
       ) : (
-        <p className="mt-2 text-xs text-[var(--muted)]">Add items to use coupons.</p>
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          Add items to use coupons.
+        </p>
       )}
 
-      {promoError ? <p className="mt-2 text-xs font-semibold text-[var(--coral)]">{promoError}</p> : null}
-      {!promoError && promoMessage ? (
-        <p className="mt-2 text-xs font-semibold text-[var(--leaf-deep)]">{promoMessage}</p>
+      {promoError ? (
+        <p className="mt-2 text-xs font-semibold text-[var(--coral)]">
+          {promoError}
+        </p>
       ) : null}
-      {pricingError ? <p className="mt-2 text-xs font-semibold text-[var(--coral)]">{pricingError}</p> : null}
+      {!promoError && promoMessage ? (
+        <p className="mt-2 text-xs font-semibold text-[var(--leaf-deep)]">
+          {promoMessage}
+        </p>
+      ) : null}
+      {pricingError ? (
+        <p className="mt-2 text-xs font-semibold text-[var(--coral)]">
+          {pricingError}
+        </p>
+      ) : null}
 
       {isModalOpen ? (
         <div className="fixed inset-0 z-[170]">
@@ -258,39 +280,57 @@ export function CouponPicker({
             </div>
 
             {items.length === 0 ? (
-              <p className="text-sm text-[var(--muted)]">Add items to view available coupons.</p>
+              <p className="text-sm text-[var(--muted)]">
+                Add items to view available coupons.
+              </p>
             ) : null}
-            {isFetchingCoupons ? <p className="text-sm text-[var(--muted)]">Loading coupons...</p> : null}
+            {isFetchingCoupons ? (
+              <p className="text-sm text-[var(--muted)]">Loading coupons...</p>
+            ) : null}
             {couponsError ? (
               <p className="rounded-lg border border-[#e7c9c6] bg-[#fff7f7] px-3 py-2 text-xs font-semibold text-[var(--coral)]">
                 {couponsError}
               </p>
             ) : null}
-            {!isFetchingCoupons && !couponsError && items.length > 0 && coupons.length === 0 ? (
-              <p className="text-sm text-[var(--muted)]">No coupons available right now.</p>
+            {!isFetchingCoupons &&
+            !couponsError &&
+            items.length > 0 &&
+            coupons.length === 0 ? (
+              <p className="text-sm text-[var(--muted)]">
+                No coupons available right now.
+              </p>
             ) : null}
 
             <div className="space-y-2">
               {coupons.map((coupon) => {
                 const sameAsApplied = Boolean(
-                  promoCode && promoCode.toUpperCase() === coupon.code.toUpperCase()
+                  promoCode &&
+                  promoCode.toUpperCase() === coupon.code.toUpperCase(),
                 );
                 const isApplying = activeCode === coupon.code;
                 const disabled =
-                  !coupon.isEligible || sameAsApplied || isPricingLoading || Boolean(activeCode);
+                  !coupon.isEligible ||
+                  sameAsApplied ||
+                  isPricingLoading ||
+                  Boolean(activeCode);
 
-                const reason = coupon.eligibilityReason;
-                const primaryDescription = coupon.description?.trim() || coupon.displayText;
-                const metaParts: string[] = [];
-                if (coupon.minOrderAmount && coupon.minOrderAmount > 0) {
-                  metaParts.push(`Min order ${formatPrice(coupon.minOrderAmount)}`);
-                }
-                if (coupon.expiryDate) {
-                  const expiryDate = new Date(coupon.expiryDate);
-                  if (!Number.isNaN(expiryDate.getTime())) {
-                    metaParts.push(`Expires ${expiryDate.toLocaleDateString()}`);
-                  }
-                }
+                // const reason = coupon.eligibilityReason;
+                const primaryDescription =
+                  coupon.description?.trim() || coupon.displayText;
+                // const metaParts: string[] = [];
+                // if (coupon.minOrderAmount && coupon.minOrderAmount > 0) {
+                //   metaParts.push(
+                //     `Min order ${formatPrice(coupon.minOrderAmount)}`,
+                //   );
+                // }
+                // if (coupon.expiryDate) {
+                //   const expiryDate = new Date(coupon.expiryDate);
+                //   if (!Number.isNaN(expiryDate.getTime())) {
+                //     metaParts.push(
+                //       `Expires ${expiryDate.toLocaleDateString()}`,
+                //     );
+                //   }
+                // }
 
                 return (
                   <article
@@ -305,12 +345,6 @@ export function CouponPicker({
                       <div>
                         <p className="text-sm font-semibold">{coupon.code}</p>
                         <p className="mt-1 text-xs">{primaryDescription}</p>
-                        <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-[var(--muted)]">
-                          {metaParts.map((part) => (
-                            <span key={part}>{part}</span>
-                          ))}
-                        </div>
-                        {!coupon.isEligible && reason ? <p className="mt-1 text-xs">{reason}</p> : null}
                       </div>
                       <button
                         className="focus-ring inline-flex h-8 items-center justify-center rounded-lg border border-[var(--leaf)] px-3 text-xs font-semibold text-[var(--leaf-deep)] transition disabled:cursor-not-allowed disabled:opacity-50"
@@ -320,7 +354,11 @@ export function CouponPicker({
                           void applyCode(coupon.code, true);
                         }}
                       >
-                        {sameAsApplied ? "Applied" : isApplying ? "Applying..." : "Apply"}
+                        {sameAsApplied
+                          ? "Applied"
+                          : isApplying
+                            ? "Applying..."
+                            : "Apply"}
                       </button>
                     </div>
                   </article>
