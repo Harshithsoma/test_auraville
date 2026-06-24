@@ -17,6 +17,24 @@ function getVisibleCards() {
   return 1;
 }
 
+function getPagingStep(visibleCards: number) {
+  return visibleCards === 2 ? 2 : 1;
+}
+
+function getNextIndex(current: number, maxIndex: number, step: number) {
+  return Math.min(maxIndex, Math.min(current, maxIndex) + step);
+}
+
+function getPreviousIndex(current: number, maxIndex: number, step: number) {
+  return Math.max(0, Math.min(current, maxIndex) - step);
+}
+
+function snapToPageIndex(index: number, maxIndex: number, step: number) {
+  if (step <= 1) return Math.min(index, maxIndex);
+  const snapped = Math.round(Math.min(index, maxIndex) / step) * step;
+  return Math.min(maxIndex, snapped);
+}
+
 function isInteractiveTarget(target: EventTarget | null) {
   return (
     target instanceof Element &&
@@ -46,8 +64,9 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const isSectionInView = useSectionInView(sectionRef);
 
-  const clampedIndex = Math.min(active, maxIndex);
   const canNavigate = maxIndex > 0;
+  const pagingStep = getPagingStep(visibleCards);
+  const clampedIndex = snapToPageIndex(active, maxIndex, pagingStep);
 
   useEffect(
     () => () => {
@@ -86,9 +105,9 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
     const shouldSuppressClick = dragMovedRef.current;
 
     if (finalOffset > threshold) {
-      setActive((current) => Math.max(0, Math.min(current, maxIndex) - 1));
+      setActive((current) => getPreviousIndex(snapToPageIndex(current, maxIndex, pagingStep), maxIndex, pagingStep));
     } else if (finalOffset < -threshold) {
-      setActive((current) => Math.min(maxIndex, Math.min(current, maxIndex) + 1));
+      setActive((current) => getNextIndex(snapToPageIndex(current, maxIndex, pagingStep), maxIndex, pagingStep));
     }
 
     setDragOffset(0);
@@ -160,7 +179,7 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
             className="focus-ring absolute left-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9"
             disabled={clampedIndex <= 0}
             type="button"
-            onClick={() => setActive((current) => Math.max(0, Math.min(current, maxIndex) - 1))}
+            onClick={() => setActive((current) => getPreviousIndex(snapToPageIndex(current, maxIndex, pagingStep), maxIndex, pagingStep))}
           >
             ‹
           </button>
@@ -169,7 +188,7 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
             className="focus-ring absolute right-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9"
             disabled={clampedIndex >= maxIndex}
             type="button"
-            onClick={() => setActive((current) => Math.min(maxIndex, Math.min(current, maxIndex) + 1))}
+            onClick={() => setActive((current) => getNextIndex(snapToPageIndex(current, maxIndex, pagingStep), maxIndex, pagingStep))}
           >
             ›
           </button>

@@ -17,6 +17,35 @@ function getVisibleCards() {
   return 1;
 }
 
+function getPagingStep(visibleCards: number) {
+  return visibleCards === 2 ? 2 : 1;
+}
+
+function getNextIndex(current: number, maxIndex: number, step: number) {
+  return Math.min(maxIndex, Math.min(current, maxIndex) + step);
+}
+
+function getPreviousIndex(current: number, maxIndex: number, step: number) {
+  return Math.max(0, Math.min(current, maxIndex) - step);
+}
+
+function getPageIndexes(maxIndex: number, step: number) {
+  const indexes: number[] = [];
+  for (let index = 0; index <= maxIndex; index += step) {
+    indexes.push(index);
+  }
+  if (indexes[indexes.length - 1] !== maxIndex) {
+    indexes.push(maxIndex);
+  }
+  return indexes;
+}
+
+function snapToPageIndex(index: number, maxIndex: number, step: number) {
+  if (step <= 1) return Math.min(index, maxIndex);
+  const snapped = Math.round(Math.min(index, maxIndex) / step) * step;
+  return Math.min(maxIndex, snapped);
+}
+
 function isInteractiveTarget(target: EventTarget | null) {
   return (
     target instanceof Element &&
@@ -51,7 +80,9 @@ export function ProductShelfCarousel({
   const sectionRef = useRef<HTMLDivElement>(null);
   const isSectionInView = useSectionInView(sectionRef);
 
-  const clampedIndex = Math.min(active, maxIndex);
+  const pagingStep = getPagingStep(visibleCards);
+  const clampedIndex = snapToPageIndex(active, maxIndex, pagingStep);
+  const pageIndexes = getPageIndexes(maxIndex, pagingStep);
 
   useEffect(
     () => () => {
@@ -90,9 +121,9 @@ export function ProductShelfCarousel({
     const shouldSuppressClick = dragMovedRef.current;
 
     if (finalOffset > threshold) {
-      setActive((current) => Math.max(0, Math.min(current, maxIndex) - 1));
+      setActive((current) => getPreviousIndex(snapToPageIndex(current, maxIndex, pagingStep), maxIndex, pagingStep));
     } else if (finalOffset < -threshold) {
-      setActive((current) => Math.min(maxIndex, Math.min(current, maxIndex) + 1));
+      setActive((current) => getNextIndex(snapToPageIndex(current, maxIndex, pagingStep), maxIndex, pagingStep));
     }
 
     setDragOffset(0);
@@ -166,7 +197,7 @@ export function ProductShelfCarousel({
             className="focus-ring absolute left-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-lg text-[var(--leaf-deep)] shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9"
             disabled={clampedIndex <= 0}
             type="button"
-            onClick={() => setActive((current) => Math.max(0, Math.min(current, maxIndex) - 1))}
+            onClick={() => setActive((current) => getPreviousIndex(snapToPageIndex(current, maxIndex, pagingStep), maxIndex, pagingStep))}
           >
             ‹
           </button>
@@ -175,7 +206,7 @@ export function ProductShelfCarousel({
             className="focus-ring absolute right-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-lg text-[var(--leaf-deep)] shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9"
             disabled={clampedIndex >= maxIndex}
             type="button"
-            onClick={() => setActive((current) => Math.min(maxIndex, Math.min(current, maxIndex) + 1))}
+            onClick={() => setActive((current) => getNextIndex(snapToPageIndex(current, maxIndex, pagingStep), maxIndex, pagingStep))}
           >
             ›
           </button>
@@ -184,7 +215,7 @@ export function ProductShelfCarousel({
 
       {canNavigate ? (
         <div className="mt-5 flex justify-center gap-2">
-          {Array.from({ length: maxIndex + 1 }).map((_, index) => (
+          {pageIndexes.map((index) => (
             <button
               aria-label={`Go to product slide ${index + 1}`}
               className={`h-2 rounded-full transition ${index === clampedIndex ? "w-7 bg-[var(--leaf-deep)]" : "w-2 bg-[var(--line)]"}`}

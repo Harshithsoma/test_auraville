@@ -66,7 +66,7 @@ export function BestSellerCard({ product, priority = false }: { product: Product
   }
 
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99]">
+    <article className="flex h-full min-h-[390px] flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99] md:min-h-0">
       <Link className="focus-ring block rounded-lg transition active:opacity-90" href={`/product/${product.slug}`}>
         <div className="relative aspect-[4/4.2] overflow-hidden bg-[var(--mint)]">
           <Image
@@ -89,22 +89,24 @@ export function BestSellerCard({ product, priority = false }: { product: Product
         <Link className="focus-ring block rounded-lg transition active:opacity-90" href={`/product/${product.slug}`}>
           <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5">{product.name}</h3>
         </Link>
-        <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-[var(--muted)] sm:text-xs">
+        <div className="mt-2 flex min-h-5 items-center justify-between gap-2 text-[11px] text-[var(--muted)] sm:text-xs">
           <span>{variant?.label ?? "Pack"}</span>
           <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
         </div>
-        <div className="mt-2 text-sm">
+        <div className="mt-2 min-h-[44px] text-sm">
           {canPurchase ? (
             <PriceWithCompare compareAtPrice={compareAtPrice} currency={product.currency} value={displayPrice} />
           ) : (
             <p className="font-bold">{isAvailable ? "Out of Stock" : "Coming Soon"}</p>
           )}
         </div>
-        {canPurchase && typeof availableStock === "number" && availableStock > 0 && availableStock <= 5 ? (
-          <p className="mt-1 text-[11px] font-semibold text-[var(--coral)]">
-            {availableStock === 1 ? "Only 1 left" : `Only ${availableStock} left`}
-          </p>
-        ) : null}
+        <div className="mt-1 min-h-4">
+          {canPurchase && typeof availableStock === "number" && availableStock > 0 && availableStock <= 5 ? (
+            <p className="text-[11px] font-semibold text-[var(--coral)]">
+              {availableStock === 1 ? "Only 1 left" : `Only ${availableStock} left`}
+            </p>
+          ) : null}
+        </div>
 
         <div className="mt-auto">
           {canPurchase ? (
@@ -163,11 +165,13 @@ export function BestSellerCard({ product, priority = false }: { product: Product
               {isNotifySubmitting ? "Saving..." : "Notify Me"}
             </button>
           )}
-          {status ? (
-            <p className="mt-2 text-[11px] font-medium text-[var(--leaf-deep)]" aria-live="polite">
-              {status}
-            </p>
-          ) : null}
+          <div className="mt-2 min-h-4">
+            {status ? (
+              <p className="text-[11px] font-medium text-[var(--leaf-deep)]" aria-live="polite">
+                {status}
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
     </article>
