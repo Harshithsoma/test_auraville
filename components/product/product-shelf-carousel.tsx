@@ -156,7 +156,7 @@ export function ProductShelfCarousel({
 
   return (
     <div className="relative" ref={sectionRef}>
-      <div className="px-10 sm:px-10 md:px-12">
+      <div className="px-8 sm:px-10 md:px-12">
         <div
           className="overflow-hidden"
           ref={setViewportNode}

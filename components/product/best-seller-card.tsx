@@ -66,7 +66,7 @@ export function BestSellerCard({ product, priority = false }: { product: Product
   }
 
   return (
-    <article className="flex h-full min-h-[390px] flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99] md:min-h-0">
+    <article className="flex h-[430px] flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99] sm:h-[440px] md:h-full md:min-h-0">
       <Link className="focus-ring block rounded-lg transition active:opacity-90" href={`/product/${product.slug}`}>
         <div className="relative aspect-[4/4.2] overflow-hidden bg-[var(--mint)]">
           <Image
@@ -85,22 +85,24 @@ export function BestSellerCard({ product, priority = false }: { product: Product
         </div>
       </Link>
 
-      <div className="flex flex-1 flex-col px-3 pb-3 pt-3.5">
+      <div className="flex min-h-0 flex-1 flex-col px-2.5 pb-2.5 pt-2.5 sm:px-3 sm:pb-3 sm:pt-3.5">
         <Link className="focus-ring block rounded-lg transition active:opacity-90" href={`/product/${product.slug}`}>
-          <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5">{product.name}</h3>
+          <h3 className="line-clamp-2 min-h-10 text-xs font-semibold leading-5 sm:text-sm">{product.name}</h3>
         </Link>
-        <div className="mt-2 flex min-h-5 items-center justify-between gap-2 text-[11px] text-[var(--muted)] sm:text-xs">
-          <span>{variant?.label ?? "Pack"}</span>
-          <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
+        <div className="mt-1.5 flex min-h-[38px] flex-col items-start gap-1 text-[11px] text-[var(--muted)] sm:mt-2 sm:min-h-5 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:text-xs">
+          <span className="line-clamp-1 max-w-full">{variant?.label ?? "Pack"}</span>
+          <div className="shrink-0 scale-[0.92] origin-left sm:scale-100">
+            <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
+          </div>
         </div>
-        <div className="mt-2 min-h-[44px] text-sm">
+        <div className="mt-1.5 min-h-[50px] text-[13px] sm:mt-2 sm:min-h-[44px] sm:text-sm">
           {canPurchase ? (
             <PriceWithCompare compareAtPrice={compareAtPrice} currency={product.currency} value={displayPrice} />
           ) : (
             <p className="font-bold">{isAvailable ? "Out of Stock" : "Coming Soon"}</p>
           )}
         </div>
-        <div className="mt-1 min-h-4">
+        <div className="mt-0.5 min-h-4 sm:mt-1">
           {canPurchase && typeof availableStock === "number" && availableStock > 0 && availableStock <= 5 ? (
             <p className="text-[11px] font-semibold text-[var(--coral)]">
               {availableStock === 1 ? "Only 1 left" : `Only ${availableStock} left`}
@@ -112,14 +114,14 @@ export function BestSellerCard({ product, priority = false }: { product: Product
           {canPurchase ? (
             quantity === 0 ? (
               <button
-                className="focus-ring mt-3 inline-flex h-10 w-full items-center justify-center rounded-lg border border-[var(--leaf)] bg-[var(--leaf)] px-3 text-sm font-semibold text-white transition active:scale-95"
+                className="focus-ring mt-2.5 inline-flex h-9 w-full items-center justify-center rounded-lg border border-[var(--leaf)] bg-[var(--leaf)] px-3 text-xs font-semibold text-white transition active:scale-95 sm:mt-3 sm:h-10 sm:text-sm"
                 type="button"
                 onClick={() => addToCart(true)}
               >
                 Add to Cart
               </button>
             ) : (
-              <div className="mt-3 inline-flex h-10 w-full items-center justify-between rounded-lg border border-[var(--line)]">
+              <div className="mt-2.5 inline-flex h-9 w-full items-center justify-between rounded-lg border border-[var(--line)] sm:mt-3 sm:h-10">
                 <button
                   aria-label={`Decrease ${product.name} quantity`}
                   className="focus-ring h-full w-10 rounded-l-lg text-lg font-semibold text-[var(--leaf-deep)] transition active:scale-95"
@@ -137,7 +139,7 @@ export function BestSellerCard({ product, priority = false }: { product: Product
                 >
                   -
                 </button>
-                <span className="text-sm font-bold" aria-live="polite">
+                <span className="text-xs font-bold sm:text-sm" aria-live="polite">
                   {quantity}
                 </span>
                 <button
@@ -153,7 +155,7 @@ export function BestSellerCard({ product, priority = false }: { product: Product
             )
           ) : (
             <button
-              className="focus-ring mt-3 inline-flex h-10 w-full items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 text-sm font-semibold text-[var(--leaf-deep)]"
+              className="focus-ring mt-2.5 inline-flex h-9 w-full items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 text-xs font-semibold text-[var(--leaf-deep)] sm:mt-3 sm:h-10 sm:text-sm"
               type="button"
               disabled={isNotifySubmitting}
               onClick={(event) => {
