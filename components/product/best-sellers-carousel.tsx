@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Product } from "@/types/product";
 import { useSectionInView } from "@/hooks/use-section-in-view";
 import { BestSellerCard } from "@/components/product/best-seller-card";
@@ -10,29 +10,44 @@ function subscribeToViewport(callback: () => void) {
   return () => window.removeEventListener("resize", callback);
 }
 
-function getVisibleCards() {
-  if (window.innerWidth >= 1280) return 4;
-  if (window.innerWidth >= 768) return 3;
-  if (window.innerWidth >= 360) return 2;
+function getViewportWidth() {
+  return window.innerWidth;
+}
+
+function getCardsPerView(viewportWidth: number) {
+  if (viewportWidth >= 1280) return 4;
+  if (viewportWidth >= 768) return 3;
+  if (viewportWidth >= 360) return 2;
   return 1;
 }
 
-function getPagingStep(visibleCards: number) {
-  return visibleCards === 2 ? 2 : 1;
+function getCardGap(viewportWidth: number) {
+  if (viewportWidth >= 1280) return 24;
+  if (viewportWidth >= 768) return 20;
+  return 12;
 }
 
-function getNextIndex(current: number, maxIndex: number, step: number) {
-  return Math.min(maxIndex, Math.min(current, maxIndex) + step);
+function getCardWidth(containerWidth: number, cardsPerView: number, gap: number) {
+  if (containerWidth <= 0) return 0;
+  const totalGap = gap * Math.max(0, cardsPerView - 1);
+  return Math.max(0, (containerWidth - totalGap) / cardsPerView);
 }
 
-function getPreviousIndex(current: number, maxIndex: number, step: number) {
-  return Math.max(0, Math.min(current, maxIndex) - step);
-}
-
-function snapToPageIndex(index: number, maxIndex: number, step: number) {
-  if (step <= 1) return Math.min(index, maxIndex);
-  const snapped = Math.round(Math.min(index, maxIndex) / step) * step;
-  return Math.min(maxIndex, snapped);
+function useMeasuredElementWidth<T extends HTMLElement>() {
+  const [node, setNode] = useState<T | null>(null);
+  const subscribe = useCallback(
+    (callback: () => void) => {
+      if (!node) return () => undefined;
+      if (typeof ResizeObserver === "undefined") return () => undefined;
+      const observer = new ResizeObserver(callback);
+      observer.observe(node);
+      return () => observer.disconnect();
+    },
+    [node]
+  );
+  const getSnapshot = useCallback(() => node?.clientWidth ?? 0, [node]);
+  const width = useSyncExternalStore(subscribe, getSnapshot, () => 0);
+  return [setNode, width] as const;
 }
 
 function isInteractiveTarget(target: EventTarget | null) {
@@ -47,15 +62,17 @@ function isDragPointerType(pointerType: string): boolean {
 }
 
 export function BestSellersCarousel({ products }: { products: Product[] }) {
-  const visibleCards = useSyncExternalStore(subscribeToViewport, getVisibleCards, () => 1);
-  const maxIndex = Math.max(0, products.length - visibleCards);
-  const clampedVisibleCards = Math.min(visibleCards, Math.max(products.length, 1));
+  const viewportWidth = useSyncExternalStore(subscribeToViewport, getViewportWidth, () => 0);
+  const cardsPerView = getCardsPerView(viewportWidth);
+  const gap = getCardGap(viewportWidth);
+  const maxIndex = Math.max(0, products.length - cardsPerView);
+  const clampedVisibleCards = Math.min(cardsPerView, Math.max(products.length, 1));
 
   const [active, setActive] = useState(0);
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
-  const viewportRef = useRef<HTMLDivElement>(null);
+  const [setViewportNode, viewportWidthPx] = useMeasuredElementWidth<HTMLDivElement>();
   const pointerIdRef = useRef<number | null>(null);
   const startXRef = useRef(0);
   const dragMovedRef = useRef(false);
@@ -65,8 +82,12 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
   const isSectionInView = useSectionInView(sectionRef);
 
   const canNavigate = maxIndex > 0;
-  const pagingStep = getPagingStep(visibleCards);
-  const clampedIndex = snapToPageIndex(active, maxIndex, pagingStep);
+  const cardWidth = getCardWidth(viewportWidthPx, cardsPerView, gap);
+  const clampedIndex = Math.min(active, maxIndex);
+  const cardBasis =
+    cardWidth > 0
+      ? `${cardWidth}px`
+      : `calc((100% - ${gap * Math.max(0, cardsPerView - 1)}px) / ${cardsPerView})`;
 
   useEffect(
     () => () => {
@@ -100,14 +121,14 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
     if (typeof pointerId === "number" && pointerIdRef.current !== pointerId) return;
 
     const finalOffset = typeof clientX === "number" ? clientX - startXRef.current : dragOffset;
-    const width = viewportRef.current?.clientWidth ?? 0;
+    const width = viewportWidthPx;
     const threshold = Math.max(36, Math.round(width * 0.1));
     const shouldSuppressClick = dragMovedRef.current;
 
     if (finalOffset > threshold) {
-      setActive((current) => getPreviousIndex(snapToPageIndex(current, maxIndex, pagingStep), maxIndex, pagingStep));
+      setActive((current) => Math.max(0, Math.min(current, maxIndex) - 1));
     } else if (finalOffset < -threshold) {
-      setActive((current) => getNextIndex(snapToPageIndex(current, maxIndex, pagingStep), maxIndex, pagingStep));
+      setActive((current) => Math.min(maxIndex, Math.min(current, maxIndex) + 1));
     }
 
     setDragOffset(0);
@@ -132,7 +153,7 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
       <div className="px-10 sm:px-10 md:px-12">
         <div
           className="overflow-hidden"
-          ref={viewportRef}
+          ref={setViewportNode}
           style={{ touchAction: "pan-y" }}
           onPointerCancel={() => endDrag()}
           onPointerDown={(event) => {
@@ -149,15 +170,17 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
           }}
         >
           <div
-            className={`-mx-2 flex ${isDragging ? "" : "transition-transform duration-500 ease-out"} md:-mx-2.5`}
+            className={`flex ${isDragging ? "" : "transition-transform duration-500 ease-out"}`}
             style={{
-              transform: `translate3d(calc(-${(clampedIndex * 100) / clampedVisibleCards}% + ${dragOffset}px), 0, 0)`
+              gap: `${gap}px`,
+              transform: `translate3d(${-(clampedIndex * (cardWidth + gap)) + dragOffset}px, 0, 0)`
             }}
           >
             {products.map((product, index) => (
               <div
-                className="h-full min-w-0 shrink-0 basis-full px-1.5 min-[360px]:basis-1/2 md:basis-1/3 md:px-2.5 xl:basis-1/4"
+                className="h-full min-w-0 shrink-0"
                 key={product.id}
+                style={{ flexBasis: cardBasis, width: cardBasis }}
                 onClickCapture={(event) => {
                   if (suppressClickRef.current) {
                     event.preventDefault();
@@ -179,7 +202,7 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
             className="focus-ring absolute left-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9"
             disabled={clampedIndex <= 0}
             type="button"
-            onClick={() => setActive((current) => getPreviousIndex(snapToPageIndex(current, maxIndex, pagingStep), maxIndex, pagingStep))}
+            onClick={() => setActive((current) => Math.max(0, Math.min(current, maxIndex) - 1))}
           >
             ‹
           </button>
@@ -188,7 +211,7 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
             className="focus-ring absolute right-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9"
             disabled={clampedIndex >= maxIndex}
             type="button"
-            onClick={() => setActive((current) => getNextIndex(snapToPageIndex(current, maxIndex, pagingStep), maxIndex, pagingStep))}
+            onClick={() => setActive((current) => Math.min(maxIndex, Math.min(current, maxIndex) + 1))}
           >
             ›
           </button>
