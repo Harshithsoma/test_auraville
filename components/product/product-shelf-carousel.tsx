@@ -13,7 +13,7 @@ function subscribeToViewport(callback: () => void) {
 function getVisibleCards() {
   if (window.innerWidth >= 1280) return 4;
   if (window.innerWidth >= 768) return 3;
-  if (window.innerWidth >= 560) return 2;
+  if (window.innerWidth >= 360) return 2;
   return 1;
 }
 
@@ -143,7 +143,7 @@ export function ProductShelfCarousel({
           >
             {products.map((product, index) => (
               <div
-                className="h-full shrink-0 basis-full px-2 min-[560px]:basis-1/2 md:basis-1/3 md:px-2.5 xl:basis-1/4 xl:px-3"
+                className="h-full shrink-0 basis-full px-1.5 min-[360px]:basis-1/2 md:basis-1/3 md:px-2.5 xl:basis-1/4 xl:px-3"
                 key={product.id}
                 onClickCapture={(event) => {
                   if (suppressClickRef.current) {
