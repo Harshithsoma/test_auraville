@@ -443,7 +443,7 @@ export function CartDrawer() {
             className={`focus-ring mt-4 inline-flex h-12 w-full items-center justify-center rounded-lg text-sm font-semibold transition active:scale-[0.98] ${
               items.length === 0 || hasUnavailableItems
                 ? "pointer-events-none border border-[var(--line)] bg-[var(--mint)] text-[var(--muted)]"
-                : "bg-[var(--leaf-deep)] text-white hover:bg-[var(--leaf)]"
+                : "border border-[#d7a72f] bg-[#f7c948] text-[#173322] shadow-sm hover:bg-[#f3ba38] hover:text-[#102519]"
             }`}
             href={user ? "/checkout" : "/auth"}
             onClick={closeDrawerForNavigation}

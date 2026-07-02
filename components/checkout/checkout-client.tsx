@@ -862,8 +862,8 @@ export default function CheckoutClient() {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
-      <form className="rounded-lg border border-[var(--line)] bg-white p-5 md:p-8" noValidate onSubmit={handleSubmit}>
+    <form className="grid gap-8 lg:grid-cols-[1fr_380px]" noValidate onSubmit={handleSubmit}>
+      <section className="order-1 rounded-lg border border-[var(--line)] bg-white p-5 md:p-8 lg:col-start-1">
         <h2 className="text-2xl font-semibold">Secure checkout</h2>
         <p className="mt-2 text-sm text-[var(--muted)]">
           1. Contact · 2. Delivery Address · 3. Order Summary · 4. Payment
@@ -1119,7 +1119,10 @@ export default function CheckoutClient() {
           ) : null}
         </div>
 
-        <div className="mt-6 rounded-lg border border-dashed border-[var(--line)] bg-[var(--mint)] p-5">
+      </section>
+
+      <section className="order-3 rounded-lg border border-[var(--line)] bg-white p-5 md:p-8 lg:col-start-1">
+        <div className="rounded-lg border border-dashed border-[var(--line)] bg-[var(--mint)] p-5">
           <h3 className="font-semibold">4. Payment</h3>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
             You will be redirected to Razorpay after we create a secure backend order.
@@ -1139,9 +1142,9 @@ export default function CheckoutClient() {
               ? "Payment window open..."
               : "Place secure order"}
         </Button>
-      </form>
+      </section>
 
-      <aside className="h-fit rounded-lg border border-[var(--line)] bg-white p-6 lg:sticky lg:top-28">
+      <aside className="order-2 h-fit rounded-lg border border-[var(--line)] bg-white p-6 lg:sticky lg:top-28 lg:col-start-2 lg:row-span-2 lg:row-start-1">
         <h2 className="text-xl font-semibold">3. Order Summary</h2>
         {pricingError ? (
           <p className="mt-3 rounded-lg border border-[#e7c9c6] bg-[#fff7f7] px-3 py-2 text-xs font-semibold text-[var(--coral)]">
@@ -1191,6 +1194,6 @@ export default function CheckoutClient() {
           </div>
         </dl>
       </aside>
-    </div>
+    </form>
   );
 }
