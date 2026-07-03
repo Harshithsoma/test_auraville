@@ -1,13 +1,28 @@
 import type { Metadata } from "next";
 import { ProductCard } from "@/components/product/product-card";
 import { products } from "@/lib/products";
-import { absoluteUrl } from "@/lib/site";
+import { absoluteUrl, defaultShareImageUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Coming Soon",
-  description: "Preview Auraville cookies, health mix, laddu, and combo packs launching soon.",
+  title: "Coming Soon Palmyra Snacks",
+  description:
+    "Preview upcoming Auraville Palmyra Sprouts cookies, health mix, laddu, and healthy Indian snack packs before they launch online.",
   alternates: {
     canonical: absoluteUrl("/coming-soon")
+  },
+  openGraph: {
+    title: "Coming Soon Palmyra Snacks",
+    description:
+      "Preview upcoming Auraville Palmyra Sprouts cookies, health mix, laddu, and healthy Indian snack packs before they launch online.",
+    url: absoluteUrl("/coming-soon"),
+    images: [{ url: defaultShareImageUrl(), width: 1200, height: 630, alt: "Auraville coming soon Palmyra snacks" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Coming Soon Palmyra Snacks",
+    description:
+      "Preview upcoming Auraville Palmyra Sprouts cookies, health mix, laddu, and healthy Indian snack packs before they launch online.",
+    images: [defaultShareImageUrl()]
   }
 };
 

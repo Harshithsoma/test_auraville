@@ -1,5 +1,14 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ReviewFromLinkClient } from "@/components/review/review-from-link-client";
+
+export const metadata: Metadata = {
+  title: "Review product",
+  robots: {
+    index: false,
+    follow: false
+  }
+};
 
 export default function ReviewPage() {
   return (

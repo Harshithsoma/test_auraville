@@ -1,10 +1,26 @@
 import type { Metadata } from "next";
-import { absoluteUrl } from "@/lib/site";
+import { absoluteUrl, defaultShareImageUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Return & Refund Policy",
+  title: "Refund Policy for Auraville",
+  description:
+    "Understand Auraville return and refund support for healthy snacks orders, wrong item delivery, damaged packs, and product quality concerns.",
   alternates: {
     canonical: absoluteUrl("/return-refund-policy")
+  },
+  openGraph: {
+    title: "Refund Policy for Auraville",
+    description:
+      "Understand Auraville return and refund support for healthy snacks orders, wrong item delivery, damaged packs, and product quality concerns.",
+    url: absoluteUrl("/return-refund-policy"),
+    images: [{ url: defaultShareImageUrl(), width: 1200, height: 630, alt: "Auraville return and refund policy" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Refund Policy for Auraville",
+    description:
+      "Understand Auraville return and refund support for healthy snacks orders, wrong item delivery, damaged packs, and product quality concerns.",
+    images: [defaultShareImageUrl()]
   }
 };
 

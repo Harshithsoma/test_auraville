@@ -1,10 +1,26 @@
 import type { Metadata } from "next";
-import { absoluteUrl } from "@/lib/site";
+import { absoluteUrl, defaultShareImageUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy",
+  title: "Privacy Policy for Auraville",
+  description:
+    "Read how Auraville handles customer data for healthy snacks orders, delivery, support, account access, and service updates across India.",
   alternates: {
     canonical: absoluteUrl("/privacy-policy")
+  },
+  openGraph: {
+    title: "Privacy Policy for Auraville",
+    description:
+      "Read how Auraville handles customer data for healthy snacks orders, delivery, support, account access, and service updates across India.",
+    url: absoluteUrl("/privacy-policy"),
+    images: [{ url: defaultShareImageUrl(), width: 1200, height: 630, alt: "Auraville privacy policy" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Privacy Policy for Auraville",
+    description:
+      "Read how Auraville handles customer data for healthy snacks orders, delivery, support, account access, and service updates across India.",
+    images: [defaultShareImageUrl()]
   }
 };
 

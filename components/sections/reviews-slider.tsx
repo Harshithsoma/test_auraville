@@ -104,7 +104,7 @@ const baseReviews: Review[] = [
 ];
 
 const REVIEW_SUBJECT_MAX_LENGTH = 80;
-const REVIEW_BODY_MAX_LENGTH = 450;
+const REVIEW_BODY_MAX_LENGTH = 300;
 
 function subscribeToViewport(callback: () => void) {
   window.addEventListener("resize", callback);
@@ -476,11 +476,11 @@ export function ReviewsSlider({
                     className="shrink-0 basis-full px-2 lg:basis-1/3 lg:px-2.5"
                     key={`${review.id}-${loopIndex}`}
                   >
-                    <div className="h-full min-h-[230px] rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
+                    <div className="h-[330px] overflow-hidden rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-bold">{review.name}</p>
-                          <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                          <p className="mt-1 break-words text-xs font-semibold uppercase tracking-wide text-[var(--muted)] [overflow-wrap:anywhere]">
                             {review.subject}
                           </p>
                         </div>
@@ -489,7 +489,7 @@ export function ReviewsSlider({
                         </p>
                       </div>
                       <div className="mt-4">
-                        <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">
+                        <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[var(--muted)] [overflow-wrap:anywhere]">
                           {review.text}
                         </p>
                       </div>

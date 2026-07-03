@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { getCartCount, useCartStore } from "@/stores/cart-store";
 import { useCartPricing } from "@/hooks/use-cart-pricing";
@@ -41,7 +41,7 @@ export function CartDrawer() {
   const pushCartNotice = useCartStore((state) => state.pushCartNotice);
   const { summary, enrichedItems, pricingError, isPricingLoading, isBackendPricing, shippingProgress } = useCartPricing();
 
-  const [isSummaryOpen, setIsSummaryOpen] = useState(true);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const drawerHistoryActiveRef = useRef(false);
   const isHistoryCleanupRef = useRef(false);
   const skipHistoryBackOnCloseRef = useRef(false);
@@ -50,6 +50,13 @@ export function CartDrawer() {
   const previousRouteRef = useRef<string | null>(null);
 
   const count = getCartCount(items);
+  const drawerItems = useMemo(
+    () =>
+      [...enrichedItems].sort(
+        (first, second) => (second.lastAddedAt ?? 0) - (first.lastAddedAt ?? 0)
+      ),
+    [enrichedItems]
+  );
   const hasUnavailableItems =
     isBackendPricing &&
     enrichedItems.some((item) => !item.available || item.stock <= 0 || item.quantity > item.stock);
@@ -225,7 +232,7 @@ export function CartDrawer() {
           ) : null}
         </div>
 
-        <div className="border-b border-[var(--line)] px-4 py-3 sm:px-5">
+        <div className="border-b border-[var(--line)] px-4 py-2.5 sm:px-5">
           <div className="flex items-center justify-between gap-4 text-xs font-semibold">
             <p className="text-[var(--leaf-deep)]">
               {summary.remainingForFreeShipping === 0
@@ -236,13 +243,13 @@ export function CartDrawer() {
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--leaf)] text-white">✓</span>
             ) : null}
           </div>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[var(--line)]">
+          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--line)]">
             <div className="h-full rounded-full bg-[var(--leaf)] transition-all duration-500" style={{ width: `${shippingProgress}%` }} />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
-          {enrichedItems.length === 0 ? (
+        <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-5">
+          {drawerItems.length === 0 ? (
             <div className="rounded-lg border border-[var(--line)] bg-[var(--mint)] px-4 py-7 text-center">
               <p className="text-base font-semibold">Your cart is empty</p>
               <p className="mt-2 text-sm text-[var(--muted)]">Add products from our best sellers to continue.</p>
@@ -256,7 +263,7 @@ export function CartDrawer() {
             </div>
           ) : (
             <div className="space-y-3">
-              {enrichedItems.map((item) => {
+              {drawerItems.map((item) => {
                 const discountPercent = getDiscountPercent(item.compareAtUnitPrice, item.unitPrice);
                 return (
                 <article className="rounded-lg border border-[var(--line)] bg-white p-3" key={`${item.productId}-${item.variantId}`}>
@@ -372,8 +379,8 @@ export function CartDrawer() {
           )}
         </div>
 
-        <div className="border-t border-[var(--line)] px-4 py-4 sm:px-5">
-          <div className="mb-3">
+        <div className="border-t border-[var(--line)] px-4 py-3 sm:px-5">
+          <div className="mb-2">
             <CouponPicker
               items={items.map((item) => ({
                 productId: item.productId,
@@ -385,12 +392,13 @@ export function CartDrawer() {
               pricingError={pricingError}
               onApplyPromoCode={applyPromoCode}
               onClearPromoCode={clearPromoCode}
+              compact
             />
           </div>
 
           <button
             aria-expanded={isSummaryOpen}
-            className="focus-ring mb-2 flex w-full items-center justify-between rounded-lg py-1 text-sm font-semibold"
+            className="focus-ring mb-1.5 flex w-full items-center justify-between rounded-lg py-1 text-sm font-semibold"
             type="button"
             onClick={() => setIsSummaryOpen((current) => !current)}
           >
@@ -401,11 +409,11 @@ export function CartDrawer() {
             </span>
           </button>
           {isPricingLoading ? (
-            <p className="mb-2 text-[11px] font-medium text-[var(--muted)]">Updating pricing...</p>
+            <p className="mb-1.5 text-[11px] font-medium text-[var(--muted)]">Updating pricing...</p>
           ) : null}
 
           {isSummaryOpen ? (
-            <div className="space-y-2 rounded-lg border border-[var(--line)] bg-[#f8fbf9] px-3 py-3 text-xs">
+            <div className="space-y-1.5 rounded-lg border border-[var(--line)] bg-[#f8fbf9] px-3 py-2.5 text-xs">
               <div className="flex justify-between">
                 <span className="text-[var(--muted)]">Original total</span>
                 <span className={summary.originalSubtotal > summary.subtotal ? "line-through text-[var(--muted)]" : ""}>
@@ -440,7 +448,7 @@ export function CartDrawer() {
           ) : null}
 
           <Link
-            className={`focus-ring mt-4 inline-flex h-12 w-full items-center justify-center rounded-lg text-sm font-semibold transition active:scale-[0.98] ${
+            className={`focus-ring mt-3 inline-flex h-12 w-full items-center justify-center rounded-lg text-sm font-semibold transition active:scale-[0.98] ${
               items.length === 0 || hasUnavailableItems
                 ? "pointer-events-none border border-[var(--line)] bg-[var(--mint)] text-[var(--muted)]"
                 : "border border-[#d7a72f] bg-[#f7c948] text-[#173322] shadow-sm hover:bg-[#f3ba38] hover:text-[#102519]"

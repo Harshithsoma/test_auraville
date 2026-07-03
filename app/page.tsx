@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import nextDynamic from "next/dynamic";
 import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { BestSellersSection } from "@/components/sections/best-sellers";
 import { BrandStoryImage } from "@/components/sections/brand-story-image";
@@ -7,9 +8,9 @@ import { FaqSection } from "@/components/sections/faq-section";
 import { FeaturedCoreProduct } from "@/components/sections/featured-core-product";
 import { FeaturedProducts } from "@/components/sections/featured-products";
 import { Hero } from "@/components/sections/hero";
-import { ReviewsSlider } from "@/components/sections/reviews-slider";
 import { ScrollingBanner } from "@/components/sections/scrolling-banner";
 import { UspFeatures } from "@/components/sections/usp-features";
+import { JsonLd } from "@/components/seo/json-ld";
 import {
   fetchHomepageSections,
   getSectionDisplayMode,
@@ -20,14 +21,33 @@ import {
   parseUspLabels,
   sectionMap
 } from "@/lib/homepage-cms";
-import { absoluteUrl, siteConfig } from "@/lib/site";
+import { HOMEPAGE_DEFAULT_FAQ_ITEMS } from "@/lib/homepage-defaults";
+import { buildFaqPageJsonLd } from "@/lib/seo";
+import { absoluteUrl, defaultShareImageUrl } from "@/lib/site";
+
+const ReviewsSlider = nextDynamic(() => import("@/components/sections/reviews-slider").then((mod) => mod.ReviewsSlider));
 
 export const metadata: Metadata = {
   alternates: {
     canonical: absoluteUrl("/")
   },
-  title: "Palmyra Sprout Snacks for Modern Energy",
-  description: siteConfig.description
+  title: "Auraville Healthy Snacks India",
+  description:
+    "Buy Palmyra Sprouts snacks from Auraville. Explore gluten free, fiber rich healthy snacks made with dates, palm jaggery, and Indian ingredients.",
+  openGraph: {
+    title: "Auraville Healthy Snacks India",
+    description:
+      "Buy Palmyra Sprouts snacks from Auraville. Explore gluten free, fiber rich healthy snacks made with dates, palm jaggery, and Indian ingredients.",
+    url: absoluteUrl("/"),
+    images: [{ url: defaultShareImageUrl(), width: 1200, height: 630, alt: "Auraville palmyra sprout healthy snacks" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Auraville Healthy Snacks India",
+    description:
+      "Buy Palmyra Sprouts snacks from Auraville. Explore gluten free, fiber rich healthy snacks made with dates, palm jaggery, and Indian ingredients.",
+    images: [defaultShareImageUrl()]
+  }
 };
 
 export const dynamic = "force-dynamic";
@@ -91,9 +111,19 @@ export default async function HomePage() {
     typeof featuredCoreMeta.eyebrow === "string" && featuredCoreMeta.eyebrow.trim().length > 0
       ? featuredCoreMeta.eyebrow.trim()
       : undefined;
+  const visibleFaqItems =
+    faqMode === "hidden"
+      ? []
+      : faqMode === "custom" && faqItems.length > 0
+        ? faqItems
+        : sortedActiveFaq(HOMEPAGE_DEFAULT_FAQ_ITEMS);
 
   return (
     <>
+      <h1 className="sr-only">Auraville healthy snacks made with Palmyra Sprouts</h1>
+      {visibleFaqItems.length > 0 ? (
+        <JsonLd id="homepage-faq-json-ld" data={buildFaqPageJsonLd(visibleFaqItems)} />
+      ) : null}
       {heroMode === "hidden" ? null : heroMode === "custom" ? (
         <Hero
           imageUrl={hero?.imageUrl ?? undefined}

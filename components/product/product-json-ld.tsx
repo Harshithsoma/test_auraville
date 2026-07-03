@@ -1,29 +1,66 @@
-import type { Product } from "@/types/product";
-import { absoluteUrl } from "@/lib/site";
+import type { Product, ProductVariant } from "@/types/product";
+import { absoluteUrl, siteConfig } from "@/lib/site";
+
+const seller = {
+  "@type": "Organization",
+  name: siteConfig.name,
+  url: absoluteUrl("/")
+};
+
+function getAvailability(product: Product, variant?: ProductVariant) {
+  if (product.availability !== "available") {
+    return "https://schema.org/PreOrder";
+  }
+
+  if (typeof variant?.stock === "number" && variant.stock <= 0) {
+    return "https://schema.org/OutOfStock";
+  }
+
+  return "https://schema.org/InStock";
+}
+
+function buildOffer(product: Product, variant?: ProductVariant) {
+  const productUrl = absoluteUrl(`/product/${product.slug}`);
+  const price = variant?.price ?? product.price;
+
+  return {
+    "@type": "Offer",
+    url: productUrl,
+    priceCurrency: product.currency,
+    price,
+    availability: getAvailability(product, variant),
+    itemCondition: "https://schema.org/NewCondition",
+    seller,
+    ...(variant
+      ? {
+          name: `${product.name} - ${variant.label}`,
+          sku: `${product.id}-${variant.id}`
+        }
+      : {})
+  };
+}
 
 export function ProductJsonLd({ product }: { product: Product }) {
+  const productUrl = absoluteUrl(`/product/${product.slug}`);
+  const images = Array.from(new Set([product.image, ...product.gallery].filter(Boolean)));
+  const offers = product.variants.length > 0 ? product.variants.map((variant) => buildOffer(product, variant)) : buildOffer(product);
+
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Product",
+    "@id": `${productUrl}#product`,
     name: product.name,
-    image: product.gallery,
+    image: images,
     description: product.description,
     sku: product.id,
+    category: product.category,
+    url: productUrl,
     brand: {
       "@type": "Brand",
-      name: "Auraville"
+      name: siteConfig.name
     },
-    offers: {
-      "@type": "Offer",
-      url: absoluteUrl(`/product/${product.slug}`),
-      priceCurrency: product.currency,
-      price: product.price,
-      availability:
-        product.availability === "available"
-          ? "https://schema.org/InStock"
-          : "https://schema.org/PreOrder"
-    },
-    ...(product.reviewCount > 0
+    offers,
+    ...(product.reviewCount > 0 && product.rating > 0
       ? {
           aggregateRating: {
             "@type": "AggregateRating",

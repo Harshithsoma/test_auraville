@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const REVIEW_SUBJECT_MAX_LENGTH = 80;
-const REVIEW_BODY_MAX_LENGTH = 500;
+const REVIEW_BODY_MAX_LENGTH = 300;
 
 export const createReviewSchema = z.object({
   params: z.object({}).passthrough(),

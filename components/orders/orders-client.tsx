@@ -98,7 +98,7 @@ function orderItemKey(orderId: string, orderItemId: string): string {
 }
 
 const REVIEW_SUBJECT_MAX_LENGTH = 80;
-const REVIEW_BODY_MAX_LENGTH = 450;
+const REVIEW_BODY_MAX_LENGTH = 300;
 
 const ORDER_TRACKING_STAGES: Array<{ key: OrderFulfillmentStage; label: string }> = [
   { key: "order_placed", label: "Order Placed" },

@@ -22,7 +22,7 @@ type SaveTextResponse = {
 };
 
 const REVIEW_SUBJECT_MAX_LENGTH = 80;
-const REVIEW_BODY_MAX_LENGTH = 500;
+const REVIEW_BODY_MAX_LENGTH = 300;
 
 export function ReviewFromLinkClient() {
   const params = useSearchParams();

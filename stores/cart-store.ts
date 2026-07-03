@@ -146,10 +146,11 @@ export const useCartStore = create<CartState>()(
           }
 
           const message = existing ? `${item.name} quantity updated` : `${item.name} added to cart`;
+          const timestampedItem = { ...item, lastAddedAt: Date.now() };
 
           if (!existing) {
             return {
-              items: [...state.items, item],
+              items: [...state.items, timestampedItem],
               cartNotice: message,
               cartNoticeKey: state.cartNoticeKey + 1,
               cartNoticePending: true
@@ -159,7 +160,11 @@ export const useCartStore = create<CartState>()(
           return {
             items: state.items.map((cartItem) =>
               itemKey(cartItem) === itemKey(item)
-                ? { ...cartItem, quantity: cartItem.quantity + item.quantity }
+                ? {
+                    ...cartItem,
+                    ...timestampedItem,
+                    quantity: cartItem.quantity + item.quantity
+                  }
                 : cartItem
             ),
             cartNotice: message,

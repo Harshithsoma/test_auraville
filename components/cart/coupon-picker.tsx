@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { ApiError, commerceApi } from "@/services/api";
-import { formatPrice } from "@/components/ui/price";
 
 type CouponPickerProps = {
   items: Array<{ productId: string; variantId: string; quantity: number }>;
@@ -11,6 +10,7 @@ type CouponPickerProps = {
   pricingError: string | null;
   onApplyPromoCode: (code: string) => Promise<{ ok: boolean; message: string }>;
   onClearPromoCode: () => Promise<void>;
+  compact?: boolean;
 };
 
 type AvailableCoupon = {
@@ -37,6 +37,7 @@ export function CouponPicker({
   pricingError,
   onApplyPromoCode,
   onClearPromoCode,
+  compact = false,
 }: CouponPickerProps) {
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
@@ -211,7 +212,7 @@ export function CouponPicker({
         </div>
       ) : null}
 
-      {hasItems ? (
+      {hasItems && !compact ? (
         <div className="mt-2 flex items-center gap-2">
           <input
             className="focus-ring h-10 min-w-0 flex-1 rounded-lg border border-[var(--line)] px-3 text-sm"
@@ -237,24 +238,24 @@ export function CouponPicker({
               : "Apply"}
           </button>
         </div>
-      ) : (
+      ) : !hasItems ? (
         <p className="mt-2 text-xs text-[var(--muted)]">
           Add items to use coupons.
         </p>
-      )}
+      ) : null}
 
       {promoError ? (
-        <p className="mt-2 text-xs font-semibold text-[var(--coral)]">
+        <p className="mt-1.5 text-xs font-semibold text-[var(--coral)]">
           {promoError}
         </p>
       ) : null}
       {!promoError && promoMessage ? (
-        <p className="mt-2 text-xs font-semibold text-[var(--leaf-deep)]">
+        <p className="mt-1.5 text-xs font-semibold text-[var(--leaf-deep)]">
           {promoMessage}
         </p>
       ) : null}
       {pricingError ? (
-        <p className="mt-2 text-xs font-semibold text-[var(--coral)]">
+        <p className="mt-1.5 text-xs font-semibold text-[var(--coral)]">
           {pricingError}
         </p>
       ) : null}

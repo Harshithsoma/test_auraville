@@ -1,10 +1,26 @@
 import type { Metadata } from "next";
-import { absoluteUrl } from "@/lib/site";
+import { absoluteUrl, defaultShareImageUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "COD Terms & Conditions",
+  title: "COD Terms for Auraville Orders",
+  description:
+    "Check Auraville Cash on Delivery terms, serviceability, eligibility, and order value conditions for healthy snacks shipped in India.",
   alternates: {
     canonical: absoluteUrl("/cod-terms")
+  },
+  openGraph: {
+    title: "COD Terms for Auraville Orders",
+    description:
+      "Check Auraville Cash on Delivery terms, serviceability, eligibility, and order value conditions for healthy snacks shipped in India.",
+    url: absoluteUrl("/cod-terms"),
+    images: [{ url: defaultShareImageUrl(), width: 1200, height: 630, alt: "Auraville cash on delivery terms" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "COD Terms for Auraville Orders",
+    description:
+      "Check Auraville Cash on Delivery terms, serviceability, eligibility, and order value conditions for healthy snacks shipped in India.",
+    images: [defaultShareImageUrl()]
   }
 };
 

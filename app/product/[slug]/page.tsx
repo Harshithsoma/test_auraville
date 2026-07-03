@@ -4,6 +4,7 @@ import { ProductJsonLd } from "@/components/product/product-json-ld";
 import { ProductMediaGallery } from "@/components/product/product-media-gallery";
 import { ProductDetailAsideClient } from "@/components/product/product-detail-aside-client";
 import { ProductCard } from "@/components/product/product-card";
+import { Breadcrumbs } from "@/components/seo/breadcrumbs";
 import { fetchProductBySlug, fetchProducts } from "@/lib/catalog-api";
 import { getProductBySlug, getRelatedProducts } from "@/lib/products";
 import { ApiError } from "@/services/api";
@@ -106,10 +107,20 @@ export default async function ProductPage({ params }: ProductPageProps) {
   }
 
   const relatedProducts = await getRelated(product);
+  const parentBreadcrumb = product.isBestSeller
+    ? { name: "Best Selling", href: "/best-selling" }
+    : { name: "Products", href: "/products" };
 
   return (
     <div className="container-page py-8 sm:py-10 md:py-14">
       <ProductJsonLd product={product} />
+      <Breadcrumbs
+        items={[
+          { name: "Home", href: "/" },
+          parentBreadcrumb,
+          { name: product.name, href: `/product/${product.slug}` }
+        ]}
+      />
       <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(390px,0.78fr)] lg:gap-10">
         <section aria-labelledby="product-title" className="space-y-4">
           <ProductMediaGallery name={product.name} image={product.image} gallery={product.gallery} />

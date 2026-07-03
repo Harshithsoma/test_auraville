@@ -50,7 +50,7 @@ export function FeaturedCoreProduct({
           <Link className="block focus-visible:outline-none" href={ctaLink}>
             {imageSrc.startsWith("/") ? (
               <Image
-                alt={title?.trim() || "Auraville featured product"}
+                alt={title?.trim() || "Auraville Palmyra Sprouts energy bar"}
                 className="h-auto w-full object-cover"
                 height={780}
                 sizes="100vw"
@@ -60,7 +60,7 @@ export function FeaturedCoreProduct({
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                alt={title?.trim() || "Auraville featured product"}
+                alt={title?.trim() || "Auraville Palmyra Sprouts energy bar"}
                 className="h-auto w-full object-cover"
                 src={imageSrc}
               />

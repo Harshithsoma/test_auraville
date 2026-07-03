@@ -50,4 +50,5 @@ export type CartItem = {
   variantLabel: string;
   unitPrice: number;
   quantity: number;
+  lastAddedAt?: number;
 };

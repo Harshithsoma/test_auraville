@@ -3,20 +3,29 @@ import { fetchProducts } from "@/lib/catalog-api";
 import { products } from "@/lib/products";
 import { absoluteUrl } from "@/lib/site";
 
+const contentLastModified = new Date("2026-07-03T00:00:00.000Z");
+
+type SitemapProduct = {
+  slug: string;
+  updatedAt?: string;
+  createdAt?: string;
+};
+
+function toLastModifiedDate(value: string | undefined): Date {
+  if (!value) return contentLastModified;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? contentLastModified : parsed;
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const isProduction = process.env.NODE_ENV === "production";
-  const now = new Date();
   const routes = [
     "",
     "/products",
+    "/best-selling",
     "/coming-soon",
     "/offers",
     "/about",
-    "/search",
-    "/cart",
-    "/auth",
-    "/orders",
-    "/account",
     "/privacy-policy",
     "/shipping-policy",
     "/cancellation-policy",
@@ -25,30 +34,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/terms-conditions"
   ].map((route) => ({
     url: absoluteUrl(route),
-    lastModified: now,
+    lastModified: contentLastModified,
     changeFrequency: "weekly" as const,
     priority: route === "" ? 1 : 0.7
   }));
 
-  let productSlugs: string[] = [];
+  let sitemapProducts: SitemapProduct[] = [];
   try {
     const response = await fetchProducts({
       page: 1,
       limit: 200,
       sort: "popular"
     });
-    productSlugs = response.data.map((product) => product.slug);
+    sitemapProducts = response.data.map((product) => product as SitemapProduct);
   } catch {
     if (!isProduction) {
-      productSlugs = products.map((product) => product.slug);
+      sitemapProducts = products.map((product) => ({ slug: product.slug }));
     }
   }
 
   return [
     ...routes,
-    ...productSlugs.map((slug) => ({
-      url: absoluteUrl(`/product/${slug}`),
-      lastModified: now,
+    ...sitemapProducts.map((product) => ({
+      url: absoluteUrl(`/product/${product.slug}`),
+      lastModified: toLastModifiedDate(product.updatedAt ?? product.createdAt),
       changeFrequency: "weekly" as const,
       priority: 0.9
     }))

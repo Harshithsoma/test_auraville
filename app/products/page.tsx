@@ -3,30 +3,39 @@ import { ProductGridClient } from "@/components/product/product-grid-client";
 import { categories as fallbackCategories, products as fallbackProducts } from "@/lib/products";
 import { fetchCategories, fetchProducts } from "@/lib/catalog-api";
 import { sortStorefrontProducts } from "@/lib/storefront-product-order";
-import { absoluteUrl } from "@/lib/site";
+import { absoluteUrl, defaultShareImageUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Shop Palmyra Sprout Snacks",
+  title: "Buy Palmyra Sprouts Snacks Online",
   description:
-    "Shop Auraville palmyra sprout energy bars and preview coming-soon cookies, health mix, laddu, and combos.",
+    "Shop Auraville Palmyra Sprouts snacks online. Buy healthy Indian snacks with dates, palm jaggery, gluten free choices, and fiber rich ingredients.",
   alternates: {
     canonical: absoluteUrl("/products")
   },
   openGraph: {
-    title: "Shop Palmyra Sprout Snacks | Auraville",
+    title: "Buy Palmyra Sprouts Snacks Online",
     description:
-      "Palmyra sprout energy bars available now, with cookies, health mix, laddu, and combos coming soon.",
-    url: absoluteUrl("/products")
+      "Shop Auraville Palmyra Sprouts snacks online. Buy healthy Indian snacks with dates, palm jaggery, gluten free choices, and fiber rich ingredients.",
+    url: absoluteUrl("/products"),
+    images: [{ url: defaultShareImageUrl(), width: 1200, height: 630, alt: "Auraville Palmyra Sprouts snacks" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Buy Palmyra Sprouts Snacks Online",
+    description:
+      "Shop Auraville Palmyra Sprouts snacks online. Buy healthy Indian snacks with dates, palm jaggery, gluten free choices, and fiber rich ingredients.",
+    images: [defaultShareImageUrl()]
   }
 };
 
 export const dynamic = "force-dynamic";
+const isProduction = process.env.NODE_ENV === "production";
 
 export default async function ProductsPage() {
-  let initialProducts = sortStorefrontProducts(fallbackProducts);
-  let initialCategories = fallbackCategories;
+  let initialProducts = isProduction ? [] : sortStorefrontProducts(fallbackProducts);
+  let initialCategories = isProduction ? [] : fallbackCategories;
   let initialTotalPages = 1;
-  let initialTotal = fallbackProducts.length;
+  let initialTotal = initialProducts.length;
 
   try {
     const [productsResponse, categoriesResponse] = await Promise.all([
@@ -42,7 +51,12 @@ export default async function ProductsPage() {
       initialCategories = categoriesResponse.data;
     }
   } catch {
-    // Fallback to bundled catalog if API is unavailable.
+    if (!isProduction) {
+      initialProducts = sortStorefrontProducts(fallbackProducts);
+      initialCategories = fallbackCategories;
+      initialTotalPages = 1;
+      initialTotal = fallbackProducts.length;
+    }
   }
 
   const prices = initialProducts.map((product) => product.price);

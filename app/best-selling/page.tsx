@@ -2,19 +2,28 @@ import type { Metadata } from "next";
 import { ProductCard } from "@/components/product/product-card";
 import { fetchProducts } from "@/lib/catalog-api";
 import { sortStorefrontProducts } from "@/lib/storefront-product-order";
-import { absoluteUrl } from "@/lib/site";
+import { absoluteUrl, defaultShareImageUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Best Selling Palmyra Snacks",
+  title: "Best Selling Healthy Snacks India",
   description:
-    "Explore Auraville best-selling palmyra sprout snacks and discover the community favorites.",
+    "Explore Auraville best-selling healthy snacks in India, including Palmyra Sprouts recipes with natural energy, dates, and palm jaggery.",
   alternates: {
     canonical: absoluteUrl("/best-selling")
   },
   openGraph: {
-    title: "Best Selling | Auraville",
-    description: "Shop Auraville best-selling products.",
-    url: absoluteUrl("/best-selling")
+    title: "Best Selling Healthy Snacks India",
+    description:
+      "Explore Auraville best-selling healthy snacks in India, including Palmyra Sprouts recipes with natural energy, dates, and palm jaggery.",
+    url: absoluteUrl("/best-selling"),
+    images: [{ url: defaultShareImageUrl(), width: 1200, height: 630, alt: "Auraville best-selling healthy snacks" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Best Selling Healthy Snacks India",
+    description:
+      "Explore Auraville best-selling healthy snacks in India, including Palmyra Sprouts recipes with natural energy, dates, and palm jaggery.",
+    images: [defaultShareImageUrl()]
   }
 };
 

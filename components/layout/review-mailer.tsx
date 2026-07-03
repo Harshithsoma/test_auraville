@@ -8,6 +8,8 @@ import { useHasMounted } from "@/hooks/use-has-mounted";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 
+const REVIEW_BODY_MAX_LENGTH = 300;
+
 export function ReviewMailer() {
   const hasMounted = useHasMounted();
   const user = useAuthStore((state) => state.user);
@@ -70,12 +72,14 @@ export function ReviewMailer() {
       <Textarea
         aria-label="Write your review"
         placeholder="Write your review..."
+        maxLength={REVIEW_BODY_MAX_LENGTH}
         value={review}
         onChange={(event) => {
           setReview(event.target.value);
           setMessage(null);
         }}
       />
+      <p className="text-right text-xs text-[var(--muted)]">{review.length}/{REVIEW_BODY_MAX_LENGTH}</p>
       <Button className="w-full" disabled={!review.trim() || isSubmitting} type="submit" variant="secondary">
         {isSubmitting ? "Submitting..." : "Send review"}
       </Button>

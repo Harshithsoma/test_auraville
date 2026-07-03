@@ -1,10 +1,26 @@
 import type { Metadata } from "next";
-import { absoluteUrl } from "@/lib/site";
+import { absoluteUrl, defaultShareImageUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Shipping Policy",
+  title: "Shipping Policy for Auraville",
+  description:
+    "See Auraville shipping timelines, dispatch process, and delivery serviceability for healthy snacks and Palmyra Sprouts orders across India.",
   alternates: {
     canonical: absoluteUrl("/shipping-policy")
+  },
+  openGraph: {
+    title: "Shipping Policy for Auraville",
+    description:
+      "See Auraville shipping timelines, dispatch process, and delivery serviceability for healthy snacks and Palmyra Sprouts orders across India.",
+    url: absoluteUrl("/shipping-policy"),
+    images: [{ url: defaultShareImageUrl(), width: 1200, height: 630, alt: "Auraville shipping policy" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Shipping Policy for Auraville",
+    description:
+      "See Auraville shipping timelines, dispatch process, and delivery serviceability for healthy snacks and Palmyra Sprouts orders across India.",
+    images: [defaultShareImageUrl()]
   }
 };
 

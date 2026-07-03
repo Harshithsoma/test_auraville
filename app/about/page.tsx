@@ -1,13 +1,27 @@
 import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
-import { absoluteUrl } from "@/lib/site";
+import { absoluteUrl, defaultShareImageUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "About Us",
+  title: "About Auraville Palmyra Sprouts",
   description:
-    "Learn why Auraville is bringing palmyra sprout back through modern snacks and everyday food formats.",
+    "Meet Auraville, an Indian healthy snacks brand reviving Palmyra Sprouts through clean recipes with dates, millets, and palm jaggery.",
   alternates: {
     canonical: absoluteUrl("/about")
+  },
+  openGraph: {
+    title: "About Auraville Palmyra Sprouts",
+    description:
+      "Meet Auraville, an Indian healthy snacks brand reviving Palmyra Sprouts through clean recipes with dates, millets, and palm jaggery.",
+    url: absoluteUrl("/about"),
+    images: [{ url: defaultShareImageUrl(), width: 1200, height: 630, alt: "About Auraville Palmyra Sprouts" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "About Auraville Palmyra Sprouts",
+    description:
+      "Meet Auraville, an Indian healthy snacks brand reviving Palmyra Sprouts through clean recipes with dates, millets, and palm jaggery.",
+    images: [defaultShareImageUrl()]
   }
 };
 

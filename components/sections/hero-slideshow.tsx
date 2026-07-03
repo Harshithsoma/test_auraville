@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { HOMEPAGE_DEFAULT_HERO_SLIDES, type HomepageHeroSlide } from "@/lib/homepage-defaults";
@@ -29,6 +30,26 @@ function isRenderableImageUrl(value: string): boolean {
   }
 }
 
+function isNextImageCompatibleUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("/")) return true;
+
+  try {
+    const { hostname } = new URL(trimmed);
+    return hostname === "res.cloudinary.com" || hostname === "images.unsplash.com";
+  } catch {
+    return false;
+  }
+}
+
+function isSvgImage(value: string): boolean {
+  try {
+    return new URL(value, "https://www.auraville.in").pathname.toLowerCase().endsWith(".svg");
+  } catch {
+    return value.toLowerCase().split("?")[0].endsWith(".svg");
+  }
+}
+
 function toSlides(items?: HomepageHeroSlide[]): Slide[] {
   const source = items && items.length > 0 ? items : HOMEPAGE_DEFAULT_HERO_SLIDES;
   const active = [...source]
@@ -37,7 +58,7 @@ function toSlides(items?: HomepageHeroSlide[]): Slide[] {
 
   const mapped = active
     .map((item) => ({
-      title: item.title?.trim() || "Auraville hero",
+      title: item.title?.trim() || "Auraville Palmyra Sprouts healthy snacks",
       imageUrl: item.imageUrl?.trim() || "",
       linkUrl: item.linkUrl?.trim() || undefined,
       objectPosition: item.objectPosition?.trim() || "50% 50%"
@@ -49,7 +70,7 @@ function toSlides(items?: HomepageHeroSlide[]): Slide[] {
   }
 
   return HOMEPAGE_DEFAULT_HERO_SLIDES.map((item) => ({
-    title: item.title?.trim() || "Auraville hero",
+    title: item.title?.trim() || "Auraville Palmyra Sprouts healthy snacks",
     imageUrl: item.imageUrl,
     linkUrl: item.linkUrl,
     objectPosition: item.objectPosition ?? "50% 50%"
@@ -229,14 +250,29 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
                 }
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                alt={item.title}
-                className="h-full w-full object-cover object-center select-none"
-                draggable={false}
-                src={item.imageUrl}
-                style={{ objectPosition: item.objectPosition }}
-              />
+              {isNextImageCompatibleUrl(item.imageUrl) ? (
+                <Image
+                  alt={item.title}
+                  className="object-cover object-center select-none"
+                  draggable={false}
+                  fill
+                  priority={index === 1}
+                  sizes="100vw"
+                  src={item.imageUrl}
+                  style={{ objectPosition: item.objectPosition }}
+                  unoptimized={isSvgImage(item.imageUrl)}
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  alt={item.title}
+                  className="h-full w-full object-cover object-center select-none"
+                  draggable={false}
+                  loading={index === 1 ? "eager" : "lazy"}
+                  src={item.imageUrl}
+                  style={{ objectPosition: item.objectPosition }}
+                />
+              )}
             </Link>
           ))}
         </div>

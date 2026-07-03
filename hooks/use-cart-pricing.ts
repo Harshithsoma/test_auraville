@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { getCompareAtUnitPrice } from "@/lib/products";
 import { useCartStore } from "@/stores/cart-store";
 
 const FALLBACK_FREE_SHIPPING_THRESHOLD = 499;
 const FALLBACK_SHIPPING_FEE = 99;
-const PRICING_SYNC_DEBOUNCE_MS = 180;
+const PRICING_SYNC_DEBOUNCE_MS = 90;
 
 type FallbackSummary = {
   originalSubtotal: number;
@@ -41,7 +41,19 @@ export function useCartPricing() {
     };
   }, [items, promoCode, syncPricing]);
 
-  const fallbackSummary: FallbackSummary = (() => {
+  const hasFreshBackendPricing = useMemo(() => {
+    if (!pricing) return false;
+    if (pricing.items.length !== items.length) return false;
+
+    return items.every((item) => {
+      const pricedItem = pricing.items.find(
+        (candidate) => candidate.productId === item.productId && candidate.variantId === item.variantId
+      );
+      return Boolean(pricedItem && pricedItem.quantity === item.quantity);
+    });
+  }, [items, pricing]);
+
+  const fallbackSummary: FallbackSummary = useMemo(() => {
     const originalSubtotal = items.reduce((total, item) => {
       const compareAtUnitPrice = getCompareAtUnitPrice(item.productId, item.unitPrice);
       return total + compareAtUnitPrice * item.quantity;
@@ -72,13 +84,15 @@ export function useCartPricing() {
       freeShippingThreshold: FALLBACK_FREE_SHIPPING_THRESHOLD,
       remainingForFreeShipping: Math.max(0, FALLBACK_FREE_SHIPPING_THRESHOLD - discountedSubtotal)
     };
-  })();
+  }, [items, promoCode]);
 
-  const summary = pricing?.summary ?? fallbackSummary;
-  const enrichedItems = items.map((item) => {
-    const pricedItem = pricing?.items.find(
-      (candidate) => candidate.productId === item.productId && candidate.variantId === item.variantId
-    );
+  const summary = hasFreshBackendPricing && pricing ? pricing.summary : fallbackSummary;
+  const enrichedItems = useMemo(() => items.map((item) => {
+    const pricedItem = hasFreshBackendPricing
+      ? pricing?.items.find(
+          (candidate) => candidate.productId === item.productId && candidate.variantId === item.variantId
+        )
+      : undefined;
     const effectiveUnitPrice = pricedItem?.unitPrice ?? item.unitPrice;
     const compareAtUnitPrice =
       pricedItem?.compareAtUnitPrice ?? getCompareAtUnitPrice(item.productId, effectiveUnitPrice);
@@ -92,9 +106,9 @@ export function useCartPricing() {
       compareAtTotal: compareAtUnitPrice * item.quantity,
       lineSavings: Math.max(0, compareAtUnitPrice * item.quantity - (pricedItem?.lineTotal ?? effectiveUnitPrice * item.quantity)),
       available: pricedItem?.available ?? true,
-      stock: pricedItem?.stock ?? 0
+      stock: pricedItem?.stock ?? Number.POSITIVE_INFINITY
     };
-  });
+  }), [hasFreshBackendPricing, items, pricing]);
 
   return {
     summary,
@@ -102,7 +116,7 @@ export function useCartPricing() {
     pricing,
     pricingError,
     isPricingLoading,
-    isBackendPricing: Boolean(pricing),
+    isBackendPricing: hasFreshBackendPricing,
     shippingProgress: summary.freeShippingThreshold
       ? Math.min(100, Math.round((summary.discountedSubtotal / summary.freeShippingThreshold) * 100))
       : 0

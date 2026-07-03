@@ -40,7 +40,7 @@ export function Hero({
       <div className="relative aspect-[1440/780] w-full max-h-[620px]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          alt={(title?.trim() || "Auraville hero").trim()}
+          alt={(title?.trim() || "Auraville Palmyra Sprouts healthy snacks").trim()}
           className="h-full w-full object-cover object-center"
           src={imageUrl.trim()}
         />
@@ -50,7 +50,7 @@ export function Hero({
     return (
       <section className="relative overflow-hidden bg-[var(--leaf-deep)]">
         {linkUrl?.trim() ? (
-          <Link aria-label={title?.trim() || "Shop featured hero product"} className="block" href={linkUrl.trim()}>
+          <Link aria-label={title?.trim() || "Shop Auraville Palmyra Sprouts snacks"} className="block" href={linkUrl.trim()}>
             {heroImage}
           </Link>
         ) : (
