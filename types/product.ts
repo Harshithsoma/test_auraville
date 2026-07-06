@@ -28,6 +28,7 @@ export type Product = {
   gallery: string[];
   category: ProductCategory;
   availability: "available" | "coming-soon";
+  launchStatus?: "active" | "coming-soon";
   releaseNote?: string;
   rating: number;
   reviewCount: number;

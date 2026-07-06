@@ -19,6 +19,7 @@ export const listProductsSchema = z.object({
     bestSeller: booleanFromQuery.optional(),
     isNew: booleanFromQuery.optional(),
     availability: z.enum(["available", "coming-soon"]).optional(),
+    launchStatus: z.enum(["active", "coming-soon"]).optional(),
     sort: z.enum(["popular", "price-asc", "price-desc", "newest"]).default("popular")
   })
 });

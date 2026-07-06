@@ -1,3 +1,5 @@
+export type ProductLaunchStatus = "active" | "coming-soon";
+
 export type ProductApiVariant = {
   id: string;
   label: string;
@@ -26,6 +28,7 @@ export type ProductApiResponse = {
   gallery: string[];
   category: string;
   availability: "available" | "coming-soon";
+  launchStatus: ProductLaunchStatus;
   releaseNote?: string;
   rating: number;
   reviewCount: number;
@@ -49,6 +52,7 @@ export type ProductListQuery = {
   bestSeller?: boolean;
   isNew?: boolean;
   availability?: "available" | "coming-soon";
+  launchStatus?: ProductLaunchStatus;
   sort?: "popular" | "price-asc" | "price-desc" | "newest";
 };
 

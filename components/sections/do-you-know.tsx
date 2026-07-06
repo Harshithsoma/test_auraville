@@ -225,7 +225,7 @@ export function DoYouKnowSection({
                   }}
                 >
                   <Link
-                    className="focus-ring group flex h-full min-h-[430px] flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]"
+                    className="focus-ring group flex h-[430px] flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]"
                     href={card.linkUrl}
                     rel="noopener noreferrer"
                     target="_blank"
@@ -240,7 +240,7 @@ export function DoYouKnowSection({
                           <p className="text-[11px] text-[var(--muted)]">{card.postedAt}</p>
                         </div>
                       </div>
-                      <div className="relative mt-3 aspect-[4/5] overflow-hidden rounded-lg bg-[var(--mint)]">
+                      <div className="relative mt-3 h-[260px] shrink-0 overflow-hidden rounded-lg bg-[var(--mint)] sm:h-[270px] lg:h-[250px]">
                         <Image
                           alt={card.title}
                           className="object-cover transition duration-500 group-hover:scale-[1.04]"

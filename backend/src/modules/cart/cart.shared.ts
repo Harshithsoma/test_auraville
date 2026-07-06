@@ -58,6 +58,7 @@ export async function enrichCartItems(items: CartPriceItemInput[]): Promise<Vali
         name: true,
         image: true,
         availability: true,
+        launchStatus: true,
         isActive: true
       }
     }),
@@ -99,7 +100,7 @@ export async function enrichCartItems(items: CartPriceItemInput[]): Promise<Vali
       });
     }
 
-    if (product.availability === "coming_soon") {
+    if (product.launchStatus === "coming_soon" || product.availability === "coming_soon") {
       throw new HttpError(400, "Product is coming soon", {
         productId: item.productId
       });

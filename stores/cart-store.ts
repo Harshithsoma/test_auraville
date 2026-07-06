@@ -89,7 +89,36 @@ type CartState = {
   closeDrawer: () => void;
 };
 
-type PersistedCartState = Pick<CartState, "items" | "promoCode" | "promoDiscountPercent">;
+type PersistedCartItem = Pick<CartItem, "productId" | "variantId" | "quantity" | "lastAddedAt">;
+
+type PersistedCartState = {
+  items: PersistedCartItem[];
+  promoCode: string | null;
+  promoDiscountPercent: number;
+};
+
+function normalizePersistedCartItem(item: Partial<CartItem>): CartItem | null {
+  if (typeof item.productId !== "string" || typeof item.variantId !== "string") {
+    return null;
+  }
+
+  const quantity = Number(item.quantity);
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return null;
+  }
+
+  return {
+    productId: item.productId,
+    variantId: item.variantId,
+    quantity: Math.max(1, Math.floor(quantity)),
+    lastAddedAt: typeof item.lastAddedAt === "number" ? item.lastAddedAt : undefined,
+    slug: "",
+    name: "Cart item",
+    image: "",
+    variantLabel: "",
+    unitPrice: 0
+  };
+}
 
 function itemKey(item: Pick<CartItem, "productId" | "variantId">) {
   return `${item.productId}:${item.variantId}`;
@@ -365,10 +394,30 @@ export const useCartStore = create<CartState>()(
     {
       name: "auraville-cart",
       partialize: (state): PersistedCartState => ({
-        items: state.items,
+        items: state.items.map((item) => ({
+          productId: item.productId,
+          variantId: item.variantId,
+          quantity: item.quantity,
+          lastAddedAt: item.lastAddedAt
+        })),
         promoCode: state.promoCode,
         promoDiscountPercent: state.promoDiscountPercent
-      })
+      }),
+      merge: (persisted, current): CartState => {
+        const persistedState = persisted as Partial<PersistedCartState> | undefined;
+        const normalizedItems = Array.isArray(persistedState?.items)
+          ? persistedState.items
+              .map((item) => normalizePersistedCartItem(item as Partial<CartItem>))
+              .filter((item): item is CartItem => Boolean(item))
+          : current.items;
+
+        return {
+          ...current,
+          items: normalizedItems,
+          promoCode: persistedState?.promoCode ?? current.promoCode,
+          promoDiscountPercent: persistedState?.promoDiscountPercent ?? current.promoDiscountPercent
+        };
+      }
     }
   )
 );

@@ -6,8 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "@/services/api";
 import { fetchProducts } from "@/lib/catalog-api";
-import { sortProductsByName } from "@/lib/product-name-sort";
 import { filterSearchIndex, getSearchIndex, preloadSearchIndex } from "@/lib/search-index-cache";
+import { rankSearchProducts } from "@/lib/search-ranking";
 import type { Product } from "@/types/product";
 
 const SUGGESTION_LIMIT = 7;
@@ -55,7 +55,7 @@ export function HeaderSearch({ className = "" }: HeaderSearchProps) {
   const loadSuggestions = useCallback(async (searchText: string) => {
     const indexProducts = getSearchIndex();
     if (indexProducts && indexProducts.length > 0) {
-      setSuggestions(sortProductsByName(filterSearchIndex(searchText, SUGGESTION_LIMIT)));
+      setSuggestions(filterSearchIndex(searchText, SUGGESTION_LIMIT));
       setErrorMessage(null);
       setIsLoading(false);
       return;
@@ -71,7 +71,7 @@ export function HeaderSearch({ className = "" }: HeaderSearchProps) {
         return;
       }
 
-      setSuggestions(sortProductsByName(filterSearchIndex(searchText, SUGGESTION_LIMIT)));
+      setSuggestions(filterSearchIndex(searchText, SUGGESTION_LIMIT));
       setErrorMessage(null);
       setIsLoading(false);
       return;
@@ -91,7 +91,7 @@ export function HeaderSearch({ className = "" }: HeaderSearchProps) {
         return;
       }
 
-      setSuggestions(sortProductsByName(response.data));
+      setSuggestions(rankSearchProducts(response.data, searchText, SUGGESTION_LIMIT));
     } catch (error) {
       if (requestId !== requestIdRef.current) {
         return;
@@ -142,7 +142,7 @@ export function HeaderSearch({ className = "" }: HeaderSearchProps) {
     }
 
     const hasIndex = !!getSearchIndex()?.length;
-    const localInstant = sortProductsByName(filterSearchIndex(query, SUGGESTION_LIMIT));
+    const localInstant = filterSearchIndex(query, SUGGESTION_LIMIT);
     if (hasIndex || !query.trim() || localInstant.length > 0) {
       setSuggestions(localInstant);
       setErrorMessage(null);
@@ -167,7 +167,7 @@ export function HeaderSearch({ className = "" }: HeaderSearchProps) {
   function openSearch() {
     setIsOpen(true);
     setErrorMessage(null);
-    const instant = sortProductsByName(filterSearchIndex("", SUGGESTION_LIMIT));
+    const instant = filterSearchIndex("", SUGGESTION_LIMIT);
     if (instant.length > 0) {
       setSuggestions(instant);
       setIsLoading(false);
@@ -179,7 +179,7 @@ export function HeaderSearch({ className = "" }: HeaderSearchProps) {
       if (requestId !== requestIdRef.current) {
         return;
       }
-      const local = sortProductsByName(filterSearchIndex(query, SUGGESTION_LIMIT));
+      const local = filterSearchIndex(query, SUGGESTION_LIMIT);
       if (local.length > 0 || !query.trim()) {
         setSuggestions(local);
       }

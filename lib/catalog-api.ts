@@ -31,6 +31,7 @@ export type ProductsListQuery = {
   bestSeller?: boolean;
   isNew?: boolean;
   availability?: "available" | "coming-soon";
+  launchStatus?: "active" | "coming-soon";
   sort?: "popular" | "price-asc" | "price-desc" | "newest";
 };
 

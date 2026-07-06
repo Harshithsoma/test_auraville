@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { HttpError } from "../../utils/http-error";
 import { prisma } from "../../prisma/prisma.service";
 import { env } from "../../config/env";
@@ -26,6 +27,20 @@ function toDbAvailability(value: "available" | "coming-soon"): "available" | "co
   return value === "coming-soon" ? "coming_soon" : "available";
 }
 
+function toLaunchStatus(value?: string | null, legacyAvailability?: string | null): "active" | "coming-soon" {
+  if (value === "coming_soon") return "coming-soon";
+  if (!value && legacyAvailability === "coming_soon") return "coming-soon";
+  return "active";
+}
+
+function toDbLaunchStatus(value: "active" | "coming-soon"): "active" | "coming_soon" {
+  return value === "coming-soon" ? "coming_soon" : "active";
+}
+
+function hasPurchasableVariant(variants: Array<{ stock: number }>): boolean {
+  return variants.some((variant) => variant.stock > 0);
+}
+
 type StorefrontVariantRecord = {
   frontendVariantId: string;
   label: string;
@@ -52,6 +67,7 @@ type StorefrontProductRecord = {
   currency: string;
   image: string;
   availability: string;
+  launchStatus?: string | null;
   releaseNote: string | null;
   rating: unknown;
   reviewCount: number;
@@ -124,8 +140,10 @@ function mapProduct(
     isBestSeller: variant.isBestSeller,
     sortOrder: variant.sortOrder
   }));
-  const hasFeaturedVariant = product.variants.some((variant) => variant.isFeatured && variant.stock > 0);
-  const hasBestSellerVariant = product.variants.some((variant) => variant.isBestSeller && variant.stock > 0);
+  const launchStatus = toLaunchStatus(product.launchStatus, product.availability);
+  const isLaunchActive = launchStatus === "active";
+  const hasFeaturedVariant = isLaunchActive && product.variants.some((variant) => variant.isFeatured && variant.stock > 0);
+  const hasBestSellerVariant = isLaunchActive && product.variants.some((variant) => variant.isBestSeller && variant.stock > 0);
 
   return {
     id: product.id,
@@ -147,12 +165,13 @@ function mapProduct(
     image: product.image,
     gallery,
     category: product.category.name,
-    availability: toAvailability(product.availability),
+    availability: launchStatus === "coming-soon" ? "coming-soon" : toAvailability(product.availability),
+    launchStatus,
     ...(product.releaseNote !== null ? { releaseNote: product.releaseNote } : {}),
     rating: typeof product.rating === "number" ? product.rating : Number(product.rating),
     reviewCount: product.reviewCount,
-    isFeatured: hasFeaturedVariant || product.isFeatured,
-    isBestSeller: hasBestSellerVariant || product.isBestSeller,
+    isFeatured: isLaunchActive && (hasFeaturedVariant || product.isFeatured),
+    isBestSeller: isLaunchActive && (hasBestSellerVariant || product.isBestSeller),
     isNew: product.isNew,
     ...(product.badgeLabel !== null ? { badgeLabel: product.badgeLabel } : {}),
     popularity: product.popularity,
@@ -278,6 +297,16 @@ export async function listProducts(query: ProductListQuery): Promise<ProductList
     }
   }
 
+  const launchStatusFilter = query.launchStatus
+    ? toDbLaunchStatus(query.launchStatus)
+    : query.availability === "coming-soon"
+      ? "coming_soon"
+      : query.availability === "available"
+        ? "active"
+        : query.featured === true || query.bestSeller === true
+          ? "active"
+          : undefined;
+
   const where = {
     isActive: true,
     ...(query.category
@@ -301,6 +330,7 @@ export async function listProducts(query: ProductListQuery): Promise<ProductList
       : {}),
     ...(typeof query.isNew === "boolean" ? { isNew: query.isNew } : {}),
     ...(query.availability ? { availability: toDbAvailability(query.availability) } : {}),
+    ...(launchStatusFilter ? { launchStatus: launchStatusFilter } : {}),
     ...(variantFlagFilters.length > 0 ? { AND: variantFlagFilters } : {})
   };
 
@@ -335,72 +365,9 @@ export async function listProducts(query: ProductListQuery): Promise<ProductList
     })
   ]);
 
+  const context = query.featured ? "featured" : query.bestSeller ? "bestSeller" : "default";
   const result: ProductListResult = {
-    data: products.map((product: {
-      id: string;
-      slug: string;
-      name: string;
-      tagline: string;
-      description: string;
-      longDescription: string;
-      price: number;
-      compareAtPrice: number | null;
-      promoLabel: string | null;
-      currency: string;
-      image: string;
-      availability: string;
-      releaseNote: string | null;
-      rating: unknown;
-      reviewCount: number;
-      isFeatured: boolean;
-      isBestSeller: boolean;
-      isNew: boolean;
-      badgeLabel: string | null;
-      popularity: number;
-      ingredients: string[];
-      benefits: string[];
-      category: { name: string };
-      images: Array<{ url: string; position: number }>;
-      variants: Array<{
-        frontendVariantId: string;
-        label: string;
-        price: number;
-        compareAtPrice: number | null;
-        discountPercent: number;
-        unit: string;
-        stock: number;
-        isFeatured: boolean;
-        isBestSeller: boolean;
-        sortOrder: number;
-      }>;
-    }) =>
-      mapProduct({
-        ...product,
-        variants: product.variants.map((variant: {
-          frontendVariantId: string;
-          label: string;
-          price: number;
-          compareAtPrice: number | null;
-          discountPercent: number;
-          unit: string;
-          stock: number;
-          isFeatured: boolean;
-          isBestSeller: boolean;
-          sortOrder: number;
-        }) => ({
-          frontendVariantId: variant.frontendVariantId,
-          label: variant.label,
-          price: variant.price,
-          compareAtPrice: variant.compareAtPrice,
-          discountPercent: variant.discountPercent,
-          unit: variant.unit,
-          stock: variant.stock,
-          isFeatured: variant.isFeatured,
-          isBestSeller: variant.isBestSeller,
-          sortOrder: variant.sortOrder
-        }))
-      }, query.featured ? "featured" : query.bestSeller ? "bestSeller" : "default")
-    ),
+    data: products.map((product) => mapProduct(product as unknown as StorefrontProductRecord, context)),
     pagination: {
       page: query.page,
       limit: query.limit,
@@ -446,32 +413,7 @@ export async function getProductBySlug(slug: string): Promise<ProductApiResponse
     throw new HttpError(404, "Product not found");
   }
 
-  return mapProduct({
-    ...product,
-    variants: product.variants.map((variant: {
-      frontendVariantId: string;
-      label: string;
-      price: number;
-      compareAtPrice: number | null;
-      discountPercent: number;
-      unit: string;
-      stock: number;
-      isFeatured: boolean;
-      isBestSeller: boolean;
-      sortOrder: number;
-    }) => ({
-      frontendVariantId: variant.frontendVariantId,
-      label: variant.label,
-      price: variant.price,
-      compareAtPrice: variant.compareAtPrice,
-      discountPercent: variant.discountPercent,
-      unit: variant.unit,
-      stock: variant.stock,
-      isFeatured: variant.isFeatured,
-      isBestSeller: variant.isBestSeller,
-      sortOrder: variant.sortOrder
-    }))
-  });
+  return mapProduct(product as unknown as StorefrontProductRecord);
 }
 
 function maskEmail(email: string): string {
@@ -482,6 +424,12 @@ function maskEmail(email: string): string {
 
   const visiblePrefix = localPart.slice(0, 2);
   return `${visiblePrefix}${"*".repeat(Math.max(localPart.length - 2, 1))}@${domain}`;
+}
+
+const notifyConfirmationMessage = "We'll notify you when this product becomes available.";
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
 export async function registerProductNotifyRequest(params: {
@@ -498,6 +446,7 @@ export async function registerProductNotifyRequest(params: {
       id: true,
       isActive: true,
       availability: true,
+      launchStatus: true,
       variants: {
         where: {
           isActive: true,
@@ -506,7 +455,8 @@ export async function registerProductNotifyRequest(params: {
           }
         },
         select: {
-          id: true
+          id: true,
+          stock: true
         },
         take: 1
       }
@@ -517,67 +467,119 @@ export async function registerProductNotifyRequest(params: {
     throw new HttpError(404, "Product not found", undefined, "PRODUCT_NOT_FOUND");
   }
 
-  if (product.availability === "available" && product.variants.length > 0) {
+  const launchStatus = toLaunchStatus(product.launchStatus, product.availability);
+  if (launchStatus === "active" && hasPurchasableVariant(product.variants)) {
     throw new HttpError(409, "Product is already in stock", undefined, "PRODUCT_ALREADY_IN_STOCK");
   }
 
-  const existingActive = await prisma.productNotifyRequest.findUnique({
+  const existingActiveForUser = await prisma.productNotifyRequest.findFirst({
     where: {
-      productId_email_isActive: {
-        productId: params.productId,
-        email: normalizedEmail,
-        isActive: true
-      }
+      productId: params.productId,
+      userId: params.user.id,
+      isActive: true
     },
     select: {
       id: true
-    }
+    },
+    orderBy: [{ requestedAt: "desc" }, { createdAt: "desc" }]
   });
 
-  if (existingActive) {
+  if (existingActiveForUser) {
     return {
-      message: "You're already on this waitlist. We'll notify you when it's back in stock."
+      message: notifyConfirmationMessage
     };
   }
 
-  const existingInactive = await prisma.productNotifyRequest.findUnique({
+  const existingActiveForEmail = await prisma.productNotifyRequest.findFirst({
     where: {
-      productId_email_isActive: {
-        productId: params.productId,
-        email: normalizedEmail,
-        isActive: false
+      productId: params.productId,
+      email: normalizedEmail,
+      isActive: true
+    },
+    select: {
+      id: true,
+      userId: true
+    },
+    orderBy: [{ requestedAt: "desc" }, { createdAt: "desc" }]
+  });
+
+  if (existingActiveForEmail) {
+    if (existingActiveForEmail.userId !== params.user.id) {
+      try {
+        await prisma.productNotifyRequest.update({
+          where: { id: existingActiveForEmail.id },
+          data: { userId: params.user.id }
+        });
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) {
+          throw error;
+        }
       }
+    }
+
+    return {
+      message: notifyConfirmationMessage
+    };
+  }
+
+  const existingInactiveForUser = await prisma.productNotifyRequest.findFirst({
+    where: {
+      productId: params.productId,
+      userId: params.user.id,
+      isActive: false
     },
     select: {
       id: true
-    }
+    },
+    orderBy: [{ requestedAt: "desc" }, { createdAt: "desc" }]
   });
 
-  if (existingInactive) {
-    await prisma.productNotifyRequest.update({
-      where: {
-        id: existingInactive.id
-      },
-      data: {
-        isActive: true,
-        userId: params.user.id,
-        requestedAt: new Date(),
-        notifiedAt: null
-      }
-    });
-  } else {
-    await prisma.productNotifyRequest.create({
-      data: {
-        productId: params.productId,
-        userId: params.user.id,
-        email: normalizedEmail,
-        isActive: true
-      }
-    });
+  const existingInactive =
+    existingInactiveForUser ??
+    (await prisma.productNotifyRequest.findFirst({
+    where: {
+      productId: params.productId,
+      email: normalizedEmail,
+      isActive: false
+    },
+    select: {
+      id: true
+    },
+    orderBy: [{ requestedAt: "desc" }, { createdAt: "desc" }]
+  }));
+
+  try {
+    if (existingInactive) {
+      await prisma.productNotifyRequest.update({
+        where: {
+          id: existingInactive.id
+        },
+        data: {
+          isActive: true,
+          userId: params.user.id,
+          email: normalizedEmail,
+          requestedAt: new Date(),
+          notifiedAt: null
+        }
+      });
+    } else {
+      await prisma.productNotifyRequest.create({
+        data: {
+          productId: params.productId,
+          userId: params.user.id,
+          email: normalizedEmail,
+          isActive: true
+        }
+      });
+    }
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      throw error;
+    }
   }
 
   return {
-    message: "You'll be notified when this product is back in stock."
+    message: notifyConfirmationMessage
   };
 }
 
@@ -593,6 +595,7 @@ export async function dispatchBackInStockNotifications(productId: string): Promi
       image: true,
       isActive: true,
       availability: true,
+      launchStatus: true,
       variants: {
         where: {
           isActive: true,
@@ -601,14 +604,16 @@ export async function dispatchBackInStockNotifications(productId: string): Promi
           }
         },
         select: {
-          id: true
+          id: true,
+          stock: true
         },
         take: 1
       }
     }
   });
 
-  if (!product || !product.isActive || product.availability !== "available" || product.variants.length === 0) {
+  const launchStatus = product ? toLaunchStatus(product.launchStatus, product.availability) : "active";
+  if (!product || !product.isActive || launchStatus !== "active" || !hasPurchasableVariant(product.variants)) {
     return;
   }
 

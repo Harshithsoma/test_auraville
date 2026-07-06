@@ -1,4 +1,5 @@
 export type AdminProductAvailability = "available" | "coming-soon";
+export type AdminProductLaunchStatus = "active" | "coming-soon";
 
 export type AdminProductVariantResponse = {
   id: string;
@@ -35,6 +36,7 @@ export type AdminProductResponse = {
   };
   categoryId: string;
   availability: AdminProductAvailability;
+  launchStatus: AdminProductLaunchStatus;
   releaseNote: string | null;
   rating: number;
   reviewCount: number;

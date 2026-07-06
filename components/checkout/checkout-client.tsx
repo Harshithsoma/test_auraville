@@ -151,6 +151,31 @@ const EMPTY_ADDRESS: AddressFormState = {
   landmark: ""
 };
 
+const EMPTY_CONTACT: ContactFormState = {
+  name: "",
+  email: "",
+  phone: ""
+};
+
+function toUserContact(user: { name?: string | null; email?: string | null; phone?: string | null } | null): ContactFormState {
+  return {
+    name: user?.name ?? "",
+    email: user?.email ?? "",
+    phone: user?.phone ?? ""
+  };
+}
+
+function toSavedAddressContact(
+  address: Pick<UserAddress, "fullName" | "phone">,
+  user: { email?: string | null } | null
+): ContactFormState {
+  return {
+    name: address.fullName,
+    email: user?.email ?? "",
+    phone: address.phone
+  };
+}
+
 const INDIAN_STATES = [
   "Andhra Pradesh",
   "Arunachal Pradesh",
@@ -398,11 +423,7 @@ export default function CheckoutClient() {
   const user = useAuthStore((state) => state.user);
   const { summary, enrichedItems, pricingError, isBackendPricing, isPricingLoading } = useCartPricing();
 
-  const [contact, setContact] = useState<ContactFormState>({
-    name: "",
-    email: "",
-    phone: ""
-  });
+  const [contact, setContact] = useState<ContactFormState>(EMPTY_CONTACT);
   const [shippingAddress, setShippingAddress] = useState<AddressFormState>(EMPTY_ADDRESS);
   const [errors, setErrors] = useState<CheckoutErrors>({});
   const [addressNotice, setAddressNotice] = useState<string | null>(null);
@@ -451,11 +472,7 @@ export default function CheckoutClient() {
       return;
     }
 
-    setContact({
-      name: user.name ?? "",
-      email: user.email ?? "",
-      phone: user.phone ?? ""
-    });
+    setContact(toUserContact(user));
   }, [user]);
 
   useEffect(() => {
@@ -479,6 +496,7 @@ export default function CheckoutClient() {
         if (defaultAddress) {
           setSelectedAddressId(defaultAddress.id);
           setShippingAddress(toAddressForm(defaultAddress));
+          setContact(toSavedAddressContact(defaultAddress, user));
           setUseNewAddress(false);
         } else {
           setSelectedAddressId(null);
@@ -554,6 +572,7 @@ export default function CheckoutClient() {
   function onSelectSavedAddress(address: UserAddress) {
     setSelectedAddressId(address.id);
     setShippingAddress(toAddressForm(address));
+    setContact(toSavedAddressContact(address, user));
     setUseNewAddress(false);
     setSaveAddressForLater(false);
     setAddressNotice(null);
@@ -580,6 +599,7 @@ export default function CheckoutClient() {
 
   function onUseNewAddress() {
     setUseNewAddress(true);
+    setContact(EMPTY_CONTACT);
     setShippingAddress(EMPTY_ADDRESS);
     setSaveAddressForLater(false);
     setAddressNotice(null);

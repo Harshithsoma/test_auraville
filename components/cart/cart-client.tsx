@@ -26,7 +26,7 @@ export default function CartClient() {
   const promoCode = useCartStore((state) => state.promoCode);
   const applyPromoCode = useCartStore((state) => state.applyPromoCode);
   const clearPromoCode = useCartStore((state) => state.clearPromoCode);
-  const { summary, enrichedItems, pricingError, isBackendPricing, isPricingLoading } = useCartPricing();
+  const { summary, enrichedItems, pricingError, isBackendPricing, isPricingLoading, isPricingPending } = useCartPricing();
 
   if (!hasMounted) {
     return (
@@ -56,19 +56,26 @@ export default function CartClient() {
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
       <section className="space-y-4" aria-label="Cart items">
-        {enrichedItems.map((item) => (
+        {enrichedItems.map((item) => {
+          const isItemRefreshing = isPricingPending;
+          const discountPercent = isItemRefreshing ? 0 : getDiscountPercent(item.compareAtUnitPrice, item.unitPrice);
+          return (
           <article
             className="grid gap-4 rounded-lg border border-[var(--line)] bg-white p-4 sm:grid-cols-[120px_1fr_auto]"
             key={`${item.productId}-${item.variantId}`}
           >
             <div className="relative aspect-square overflow-hidden rounded-lg bg-[var(--mint)]">
-              <Image
-                alt={item.name}
-                className="object-cover"
-                fill
-                sizes="120px"
-                src={item.image}
-              />
+              {isItemRefreshing || !item.image ? (
+                <span className="absolute inset-0 animate-pulse bg-[var(--line)]/60" aria-hidden="true" />
+              ) : (
+                <Image
+                  alt={item.name}
+                  className="object-cover"
+                  fill
+                  sizes="120px"
+                  src={item.image}
+                />
+              )}
             </div>
             <div>
               <Link
@@ -80,32 +87,36 @@ export default function CartClient() {
               <p className="mt-1 text-sm text-[var(--muted)]">
                 {item.variantLabel}
               </p>
-              {getDiscountPercent(item.compareAtUnitPrice, item.unitPrice) > 0 ? (
+              {discountPercent > 0 ? (
                 <p className="mt-1 text-xs font-semibold text-[var(--leaf)]">
-                  Saved {getDiscountPercent(item.compareAtUnitPrice, item.unitPrice)}%
+                  Saved {discountPercent}%
                 </p>
               ) : null}
-              {!item.available ? (
+              {!isItemRefreshing && !item.available ? (
                 <p className="mt-1 text-xs font-semibold text-[var(--coral)]">Currently unavailable</p>
               ) : null}
-              {item.available && item.stock > 0 && item.quantity >= item.stock ? (
+              {!isItemRefreshing && item.available && item.stock > 0 && item.quantity >= item.stock ? (
                 <p className="mt-1 text-xs font-semibold text-[var(--coral)]">
                   {item.stock === 1
                     ? "Only 1 available for this pack."
                     : `Only ${item.stock} available for this pack.`}
                 </p>
               ) : null}
-              {item.available && item.stock > 0 && item.stock <= 5 ? (
+              {!isItemRefreshing && item.available && item.stock > 0 && item.stock <= 5 ? (
                 <p className="mt-1 text-xs text-[var(--muted)]">
                   {item.stock === 1 ? "Only 1 left in stock." : `Only ${item.stock} left in stock.`}
                 </p>
               ) : null}
               <div className="mt-3 text-sm">
-                <p className="font-semibold">{formatPrice(item.lineTotal)}</p>
-                {item.quantity > 1 ? (
+                {isItemRefreshing ? (
+                  <span className="inline-block h-4 w-20 animate-pulse rounded bg-[var(--line)]/70" aria-label="Refreshing price" />
+                ) : (
+                  <p className="font-semibold">{formatPrice(item.lineTotal)}</p>
+                )}
+                {!isItemRefreshing && item.quantity > 1 ? (
                   <p className="text-xs text-[var(--muted)]">{formatPrice(item.unitPrice)} each</p>
                 ) : null}
-                {item.compareAtTotal > item.lineTotal ? (
+                {!isItemRefreshing && item.compareAtTotal > item.lineTotal ? (
                   <p className="text-xs text-[var(--muted)] line-through">{formatPrice(item.compareAtTotal)}</p>
                 ) : null}
               </div>
@@ -127,12 +138,12 @@ export default function CartClient() {
               />
             </div>
           </article>
-        ))}
+          );
+        })}
       </section>
 
       <aside className="h-fit rounded-lg border border-[var(--line)] bg-white p-6 lg:sticky lg:top-28">
         <h2 className="text-xl font-semibold">Price breakdown</h2>
-        {isPricingLoading ? <p className="mt-3 text-xs text-[var(--muted)]">Refreshing live pricing...</p> : null}
         {pricingError ? (
           <p className="mt-3 rounded-lg border border-[#e7c9c6] bg-[#fff7f7] px-3 py-2 text-xs font-semibold text-[var(--coral)]">
             {pricingError}
@@ -182,7 +193,7 @@ export default function CartClient() {
           </div>
           <div className="flex justify-between border-t border-[var(--line)] pt-4 text-base">
             <dt className="font-semibold">Total</dt>
-            <dd className="font-semibold">{formatPrice(summary.total)}</dd>
+            <dd className="font-semibold">{isPricingPending ? "Calculating..." : formatPrice(summary.total)}</dd>
           </div>
         </dl>
         {summary.totalSavings > 0 ? (

@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { getCompareAtUnitPrice } from "@/lib/products";
 import { useCartStore } from "@/stores/cart-store";
 
-const FALLBACK_FREE_SHIPPING_THRESHOLD = 499;
-const FALLBACK_SHIPPING_FEE = 99;
 const PRICING_SYNC_DEBOUNCE_MS = 90;
 
-type FallbackSummary = {
+type CartSummary = {
   originalSubtotal: number;
   subtotal: number;
   baseSavings: number;
@@ -21,6 +18,21 @@ type FallbackSummary = {
   totalSavings: number;
   freeShippingThreshold: number;
   remainingForFreeShipping: number;
+};
+
+const EMPTY_SUMMARY: CartSummary = {
+  originalSubtotal: 0,
+  subtotal: 0,
+  baseSavings: 0,
+  promoCode: null,
+  promoDiscount: 0,
+  discountedSubtotal: 0,
+  gst: 0,
+  shipping: 0,
+  total: 0,
+  totalSavings: 0,
+  freeShippingThreshold: 0,
+  remainingForFreeShipping: 0
 };
 
 export function useCartPricing() {
@@ -44,6 +56,7 @@ export function useCartPricing() {
   const hasFreshBackendPricing = useMemo(() => {
     if (!pricing) return false;
     if (pricing.items.length !== items.length) return false;
+    if ((pricing.summary.promoCode ?? null) !== (promoCode ?? null)) return false;
 
     return items.every((item) => {
       const pricedItem = pricing.items.find(
@@ -51,54 +64,24 @@ export function useCartPricing() {
       );
       return Boolean(pricedItem && pricedItem.quantity === item.quantity);
     });
-  }, [items, pricing]);
+  }, [items, pricing, promoCode]);
 
-  const fallbackSummary: FallbackSummary = useMemo(() => {
-    const originalSubtotal = items.reduce((total, item) => {
-      const compareAtUnitPrice = getCompareAtUnitPrice(item.productId, item.unitPrice);
-      return total + compareAtUnitPrice * item.quantity;
-    }, 0);
-    const subtotal = items.reduce((total, item) => total + item.unitPrice * item.quantity, 0);
-    const baseSavings = Math.max(0, originalSubtotal - subtotal);
-    const promoDiscount = 0;
-    const discountedSubtotal = subtotal;
-    const gst = 0;
-    const shipping =
-      discountedSubtotal >= FALLBACK_FREE_SHIPPING_THRESHOLD || discountedSubtotal === 0
-        ? 0
-        : FALLBACK_SHIPPING_FEE;
-    const total = discountedSubtotal + shipping;
-    const totalSavings = baseSavings + promoDiscount;
-
-    return {
-      originalSubtotal,
-      subtotal,
-      baseSavings,
-      promoCode,
-      promoDiscount,
-      discountedSubtotal,
-      gst,
-      shipping,
-      total,
-      totalSavings,
-      freeShippingThreshold: FALLBACK_FREE_SHIPPING_THRESHOLD,
-      remainingForFreeShipping: Math.max(0, FALLBACK_FREE_SHIPPING_THRESHOLD - discountedSubtotal)
-    };
-  }, [items, promoCode]);
-
-  const summary = hasFreshBackendPricing && pricing ? pricing.summary : fallbackSummary;
+  const summary = hasFreshBackendPricing && pricing ? pricing.summary : { ...EMPTY_SUMMARY, promoCode };
+  const isPricingPending = items.length > 0 && !hasFreshBackendPricing && !pricingError;
   const enrichedItems = useMemo(() => items.map((item) => {
     const pricedItem = hasFreshBackendPricing
       ? pricing?.items.find(
           (candidate) => candidate.productId === item.productId && candidate.variantId === item.variantId
         )
       : undefined;
-    const effectiveUnitPrice = pricedItem?.unitPrice ?? item.unitPrice;
-    const compareAtUnitPrice =
-      pricedItem?.compareAtUnitPrice ?? getCompareAtUnitPrice(item.productId, effectiveUnitPrice);
+    const effectiveUnitPrice = pricedItem?.unitPrice ?? 0;
+    const compareAtUnitPrice = pricedItem?.compareAtUnitPrice ?? effectiveUnitPrice;
 
     return {
       ...item,
+      slug: pricedItem?.slug ?? item.slug,
+      name: pricedItem?.name ?? item.name,
+      image: pricedItem?.image ?? "",
       variantLabel: pricedItem?.variantLabel ?? item.variantLabel,
       unitPrice: effectiveUnitPrice,
       compareAtUnitPrice,
@@ -117,6 +100,7 @@ export function useCartPricing() {
     pricingError,
     isPricingLoading,
     isBackendPricing: hasFreshBackendPricing,
+    isPricingPending,
     shippingProgress: summary.freeShippingThreshold
       ? Math.min(100, Math.round((summary.discountedSubtotal / summary.freeShippingThreshold) * 100))
       : 0

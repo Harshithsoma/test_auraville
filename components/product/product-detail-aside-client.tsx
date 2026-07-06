@@ -6,11 +6,13 @@ import { ProductPurchasePanel } from "@/components/product/product-purchase-pane
 import { PriceWithCompare } from "@/components/ui/price";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { getVariantCompareAtPrice, selectDefaultProductVariant } from "@/components/product/card-variant";
+import { isComingSoonProduct } from "@/lib/product-lifecycle";
 
 export function ProductDetailAsideClient({ product }: { product: Product }) {
   const defaultVariant = useMemo(() => selectDefaultProductVariant(product.variants), [product.variants]);
   const [selectedVariantId, setSelectedVariantId] = useState(defaultVariant?.id ?? "");
-  const isAvailable = product.availability === "available";
+  const isComingSoon = isComingSoonProduct(product);
+  const isAvailable = !isComingSoon;
 
   const selectedVariant = useMemo(() => {
     const byId = product.variants.find((variant) => variant.id === selectedVariantId);

@@ -3,6 +3,7 @@ import { SearchClient } from "@/components/search/search-client";
 import { fetchProducts } from "@/lib/catalog-api";
 import { products as fallbackProducts } from "@/lib/products";
 import { sortProductsByName } from "@/lib/product-name-sort";
+import { rankSearchProducts } from "@/lib/search-ranking";
 import { sortStorefrontProducts } from "@/lib/storefront-product-order";
 import { absoluteUrl } from "@/lib/site";
 
@@ -37,7 +38,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       sort: "popular",
       search: initialQuery || undefined
     });
-    initialProducts = sortProductsByName(sortStorefrontProducts(response.data));
+    initialProducts = initialQuery
+      ? rankSearchProducts(response.data, initialQuery, 24)
+      : sortProductsByName(sortStorefrontProducts(response.data));
   } catch {
     // Keep query-specific empty state if API is unavailable.
   }

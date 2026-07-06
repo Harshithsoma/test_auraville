@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Price, PriceWithCompare } from "@/components/ui/price";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { getVariantCompareAtPrice, selectDefaultProductVariant, sortVariantsLogically } from "@/components/product/card-variant";
+import { isComingSoonProduct } from "@/lib/product-lifecycle";
 
 type ProductPurchasePanelProps = {
   product: Product;
@@ -40,7 +41,8 @@ export function ProductPurchasePanel({
   const [quantity, setQuantity] = useState(1);
   const [status, setStatus] = useState("");
   const attemptedAutoNotifyRef = useRef(false);
-  const isAvailable = product.availability === "available";
+  const isComingSoon = isComingSoonProduct(product);
+  const isAvailable = !isComingSoon;
   const sortedVariants = useMemo(() => sortVariantsLogically(product.variants), [product.variants]);
   const defaultVariant = useMemo(() => selectDefaultProductVariant(sortedVariants), [sortedVariants]);
   const isControlled = typeof selectedVariantId === "string" && typeof onSelectedVariantIdChange === "function";

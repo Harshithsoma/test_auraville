@@ -1,5 +1,6 @@
 import type { Product, ProductVariant } from "@/types/product";
 import { absoluteUrl, siteConfig } from "@/lib/site";
+import { isComingSoonProduct } from "@/lib/product-lifecycle";
 
 const seller = {
   "@type": "Organization",
@@ -8,7 +9,7 @@ const seller = {
 };
 
 function getAvailability(product: Product, variant?: ProductVariant) {
-  if (product.availability !== "available") {
+  if (isComingSoonProduct(product)) {
     return "https://schema.org/PreOrder";
   }
 

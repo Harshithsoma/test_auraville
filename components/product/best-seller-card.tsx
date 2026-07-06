@@ -9,9 +9,10 @@ import { RatingStars } from "@/components/ui/rating-stars";
 import { useCartStore } from "@/stores/cart-store";
 import { selectContextDisplayVariant } from "@/components/product/card-variant";
 import { useNotifyMe } from "@/hooks/use-notify-me";
+import { isComingSoonProduct } from "@/lib/product-lifecycle";
 
 export function BestSellerCard({ product, priority = false }: { product: Product; priority?: boolean }) {
-  const isAvailable = product.availability === "available";
+  const isComingSoon = isComingSoonProduct(product);
   const [status, setStatus] = useState("");
   const items = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
@@ -32,12 +33,12 @@ export function BestSellerCard({ product, priority = false }: { product: Product
   const quantity = cartItem?.quantity ?? 0;
   const displayPrice = variant?.price ?? product.price;
   const availableStock = variant ? getAvailableStock(product.id, variant.id) ?? variant.stock ?? null : null;
-  const canPurchase = isAvailable && Boolean(variant) && !isOutOfStock;
+  const canPurchase = !isComingSoon && Boolean(variant) && !isOutOfStock;
   const marketingBadge = product.badgeLabel?.trim() ?? "";
-  const badgeText = !isAvailable ? "Coming Soon" : !canPurchase ? "Out of Stock" : marketingBadge || null;
+  const badgeText = isComingSoon ? "Coming Soon" : !canPurchase ? "Out of Stock" : marketingBadge || null;
 
   function addToCart(openCart = false) {
-    if (!isAvailable || !variant) return;
+    if (isComingSoon || !variant) return;
     if (isOutOfStock) {
       pushCartNotice("No more quantity available.");
       return;
@@ -99,7 +100,7 @@ export function BestSellerCard({ product, priority = false }: { product: Product
           {canPurchase ? (
             <PriceWithCompare compareAtPrice={compareAtPrice} currency={product.currency} value={displayPrice} />
           ) : (
-            <p className="font-bold">{isAvailable ? "Out of Stock" : "Coming Soon"}</p>
+            <p className="font-bold">{isComingSoon ? "Coming Soon" : "Out of Stock"}</p>
           )}
         </div>
         <div className="mt-0.5 min-h-4 sm:mt-1">

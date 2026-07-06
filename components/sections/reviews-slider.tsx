@@ -473,23 +473,23 @@ export function ReviewsSlider({
               >
                 {loopReviews.map((review, loopIndex) => (
                   <article
-                    className="shrink-0 basis-full px-2 lg:basis-1/3 lg:px-2.5"
+                    className="min-w-0 shrink-0 basis-full px-2 lg:basis-1/3 lg:px-2.5"
                     key={`${review.id}-${loopIndex}`}
                   >
-                    <div className="h-[330px] overflow-hidden rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-bold">{review.name}</p>
-                          <p className="mt-1 break-words text-xs font-semibold uppercase tracking-wide text-[var(--muted)] [overflow-wrap:anywhere]">
+                    <div className="h-[330px] min-w-0 overflow-hidden rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1 overflow-hidden">
+                          <p className="truncate text-sm font-bold">{review.name}</p>
+                          <p className="mt-1 max-w-full break-words text-xs font-semibold uppercase tracking-wide text-[var(--muted)] [overflow-wrap:anywhere] [word-break:break-word]">
                             {review.subject}
                           </p>
                         </div>
-                        <p className="text-sm font-semibold text-[var(--leaf-deep)]">
+                        <p className="shrink-0 text-sm font-semibold text-[var(--leaf-deep)]">
                           {"★".repeat(review.rating)}
                         </p>
                       </div>
-                      <div className="mt-4">
-                        <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[var(--muted)] [overflow-wrap:anywhere]">
+                      <div className="mt-4 h-[200px] min-w-0 overflow-hidden">
+                        <p className="max-w-full whitespace-pre-wrap break-words text-sm leading-6 text-[var(--muted)] [overflow-wrap:anywhere] [word-break:break-word]">
                           {review.text}
                         </p>
                       </div>

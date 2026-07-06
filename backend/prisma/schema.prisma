@@ -17,6 +17,11 @@ enum ProductAvailability {
   coming_soon
 }
 
+enum ProductLaunchStatus {
+  active
+  coming_soon
+}
+
 enum OrderStatus {
   pending
   confirmed
@@ -205,6 +210,7 @@ model Product {
   image            String
   categoryId       String
   availability     ProductAvailability @default(available)
+  launchStatus     ProductLaunchStatus @default(active)
   releaseNote      String?
   rating           Decimal             @default(0)
   reviewCount      Int                 @default(0)
@@ -233,6 +239,7 @@ model Product {
   @@index([isBestSeller])
   @@index([isNew])
   @@index([availability])
+  @@index([launchStatus])
   @@index([popularity])
   @@index([isActive])
 }
@@ -253,6 +260,7 @@ model ProductNotifyRequest {
 
   @@index([productId])
   @@index([userId])
+  @@index([productId, userId, isActive])
   @@index([email])
   @@index([isActive])
   @@index([notifiedAt])

@@ -12,6 +12,7 @@ const booleanFromQuery = z
   .transform((value) => (typeof value === "boolean" ? value : value === "true"));
 
 const availabilitySchema = z.enum(["available", "coming-soon"]);
+const launchStatusSchema = z.enum(["active", "coming-soon"]);
 const homepageSectionKeySchema = z.enum([
   "hero",
   "infinite_scrolling_banner",
@@ -129,6 +130,7 @@ const productBaseBodySchema = z.object({
   gallery: z.array(z.string().trim().min(1).max(2048)).min(1).optional(),
   categoryId: z.string().trim().min(1),
   availability: availabilitySchema.default("available"),
+  launchStatus: launchStatusSchema.optional(),
   releaseNote: z.string().trim().min(1).max(255).nullable().optional(),
   rating: z.coerce.number().min(0).max(5).optional(),
   reviewCount: z.coerce.number().int().min(0).optional(),
@@ -152,6 +154,7 @@ export const adminListProductsSchema = z.object({
     search: z.string().trim().min(1).optional(),
     category: z.string().trim().min(1).optional(),
     availability: availabilitySchema.optional(),
+    launchStatus: launchStatusSchema.optional(),
     isActive: booleanFromQuery.optional(),
     isFeatured: booleanFromQuery.optional(),
     isBestSeller: booleanFromQuery.optional(),

@@ -1,7 +1,8 @@
 import type { Product } from "@/types/product";
+import { isComingSoonProduct } from "@/lib/product-lifecycle";
 
 function getAvailabilityRank(product: Product): number {
-  if (product.availability === "coming-soon") {
+  if (isComingSoonProduct(product)) {
     return 2;
   }
 

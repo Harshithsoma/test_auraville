@@ -55,6 +55,7 @@ type AdminProductRecord = {
   image: string;
   categoryId: string;
   availability: "available" | "coming_soon";
+  launchStatus: "active" | "coming_soon";
   releaseNote: string | null;
   rating: unknown;
   reviewCount: number;
@@ -106,6 +107,12 @@ function triggerBackInStockNotifications(productId: string): void {
 }
 
 async function syncLegacyProductProjection(productId: string): Promise<void> {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { launchStatus: true, availability: true }
+  });
+  const isComingSoon = product?.launchStatus === "coming_soon" || product?.availability === "coming_soon";
+
   const variants = await prisma.productVariant.findMany({
     where: { productId },
     select: {
@@ -145,8 +152,8 @@ async function syncLegacyProductProjection(productId: string): Promise<void> {
     data: {
       price: primary.price,
       compareAtPrice: toPublicCompareAtPrice(primary.compareAtPrice, primary.price),
-      isFeatured: hasFeatured,
-      isBestSeller: hasBestSeller
+      isFeatured: isComingSoon ? false : hasFeatured,
+      isBestSeller: isComingSoon ? false : hasBestSeller
     }
   });
 }
@@ -157,6 +164,24 @@ function toApiAvailability(value: "available" | "coming_soon"): "available" | "c
 
 function toDbAvailability(value: "available" | "coming-soon"): "available" | "coming_soon" {
   return value === "coming-soon" ? "coming_soon" : "available";
+}
+
+function toApiLaunchStatus(value?: "active" | "coming_soon" | null, legacyAvailability?: "available" | "coming_soon" | null): "active" | "coming-soon" {
+  if (value === "coming_soon") return "coming-soon";
+  if (!value && legacyAvailability === "coming_soon") return "coming-soon";
+  return "active";
+}
+
+function toDbLaunchStatus(value: "active" | "coming-soon"): "active" | "coming_soon" {
+  return value === "coming-soon" ? "coming_soon" : "active";
+}
+
+function isLaunchComingSoon(product: { launchStatus?: "active" | "coming_soon" | null; availability?: "available" | "coming_soon" | null }): boolean {
+  return product.launchStatus === "coming_soon" || (!product.launchStatus && product.availability === "coming_soon");
+}
+
+function hasPurchasableAdminVariant(product: { variants: Array<{ isActive: boolean; stock: number }> }): boolean {
+  return product.variants.some((variant) => variant.isActive && variant.stock > 0);
 }
 
 function mapAdminProduct(product: AdminProductRecord): AdminProductResponse {
@@ -183,7 +208,8 @@ function mapAdminProduct(product: AdminProductRecord): AdminProductResponse {
       slug: product.category.slug
     },
     categoryId: product.categoryId,
-    availability: toApiAvailability(product.availability),
+    availability: toApiLaunchStatus(product.launchStatus, product.availability) === "coming-soon" ? "coming-soon" : toApiAvailability(product.availability),
+    launchStatus: toApiLaunchStatus(product.launchStatus, product.availability),
     releaseNote: product.releaseNote,
     rating: typeof product.rating === "number" ? product.rating : Number(product.rating),
     reviewCount: product.reviewCount,
@@ -637,6 +663,10 @@ export async function adminListProducts(
     where.availability = toDbAvailability(query.availability);
   }
 
+  if (query.launchStatus) {
+    where.launchStatus = toDbLaunchStatus(query.launchStatus);
+  }
+
   if (typeof query.isActive === "boolean") where.isActive = query.isActive;
   if (typeof query.isFeatured === "boolean") {
     where.AND = [
@@ -784,6 +814,10 @@ export async function adminCreateProduct(
     }
   }
 
+  const productLaunchStatus =
+    payload.launchStatus === "coming-soon" || payload.availability === "coming-soon" ? "coming_soon" : "active";
+  const isComingSoon = productLaunchStatus === "coming_soon";
+
   const normalizedVariants = variantPayload.map((variant, index) => {
     const pricing = resolveVariantPricing({
       compareAtPrice: variant.compareAtPrice,
@@ -800,8 +834,8 @@ export async function adminCreateProduct(
       unit: variant.unit,
       stock: variant.stock,
       sku: variant.sku,
-      isFeatured: variant.isFeatured ?? false,
-      isBestSeller: variant.isBestSeller ?? false,
+      isFeatured: isComingSoon ? false : variant.isFeatured ?? false,
+      isBestSeller: isComingSoon ? false : variant.isBestSeller ?? false,
       sortOrder: variant.sortOrder ?? index,
       isActive: variant.isActive ?? true
     };
@@ -823,6 +857,7 @@ export async function adminCreateProduct(
   const selectedVariant = normalizedVariants[selectedVariantIndex];
 
   if (
+    !isComingSoon &&
     payload.isFeatured &&
     normalizedVariants.length > 0 &&
     selectedVariant &&
@@ -831,6 +866,7 @@ export async function adminCreateProduct(
     selectedVariant.isFeatured = true;
   }
   if (
+    !isComingSoon &&
     payload.isBestSeller &&
     normalizedVariants.length > 0 &&
     selectedVariant &&
@@ -878,12 +914,13 @@ export async function adminCreateProduct(
       currency: payload.currency ?? "INR",
       image: payload.image,
       categoryId: payload.categoryId,
-      availability: toDbAvailability(payload.availability),
+      availability: isComingSoon ? "coming_soon" : "available",
+      launchStatus: productLaunchStatus,
       releaseNote: payload.releaseNote ?? null,
       rating: payload.rating ?? 0,
       reviewCount: payload.reviewCount ?? 0,
-      isFeatured: hasFeaturedVariant || (payload.isFeatured ?? false),
-      isBestSeller: hasBestSellerVariant || (payload.isBestSeller ?? false),
+      isFeatured: isComingSoon ? false : hasFeaturedVariant || (payload.isFeatured ?? false),
+      isBestSeller: isComingSoon ? false : hasBestSellerVariant || (payload.isBestSeller ?? false),
       isNew: payload.isNew ?? false,
       badgeLabel: payload.badgeLabel ?? null,
       popularity: payload.popularity ?? 0,
@@ -928,7 +965,15 @@ export async function adminPatchProduct(params: {
 }): Promise<{ data: AdminProductResponse }> {
   const { route, payload } = params;
 
-  await getAdminProductRecordById(route.id);
+  const existingProduct = await getAdminProductRecordById(route.id);
+  const wasPurchasable = !isLaunchComingSoon(existingProduct) && hasPurchasableAdminVariant(existingProduct);
+  const nextLaunchStatus =
+    payload.launchStatus === "coming-soon" || payload.availability === "coming-soon"
+      ? "coming_soon"
+      : payload.launchStatus === "active" || payload.availability === "available"
+        ? "active"
+        : existingProduct.launchStatus;
+  const nextIsComingSoon = nextLaunchStatus === "coming_soon";
 
   if (payload.slug) {
     await ensureUniqueProductSlug(payload.slug, route.id);
@@ -951,12 +996,19 @@ export async function adminPatchProduct(params: {
   if (payload.currency !== undefined) data.currency = payload.currency;
   if (payload.image !== undefined) data.image = payload.image;
   if (payload.categoryId !== undefined) data.categoryId = payload.categoryId;
-  if (payload.availability !== undefined) data.availability = toDbAvailability(payload.availability);
+  if (payload.availability !== undefined || payload.launchStatus !== undefined) {
+    data.availability = nextIsComingSoon ? "coming_soon" : "available";
+    data.launchStatus = nextLaunchStatus;
+  }
   if (payload.releaseNote !== undefined) data.releaseNote = payload.releaseNote;
   if (payload.rating !== undefined) data.rating = payload.rating;
   if (payload.reviewCount !== undefined) data.reviewCount = payload.reviewCount;
-  if (payload.isFeatured !== undefined) data.isFeatured = payload.isFeatured;
-  if (payload.isBestSeller !== undefined) data.isBestSeller = payload.isBestSeller;
+  if (payload.isFeatured !== undefined) data.isFeatured = nextIsComingSoon ? false : payload.isFeatured;
+  if (payload.isBestSeller !== undefined) data.isBestSeller = nextIsComingSoon ? false : payload.isBestSeller;
+  if (nextIsComingSoon) {
+    data.isFeatured = false;
+    data.isBestSeller = false;
+  }
   if (payload.isNew !== undefined) data.isNew = payload.isNew;
   if (payload.badgeLabel !== undefined) data.badgeLabel = payload.badgeLabel;
   if (payload.popularity !== undefined) data.popularity = payload.popularity;
@@ -969,6 +1021,13 @@ export async function adminPatchProduct(params: {
       where: { id: route.id },
       data
     });
+
+    if (nextIsComingSoon) {
+      await tx.productVariant.updateMany({
+        where: { productId: route.id },
+        data: { isFeatured: false, isBestSeller: false }
+      });
+    }
 
     if (payload.gallery) {
       const current = await tx.product.findUnique({
@@ -994,6 +1053,10 @@ export async function adminPatchProduct(params: {
   invalidateProductsListCache();
 
   const updated = await getAdminProductRecordById(route.id);
+  const isNowPurchasable = !isLaunchComingSoon(updated) && hasPurchasableAdminVariant(updated);
+  if (!wasPurchasable && isNowPurchasable) {
+    triggerBackInStockNotifications(route.id);
+  }
   return { data: mapAdminProduct(updated) };
 }
 
@@ -1125,7 +1188,8 @@ export async function adminCreateVariant(params: {
 }): Promise<{ data: { id: string; label: string; price: number; compareAtPrice: number | null; discountPercent: number; unit: string; stock: number; sku: string | null; isFeatured: boolean; isBestSeller: boolean; sortOrder: number; isActive: boolean } }> {
   const { route, payload } = params;
 
-  await getAdminProductRecordById(route.id);
+  const product = await getAdminProductRecordById(route.id);
+  const productIsComingSoon = isLaunchComingSoon(product);
 
   const existing = await prisma.productVariant.findUnique({
     where: {
@@ -1176,8 +1240,8 @@ export async function adminCreateVariant(params: {
       unit: payload.unit,
       stock: payload.stock,
       sku: payload.sku,
-      isFeatured: payload.isFeatured ?? false,
-      isBestSeller: payload.isBestSeller ?? false,
+      isFeatured: productIsComingSoon ? false : payload.isFeatured ?? false,
+      isBestSeller: productIsComingSoon ? false : payload.isBestSeller ?? false,
       sortOrder: payload.sortOrder ?? 0,
       isActive: payload.isActive ?? true
     },
@@ -1198,7 +1262,7 @@ export async function adminCreateVariant(params: {
   });
   await syncLegacyProductProjection(route.id);
   invalidateProductsListCache();
-  if (created.isActive && created.stock > 0) {
+  if (!productIsComingSoon && created.isActive && created.stock > 0) {
     triggerBackInStockNotifications(route.id);
   }
 
@@ -1226,7 +1290,8 @@ export async function adminPatchVariant(params: {
 }): Promise<{ data: { id: string; label: string; price: number; compareAtPrice: number | null; discountPercent: number; unit: string; stock: number; sku: string | null; isFeatured: boolean; isBestSeller: boolean; sortOrder: number; isActive: boolean } }> {
   const { route, payload } = params;
 
-  await getAdminProductRecordById(route.id);
+  const product = await getAdminProductRecordById(route.id);
+  const productIsComingSoon = isLaunchComingSoon(product);
 
   const variant = await prisma.productVariant.findUnique({
     where: {
@@ -1323,8 +1388,8 @@ export async function adminPatchVariant(params: {
       ...(payload.unit !== undefined ? { unit: payload.unit } : {}),
       ...(payload.stock !== undefined ? { stock: payload.stock } : {}),
       ...(payload.sku !== undefined ? { sku: payload.sku } : {}),
-      ...(payload.isFeatured !== undefined ? { isFeatured: payload.isFeatured } : {}),
-      ...(payload.isBestSeller !== undefined ? { isBestSeller: payload.isBestSeller } : {}),
+      ...(payload.isFeatured !== undefined ? { isFeatured: productIsComingSoon ? false : payload.isFeatured } : {}),
+      ...(payload.isBestSeller !== undefined ? { isBestSeller: productIsComingSoon ? false : payload.isBestSeller } : {}),
       ...(payload.sortOrder !== undefined ? { sortOrder: payload.sortOrder } : {}),
       ...(payload.isActive !== undefined ? { isActive: payload.isActive } : {})
     },
@@ -1345,7 +1410,7 @@ export async function adminPatchVariant(params: {
   });
   await syncLegacyProductProjection(route.id);
   invalidateProductsListCache();
-  if (updated.isActive && updated.stock > 0) {
+  if (!productIsComingSoon && updated.isActive && updated.stock > 0) {
     triggerBackInStockNotifications(route.id);
   }
 

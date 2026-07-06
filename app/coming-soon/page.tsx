@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { ProductCard } from "@/components/product/product-card";
 import { products } from "@/lib/products";
+import { fetchProducts } from "@/lib/catalog-api";
 import { absoluteUrl, defaultShareImageUrl } from "@/lib/site";
+import { isComingSoonProduct } from "@/lib/product-lifecycle";
 
 export const metadata: Metadata = {
   title: "Coming Soon Palmyra Snacks",
@@ -26,8 +28,20 @@ export const metadata: Metadata = {
   }
 };
 
-export default function ComingSoonPage() {
-  const comingSoon = products.filter((product) => product.availability === "coming-soon");
+export const dynamic = "force-dynamic";
+
+export default async function ComingSoonPage() {
+  const isProduction = process.env.NODE_ENV === "production";
+  let comingSoon = isProduction ? [] : products.filter(isComingSoonProduct);
+
+  try {
+    const response = await fetchProducts({ page: 1, limit: 24, launchStatus: "coming-soon", sort: "newest" });
+    comingSoon = response.data.filter(isComingSoonProduct);
+  } catch {
+    if (!isProduction) {
+      comingSoon = products.filter(isComingSoonProduct);
+    }
+  }
 
   return (
     <div className="container-page py-12 md:py-16">
@@ -40,11 +54,17 @@ export default function ComingSoonPage() {
           These recipes are in development. Preview the planned range before launch.
         </p>
       </div>
-      <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {comingSoon.map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
-      </div>
+      {comingSoon.length > 0 ? (
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {comingSoon.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-10 rounded-lg border border-[var(--line)] bg-white p-8 text-center text-sm text-[var(--muted)]">
+          No coming-soon products are listed right now.
+        </div>
+      )}
     </div>
   );
 }

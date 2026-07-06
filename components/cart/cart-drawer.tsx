@@ -39,7 +39,7 @@ export function CartDrawer() {
   const clearPromoCode = useCartStore((state) => state.clearPromoCode);
   const consumeCartNotice = useCartStore((state) => state.consumeCartNotice);
   const pushCartNotice = useCartStore((state) => state.pushCartNotice);
-  const { summary, enrichedItems, pricingError, isPricingLoading, isBackendPricing, shippingProgress } = useCartPricing();
+  const { summary, enrichedItems, pricingError, isPricingLoading, isPricingPending, isBackendPricing, shippingProgress } = useCartPricing();
 
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const drawerHistoryActiveRef = useRef(false);
@@ -264,7 +264,8 @@ export function CartDrawer() {
           ) : (
             <div className="space-y-3">
               {drawerItems.map((item) => {
-                const discountPercent = getDiscountPercent(item.compareAtUnitPrice, item.unitPrice);
+                const isItemRefreshing = isPricingPending;
+                const discountPercent = isItemRefreshing ? 0 : getDiscountPercent(item.compareAtUnitPrice, item.unitPrice);
                 return (
                 <article className="rounded-lg border border-[var(--line)] bg-white p-3" key={`${item.productId}-${item.variantId}`}>
                   <div className="grid grid-cols-[74px_1fr] gap-3 sm:grid-cols-[78px_1fr]">
@@ -273,7 +274,11 @@ export function CartDrawer() {
                       href={`/product/${item.slug}`}
                       onClick={closeDrawerForNavigation}
                     >
-                      <Image alt={item.name} className="object-cover" fill sizes="(min-width: 640px) 78px, 74px" src={item.image} />
+                      {isItemRefreshing || !item.image || !item.slug ? (
+                        <span className="absolute inset-0 animate-pulse bg-[var(--line)]/60" aria-hidden="true" />
+                      ) : (
+                        <Image alt={item.name} className="object-cover" fill sizes="(min-width: 640px) 78px, 74px" src={item.image} />
+                      )}
                     </Link>
 
                     <div className="min-w-0">
@@ -286,11 +291,15 @@ export function CartDrawer() {
                           {item.name}
                         </Link>
                         <div className="shrink-0 text-right">
-                          <p className="text-sm font-bold">{formatPrice(item.lineTotal)}</p>
-                          {item.quantity > 1 ? (
+                          {isItemRefreshing ? (
+                            <span className="inline-block h-4 w-16 animate-pulse rounded bg-[var(--line)]/70" aria-label="Refreshing price" />
+                          ) : (
+                            <p className="text-sm font-bold">{formatPrice(item.lineTotal)}</p>
+                          )}
+                          {!isItemRefreshing && item.quantity > 1 ? (
                             <p className="text-[11px] text-[var(--muted)]">{formatPrice(item.unitPrice)} each</p>
                           ) : null}
-                          {item.compareAtTotal > item.lineTotal ? (
+                          {!isItemRefreshing && item.compareAtTotal > item.lineTotal ? (
                             <p className="text-xs text-[var(--muted)] line-through">{formatPrice(item.compareAtTotal)}</p>
                           ) : null}
                         </div>
@@ -300,10 +309,10 @@ export function CartDrawer() {
                       {discountPercent > 0 ? (
                         <p className="mt-1 text-xs font-semibold text-[var(--leaf)]">Saved {discountPercent}%</p>
                       ) : null}
-                      {!item.available ? (
+                      {!isItemRefreshing && !item.available ? (
                         <p className="mt-1 text-xs font-semibold text-[var(--coral)]">Currently unavailable</p>
                       ) : null}
-                      {item.available && item.stock > 0 && item.quantity >= item.stock ? (
+                      {!isItemRefreshing && item.available && item.stock > 0 && item.quantity >= item.stock ? (
                         <p className="mt-1 text-xs font-semibold text-[var(--coral)]">
                           {item.stock === 1
                             ? "Only 1 available for this pack."
@@ -404,14 +413,10 @@ export function CartDrawer() {
           >
             <span>Estimated total</span>
             <span className="flex items-center gap-2">
-              {formatPrice(summary.total)}
+              {isPricingPending ? "Calculating..." : formatPrice(summary.total)}
               <span className={`text-base transition ${isSummaryOpen ? "rotate-180" : ""}`}>⌃</span>
             </span>
           </button>
-          {isPricingLoading ? (
-            <p className="mb-1.5 text-[11px] font-medium text-[var(--muted)]">Updating pricing...</p>
-          ) : null}
-
           {isSummaryOpen ? (
             <div className="space-y-1.5 rounded-lg border border-[var(--line)] bg-[#f8fbf9] px-3 py-2.5 text-xs">
               <div className="flex justify-between">
@@ -436,7 +441,7 @@ export function CartDrawer() {
               </div>
               <div className="flex justify-between border-t border-[var(--line)] pt-2 text-sm font-semibold">
                 <span>Final total</span>
-                <span>{formatPrice(summary.total)}</span>
+                <span>{isPricingPending ? "Calculating..." : formatPrice(summary.total)}</span>
               </div>
               {summary.totalSavings > 0 ? <p className="text-[var(--leaf)]">You saved {formatPrice(summary.totalSavings)}</p> : null}
               {!isBackendPricing ? (
@@ -449,7 +454,7 @@ export function CartDrawer() {
 
           <Link
             className={`focus-ring mt-3 inline-flex h-12 w-full items-center justify-center rounded-lg text-sm font-semibold transition active:scale-[0.98] ${
-              items.length === 0 || hasUnavailableItems
+              items.length === 0 || hasUnavailableItems || isPricingPending
                 ? "pointer-events-none border border-[var(--line)] bg-[var(--mint)] text-[var(--muted)]"
                 : "border border-[#d7a72f] bg-[#f7c948] text-[#173322] shadow-sm hover:bg-[#f3ba38] hover:text-[#102519]"
             }`}
@@ -458,6 +463,8 @@ export function CartDrawer() {
           >
             {items.length === 0
               ? "Add products to continue"
+              : isPricingPending
+                ? "Preparing cart..."
               : hasUnavailableItems
                 ? "Update cart to continue"
                 : user
