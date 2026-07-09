@@ -923,11 +923,11 @@ function buildProductCreatePayload(effectiveSlug: string) {
       image: formState.image.trim(),
       gallery: (formState.gallery.length > 0 ? formState.gallery : [formState.image.trim()]).filter(Boolean),
       categoryId: formState.categoryId.trim(),
-      availability: formState.launchStatus === "coming-soon" ? "coming-soon" : "available",
-      launchStatus: formState.launchStatus,
+      availability: "available",
+      launchStatus: "active" as const,
       releaseNote: formState.releaseNote.trim() || null,
-      isFeatured: formState.launchStatus === "coming-soon" ? false : formState.isFeatured,
-      isBestSeller: formState.launchStatus === "coming-soon" ? false : formState.isBestSeller,
+      isFeatured: formState.isFeatured,
+      isBestSeller: formState.isBestSeller,
       isNew: formState.isNew,
       badgeLabel: formState.badgeLabel.trim() || null,
       popularity: toNumber(formState.popularity),
@@ -948,8 +948,8 @@ function buildProductCreatePayload(effectiveSlug: string) {
         sku:
           (variant.sku.trim() ||
             toVariantSku(effectiveSlug, parsePackSize(variant.packSize) ?? 1)) || undefined,
-        isFeatured: formState.launchStatus === "coming-soon" ? false : variant.isFeatured,
-        isBestSeller: formState.launchStatus === "coming-soon" ? false : variant.isBestSeller,
+        isFeatured: variant.isFeatured,
+        isBestSeller: variant.isBestSeller,
         sortOrder: toNumber(variant.sortOrder),
         isActive: variant.isActive
       }))
@@ -980,11 +980,11 @@ function buildProductPatchPayload(effectiveSlug: string) {
       image: formState.image.trim(),
       gallery: (formState.gallery.length > 0 ? formState.gallery : [formState.image.trim()]).filter(Boolean),
       categoryId: formState.categoryId.trim(),
-      availability: formState.launchStatus === "coming-soon" ? "coming-soon" : "available",
-      launchStatus: formState.launchStatus,
+      availability: "available",
+      launchStatus: "active" as const,
       releaseNote: formState.releaseNote.trim() || null,
-      isFeatured: formState.launchStatus === "coming-soon" ? false : formState.isFeatured,
-      isBestSeller: formState.launchStatus === "coming-soon" ? false : formState.isBestSeller,
+      isFeatured: formState.isFeatured,
+      isBestSeller: formState.isBestSeller,
       isNew: formState.isNew,
       badgeLabel: formState.badgeLabel.trim() || null,
       popularity: toNumber(formState.popularity),
@@ -1449,10 +1449,6 @@ function buildProductPatchPayload(effectiveSlug: string) {
       return { label: "Hidden: missing category", tone: "bad" };
     }
 
-    if ((product.launchStatus ?? (product.availability === "coming-soon" ? "coming-soon" : "active")) === "coming-soon") {
-      return { label: "Hidden: coming soon", tone: "warn" };
-    }
-
     if (activeVariants.length === 0) {
       return { label: "Hidden: no active variant", tone: "warn" };
     }
@@ -1523,7 +1519,7 @@ function buildProductPatchPayload(effectiveSlug: string) {
             />
           </label>
           <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Availability</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Variant state</span>
             <Select
               className="mt-2"
               value={filters.availability}
@@ -1536,8 +1532,8 @@ function buildProductPatchPayload(effectiveSlug: string) {
               }}
             >
               <option value="all">All</option>
-              <option value="available">Available</option>
-              <option value="coming-soon">Coming soon</option>
+              <option value="available">Has purchasable variant</option>
+              <option value="coming-soon">Has inactive variant</option>
             </Select>
           </label>
           <label className="block">
@@ -1619,7 +1615,7 @@ function buildProductPatchPayload(effectiveSlug: string) {
                             <img alt={product.name} className="h-12 w-12 rounded object-cover" src={product.image} />
                             <div>
                               <p className="font-semibold">{product.name}</p>
-                              <p className="text-xs text-[var(--muted)]">{product.launchStatus ?? product.availability}</p>
+                              <p className="text-xs text-[var(--muted)]">{product.isActive ? "active" : "inactive"}</p>
                             </div>
                           </div>
                         </td>
@@ -2085,37 +2081,6 @@ function buildProductPatchPayload(effectiveSlug: string) {
               </p>
             )}
           </label>
-          <label className="rounded-lg border border-[var(--line)] bg-[var(--mint)]/55 p-3">
-            <span className="flex items-center gap-2 text-sm font-semibold">
-              <input
-                checked={formState.launchStatus === "coming-soon"}
-                type="checkbox"
-                onChange={(event) =>
-                  setFormState((current) => {
-                    const isComingSoon = event.target.checked;
-                    return {
-                      ...current,
-                      availability: isComingSoon ? "coming-soon" : "available",
-                      launchStatus: isComingSoon ? "coming-soon" : "active",
-                      isFeatured: isComingSoon ? false : current.isFeatured,
-                      isBestSeller: isComingSoon ? false : current.isBestSeller,
-                      variants: isComingSoon
-                        ? current.variants.map((variant) => ({
-                            ...variant,
-                            isFeatured: false,
-                            isBestSeller: false
-                          }))
-                        : current.variants
-                    };
-                  })
-                }
-              />
-              Coming Soon
-            </span>
-            <p className="mt-2 text-xs text-[var(--muted)]">
-              Products marked Coming Soon are not yet available for purchase. Featured and Best Seller are automatically disabled.
-            </p>
-          </label>
           <label>
             <span className="text-sm font-semibold">Release Note</span>
             <Input
@@ -2210,13 +2175,10 @@ function buildProductPatchPayload(effectiveSlug: string) {
           </div>
           <div className="sm:col-span-2 rounded-lg border border-[var(--line)] bg-[var(--mint)] p-3 text-xs text-[var(--muted)]">
             <p>
-              Active = visible on store. Coming Soon controls launch lifecycle separately from stock.
+              Active = visible on store. Variant Active controls whether each pack can be selected and purchased.
             </p>
             <p className="mt-1">
-              Featured and Best Seller visibility is controlled per variant below. New remains product-level.
-            </p>
-            <p className="mt-1">
-              Coming Soon products appear only in the Coming Soon section and show Notify Me until launched.
+              Inactive variants are shown as unavailable/coming soon and cannot be purchased. Featured and Best Seller visibility is controlled per active in-stock variant below. New remains product-level.
             </p>
           </div>
         </div>
@@ -2419,11 +2381,11 @@ function buildProductPatchPayload(effectiveSlug: string) {
                       />
                       Active
                     </label>
+                    <p className="basis-full text-[10px] text-[var(--muted)]">Inactive variants appear as coming soon/unavailable and cannot be purchased.</p>
                     <label className="flex items-center gap-2 text-sm">
                       <input
                         checked={variant.isFeatured}
                         type="checkbox"
-                        disabled={formState.launchStatus === "coming-soon"}
                         onChange={(event) =>
                           updateVariant(variant.localKey, (current) => ({
                             ...current,
@@ -2437,7 +2399,6 @@ function buildProductPatchPayload(effectiveSlug: string) {
                       <input
                         checked={variant.isBestSeller}
                         type="checkbox"
-                        disabled={formState.launchStatus === "coming-soon"}
                         onChange={(event) =>
                           updateVariant(variant.localKey, (current) => ({
                             ...current,

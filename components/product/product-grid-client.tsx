@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ApiError } from "@/services/api";
 import { fetchProducts } from "@/lib/catalog-api";
@@ -46,6 +46,7 @@ export function ProductGridClient({
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const hasUsedInitialServerPageRef = useRef(false);
 
   useEffect(() => {
     const nextCategory = categoryFromUrl && initialCategories.includes(categoryFromUrl) ? categoryFromUrl : "All";
@@ -53,6 +54,14 @@ export function ProductGridClient({
   }, [categoryFromUrl, initialCategories]);
 
   useEffect(() => {
+    const canUseInitialServerPage = !categoryFromUrl && !searchFromUrl && category === "All" && sort === "newest";
+    if (!hasUsedInitialServerPageRef.current) {
+      hasUsedInitialServerPageRef.current = true;
+      if (canUseInitialServerPage) {
+        return;
+      }
+    }
+
     let isCancelled = false;
 
     async function loadFirstPage() {
@@ -100,7 +109,7 @@ export function ProductGridClient({
     return () => {
       isCancelled = true;
     };
-  }, [category, initialProducts, initialTotal, initialTotalPages, searchFromUrl, sort]);
+  }, [category, categoryFromUrl, initialProducts, initialTotal, initialTotalPages, searchFromUrl, sort]);
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => product.price <= price);

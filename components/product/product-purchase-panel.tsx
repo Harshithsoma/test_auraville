@@ -1,16 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import type { Product } from "@/types/product";
 import { useCartStore } from "@/stores/cart-store";
-import { useAuthStore } from "@/stores/auth-store";
-import { useNotifyMe } from "@/hooks/use-notify-me";
 import { Button } from "@/components/ui/button";
 import { Price, PriceWithCompare } from "@/components/ui/price";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { getVariantCompareAtPrice, selectDefaultProductVariant, sortVariantsLogically } from "@/components/product/card-variant";
-import { isComingSoonProduct } from "@/lib/product-lifecycle";
+import { isVariantActive } from "@/lib/product-lifecycle";
 
 type ProductPurchasePanelProps = {
   product: Product;
@@ -30,19 +27,12 @@ export function ProductPurchasePanel({
   selectedVariantId,
   onSelectedVariantIdChange
 }: ProductPurchasePanelProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const user = useAuthStore((state) => state.user);
-  const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const addItem = useCartStore((state) => state.addItem);
   const openDrawer = useCartStore((state) => state.openDrawer);
   const getAvailableStock = useCartStore((state) => state.getAvailableStock);
   const pushCartNotice = useCartStore((state) => state.pushCartNotice);
   const [quantity, setQuantity] = useState(1);
   const [status, setStatus] = useState("");
-  const attemptedAutoNotifyRef = useRef(false);
-  const isComingSoon = isComingSoonProduct(product);
-  const isAvailable = !isComingSoon;
   const sortedVariants = useMemo(() => sortVariantsLogically(product.variants), [product.variants]);
   const defaultVariant = useMemo(() => selectDefaultProductVariant(sortedVariants), [sortedVariants]);
   const isControlled = typeof selectedVariantId === "string" && typeof onSelectedVariantIdChange === "function";
@@ -50,10 +40,6 @@ export function ProductPurchasePanel({
   const effectiveVariantId = isControlled
     ? selectedVariantId
     : internalVariantId || defaultVariant?.id || "";
-  const { notify, isSubmitting: isNotifySubmitting } = useNotifyMe({
-    onSuccess: (message) => setStatus(message),
-    onError: (message) => setStatus(message)
-  });
 
   useEffect(() => {
     if (!isControlled) {
@@ -76,45 +62,17 @@ export function ProductPurchasePanel({
       ? getAvailableStock(product.id, selectedVariant.id) ?? selectedVariant.stock ?? null
       : null;
   const hasAnyInStockVariant = sortedVariants.some(
-    (variant) => (getAvailableStock(product.id, variant.id) ?? variant.stock ?? 0) > 0
+    (variant) => isVariantActive(variant) && (getAvailableStock(product.id, variant.id) ?? variant.stock ?? 0) > 0
   );
+  const selectedVariantIsActive = isVariantActive(selectedVariant);
   const isOutOfStock = typeof selectedVariantStock === "number" && selectedVariantStock <= 0;
   const hasLimitedStock = typeof selectedVariantStock === "number" && selectedVariantStock > 0;
+  const selectedVariantCanPurchase = selectedVariantIsActive && !isOutOfStock;
   const effectiveQuantity = hasLimitedStock
     ? Math.min(Math.max(1, quantity), selectedVariantStock)
     : Math.max(1, quantity);
   const compareAtForVariant = selectedVariant ? getVariantCompareAtPrice(product, selectedVariant) : undefined;
 
-  useEffect(() => {
-    if (attemptedAutoNotifyRef.current) {
-      return;
-    }
-
-    const shouldAutoNotify = searchParams.get("notify") === "1";
-    if (!shouldAutoNotify) {
-      return;
-    }
-
-    const requestedProductId = searchParams.get("notifyProductId");
-    if (requestedProductId && requestedProductId !== product.id) {
-      return;
-    }
-
-    if (!hasHydrated || !user) {
-      return;
-    }
-
-    attemptedAutoNotifyRef.current = true;
-    void notify(
-      {
-        id: product.id,
-        slug: product.slug
-      },
-      { redirectGuest: false }
-    ).finally(() => {
-      router.replace(`/product/${product.slug}`, { scroll: false });
-    });
-  }, [hasHydrated, notify, product.id, product.slug, router, searchParams, user]);
 
   function setCurrentVariant(nextVariantId: string) {
     setStatus("");
@@ -130,19 +88,8 @@ export function ProductPurchasePanel({
       <div className="rounded-2xl border border-[var(--line)] bg-white p-4 shadow-[0_18px_45px_rgb(23_33_28_/_8%)] sm:p-5">
         <p className="text-sm font-semibold text-[var(--coral)]">Product unavailable right now.</p>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          This product has no active variants currently. Please check back soon.
+          This product has no purchasable variants currently. Please check back soon.
         </p>
-        <Button
-          className="mt-4 w-full rounded-xl border border-[var(--line)] bg-[var(--mint)] text-sm font-semibold text-[var(--leaf-deep)] hover:bg-[var(--mint)]/80"
-          disabled={isNotifySubmitting}
-          type="button"
-          variant="secondary"
-          onClick={() => {
-            void notify({ id: product.id, slug: product.slug });
-          }}
-        >
-          {isNotifySubmitting ? "Saving..." : "Notify Me"}
-        </Button>
       </div>
     );
   }
@@ -152,8 +99,8 @@ export function ProductPurchasePanel({
       return;
     }
 
-    if (!isAvailable) {
-      setStatus(`${product.name} is coming soon.`);
+    if (!selectedVariantIsActive) {
+      setStatus(`${selectedVariant.label} is coming soon.`);
       return;
     }
 
@@ -192,19 +139,20 @@ export function ProductPurchasePanel({
     <div className="rounded-2xl border border-[var(--line)] bg-white p-4 shadow-[0_18px_45px_rgb(23_33_28_/_8%)] sm:p-5">
       <fieldset>
         <legend className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-          {isAvailable ? "Select Variant" : "Planned Variants"}
+          Select Variant
         </legend>
         <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
           {sortedVariants.map((variant) => {
             const variantStock = getAvailableStock(product.id, variant.id) ?? variant.stock ?? null;
+            const variantIsActive = isVariantActive(variant);
             const variantIsOut = typeof variantStock === "number" && variantStock <= 0;
-            const variantIsLow = typeof variantStock === "number" && variantStock > 0 && variantStock <= 5;
+            const variantIsLow = variantIsActive && typeof variantStock === "number" && variantStock > 0 && variantStock <= 5;
             const isSelected = selectedVariant.id === variant.id;
 
             return (
               <label
                 className={`cursor-pointer rounded-xl border p-3.5 transition ${
-                  variantIsOut
+                  !variantIsActive || variantIsOut
                     ? "border-[#f2d5d3] bg-[#fff8f8] text-[#8f5550]"
                     : "border-[var(--line)] bg-[var(--background)]"
                 } ${isSelected ? "border-[var(--leaf)] bg-[var(--mint)] shadow-[inset_0_0_0_1px_var(--leaf)]" : ""}`}
@@ -213,7 +161,7 @@ export function ProductPurchasePanel({
                 <input
                   checked={isSelected}
                   className="sr-only"
-                  disabled={!isAvailable}
+                  disabled={!variantIsActive}
                   name="variant"
                   type="radio"
                   value={variant.id}
@@ -226,7 +174,9 @@ export function ProductPurchasePanel({
                 <span className="mt-2 block text-sm font-semibold">
                   <Price currency={product.currency} value={variant.price} />
                 </span>
-                {variantIsOut ? (
+                {!variantIsActive ? (
+                  <span className="mt-1 block text-xs font-semibold text-[var(--coral)]">Coming soon</span>
+                ) : variantIsOut ? (
                   <span className="mt-1 block text-xs font-semibold text-[var(--coral)]">Out of stock</span>
                 ) : variantIsLow ? (
                   <span className="mt-1 block text-xs font-semibold text-[var(--coral)]">
@@ -241,24 +191,20 @@ export function ProductPurchasePanel({
 
       <div className="mt-5 rounded-xl border border-[var(--line)] bg-[var(--mint)]/45 px-3.5 py-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Selected variant price</p>
-        {isAvailable ? (
-          <div className="mt-1 text-lg font-semibold sm:text-xl">
-            <PriceWithCompare
-              compareAtPrice={compareAtForVariant}
-              currency={product.currency}
-              value={selectedVariant.price}
-            />
-          </div>
-        ) : (
-          <p className="mt-1 text-base font-semibold">Coming soon</p>
-        )}
+        <div className="mt-1 text-lg font-semibold sm:text-xl">
+          <PriceWithCompare
+            compareAtPrice={compareAtForVariant}
+            currency={product.currency}
+            value={selectedVariant.price}
+          />
+        </div>
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-[var(--line)] bg-[var(--mint)]/45 px-3.5 py-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Quantity</p>
           <div className="mt-2">
-            {isAvailable && !isOutOfStock ? (
+            {selectedVariantCanPurchase ? (
               <QuantityStepper
                 value={effectiveQuantity}
                 max={typeof selectedVariantStock === "number" ? Math.max(1, selectedVariantStock) : undefined}
@@ -272,54 +218,39 @@ export function ProductPurchasePanel({
               />
             ) : (
               <span className="inline-flex h-11 items-center rounded-lg border border-[var(--line)] bg-[var(--mint)] px-4 text-sm font-semibold text-[var(--leaf-deep)]">
-                {isAvailable ? "Out of stock" : "Launching soon"}
+                {selectedVariantIsActive ? "Out of stock" : "Coming soon"}
               </span>
             )}
           </div>
         </div>
         <div className="text-right">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Total</p>
-          {isAvailable ? (
-            <div className="mt-1 text-lg font-semibold sm:text-xl">
-              <PriceWithCompare
-                compareAtPrice={compareAtForVariant ? compareAtForVariant * effectiveQuantity : undefined}
-                currency={product.currency}
-                showSavingsPill={false}
-                value={selectedVariant.price * effectiveQuantity}
-              />
-            </div>
-          ) : (
-            <p className="mt-1 text-base font-semibold">Coming soon</p>
-          )}
+          <div className="mt-1 text-lg font-semibold sm:text-xl">
+            <PriceWithCompare
+              compareAtPrice={compareAtForVariant ? compareAtForVariant * effectiveQuantity : undefined}
+              currency={product.currency}
+              showSavingsPill={false}
+              value={selectedVariant.price * effectiveQuantity}
+            />
+          </div>
         </div>
       </div>
 
       <div className="mt-5 rounded-xl bg-[var(--leaf-deep)] p-1.5">
         <Button
           className="w-full rounded-[10px] border border-transparent bg-[var(--leaf-deep)] text-base font-bold tracking-wide text-white hover:bg-[var(--leaf)]"
-          disabled={!isAvailable || isOutOfStock || !hasAnyInStockVariant}
+          disabled={!selectedVariantCanPurchase || !hasAnyInStockVariant}
           type="button"
           onClick={addToCart}
         >
-          {isAvailable ? (isOutOfStock ? "Out of Stock" : "Add to Cart") : "Coming Soon"}
+          {selectedVariantCanPurchase ? "Add to Cart" : selectedVariantIsActive ? "Out of Stock" : "Coming Soon"}
         </Button>
       </div>
-      {!isAvailable || isOutOfStock || !hasAnyInStockVariant ? (
-        <Button
-          className="mt-3 w-full rounded-xl border border-[var(--line)] bg-[var(--mint)] text-sm font-semibold text-[var(--leaf-deep)] hover:bg-[var(--mint)]/80"
-          disabled={isNotifySubmitting}
-          type="button"
-          variant="secondary"
-          onClick={() => {
-            void notify({ id: product.id, slug: product.slug });
-          }}
-        >
-          {isNotifySubmitting ? "Saving..." : "Notify Me"}
-        </Button>
-      ) : null}
       <p className="mt-2 min-h-5 text-xs font-medium text-[var(--muted)]" aria-live="polite">
-        {isOutOfStock
-          ? "This pack is currently unavailable."
+        {!selectedVariantIsActive
+          ? "This pack is coming soon."
+          : isOutOfStock
+            ? "This pack is currently unavailable."
           : hasLimitedStock && selectedVariantStock <= 5
             ? selectedVariantStock === 1
               ? "Only 1 left in stock."

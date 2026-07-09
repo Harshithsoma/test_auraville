@@ -6,10 +6,18 @@ export type DisplayVariantSelection = {
   compareAtPrice?: number;
 };
 
-type VariantContext = "default" | "featured" | "bestSeller";
+type VariantContext = "default" | "featured" | "bestSeller" | "comingSoon";
+
+function isActive(variant: ProductVariant): boolean {
+  return variant.isActive !== false;
+}
 
 function isInStock(variant: ProductVariant): boolean {
-  return (variant.stock ?? 0) > 0;
+  return isActive(variant) && (variant.stock ?? 0) > 0;
+}
+
+function isInactive(variant: ProductVariant): boolean {
+  return !isActive(variant);
 }
 
 function extractVariantQuantity(variant: ProductVariant): number | null {
@@ -37,8 +45,8 @@ export function sortVariantsLogically(variants: ProductVariant[]): ProductVarian
 
 function sortByDisplayPriority(variants: ProductVariant[]): ProductVariant[] {
   return sortVariantsLogically(variants).sort((a, b) => {
-    const stockRankA = isInStock(a) ? 0 : 1;
-    const stockRankB = isInStock(b) ? 0 : 1;
+    const stockRankA = isInStock(a) ? 0 : isActive(a) ? 1 : 2;
+    const stockRankB = isInStock(b) ? 0 : isActive(b) ? 1 : 2;
     if (stockRankA !== stockRankB) return stockRankA - stockRankB;
     return 0;
   });
@@ -52,7 +60,8 @@ function pickVariantByContext(product: Product, context: VariantContext): Produc
   if (context === "featured") {
     return (
       ordered.find((variant) => variant.isFeatured && isInStock(variant)) ??
-      ordered.find((variant) => variant.isFeatured) ??
+      ordered.find(isInStock) ??
+      ordered.find(isActive) ??
       ordered[0] ??
       null
     );
@@ -61,13 +70,18 @@ function pickVariantByContext(product: Product, context: VariantContext): Produc
   if (context === "bestSeller") {
     return (
       ordered.find((variant) => variant.isBestSeller && isInStock(variant)) ??
-      ordered.find((variant) => variant.isBestSeller) ??
+      ordered.find(isInStock) ??
+      ordered.find(isActive) ??
       ordered[0] ??
       null
     );
   }
 
-  return ordered[0] ?? null;
+  if (context === "comingSoon") {
+    return sortVariantsLogically(variants).find(isInactive) ?? ordered[0] ?? null;
+  }
+
+  return ordered.find(isInStock) ?? ordered.find(isActive) ?? ordered[0] ?? null;
 }
 
 function computeVariantCompareAtPrice(variant: ProductVariant): number | undefined {

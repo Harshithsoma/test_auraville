@@ -8,6 +8,7 @@ export type ProductVariant = {
   discountPercent?: number;
   unit: string;
   stock?: number;
+  isActive?: boolean;
   isFeatured?: boolean;
   isBestSeller?: boolean;
   sortOrder?: number;

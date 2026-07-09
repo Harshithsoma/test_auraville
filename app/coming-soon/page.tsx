@@ -57,7 +57,7 @@ export default async function ComingSoonPage() {
       {comingSoon.length > 0 ? (
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {comingSoon.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard key={product.id} product={product} variantContext="comingSoon" />
           ))}
         </div>
       ) : (

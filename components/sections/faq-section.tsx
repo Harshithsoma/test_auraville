@@ -34,7 +34,7 @@ const defaultFaqItems = HOMEPAGE_DEFAULT_FAQ_ITEMS.length > 0 ? HOMEPAGE_DEFAULT
   },
   {
     q: "When will coming-soon products launch?",
-    a: "We release in batches. Use Notify Me on product cards and we will alert you when each product goes live."
+    a: "We release in batches. Check the Coming Soon page for planned variants and launch updates."
   }
 ];
 

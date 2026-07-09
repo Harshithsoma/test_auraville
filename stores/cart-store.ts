@@ -125,6 +125,39 @@ function itemKey(item: Pick<CartItem, "productId" | "variantId">) {
 }
 
 let syncPricingRequestId = 0;
+let inFlightPricingKey: string | null = null;
+let inFlightPricingPromise: Promise<void> | null = null;
+
+function getPricingKey(items: CartItem[], promoCode: string | null): string {
+  const requestItems = items
+    .map((item) => ({
+      productId: item.productId,
+      variantId: item.variantId,
+      quantity: item.quantity
+    }))
+    .sort((a, b) => {
+      const productDelta = a.productId.localeCompare(b.productId);
+      return productDelta !== 0 ? productDelta : a.variantId.localeCompare(b.variantId);
+    });
+
+  return JSON.stringify({
+    items: requestItems,
+    promoCode: promoCode ?? null
+  });
+}
+
+function pricingMatchesCart(pricing: CartPricingData | null, items: CartItem[], promoCode: string | null): boolean {
+  if (!pricing) return false;
+  if (pricing.items.length !== items.length) return false;
+  if ((pricing.summary.promoCode ?? null) !== (promoCode ?? null)) return false;
+
+  return items.every((item) => {
+    const pricedItem = pricing.items.find(
+      (candidate) => candidate.productId === item.productId && candidate.variantId === item.variantId
+    );
+    return Boolean(pricedItem && pricedItem.quantity === item.quantity);
+  });
+}
 
 export const useCartStore = create<CartState>()(
   persist<CartState, [], [], PersistedCartState>(
@@ -323,48 +356,72 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
+        const pricingKey = getPricingKey(state.items, state.promoCode);
+        if (pricingMatchesCart(state.pricing, state.items, state.promoCode)) {
+          if (state.isPricingLoading) {
+            set({ isPricingLoading: false });
+          }
+          return;
+        }
+
+        if (inFlightPricingPromise && inFlightPricingKey === pricingKey) {
+          return inFlightPricingPromise;
+        }
+
         const requestId = ++syncPricingRequestId;
         set({ isPricingLoading: true, pricingError: null });
-        try {
-          const response = await commerceApi.cart.price<CartPriceResponse, CartPriceRequest>({
-            items: payloadItems,
-            promoCode: state.promoCode ?? undefined
-          });
 
-          if (requestId !== syncPricingRequestId) {
-            return;
-          }
+        const pricingPromise = (async () => {
+          try {
+            const response = await commerceApi.cart.price<CartPriceResponse, CartPriceRequest>({
+              items: payloadItems,
+              promoCode: state.promoCode ?? undefined
+            });
 
-          set({
-            pricing: response.data,
-            promoCode: response.data.summary.promoCode,
-            pricingError: null,
-            isPricingLoading: false
-          });
-        } catch (error) {
-          if (requestId !== syncPricingRequestId) {
-            return;
-          }
-
-          if (error instanceof ApiError) {
-            if (error.code === "INVALID_COUPON") {
-              set({
-                promoCode: null,
-                promoDiscountPercent: 0
-              });
+            if (requestId !== syncPricingRequestId) {
+              return;
             }
+
             set({
-              pricingError: error.message,
+              pricing: response.data,
+              promoCode: response.data.summary.promoCode,
+              pricingError: null,
               isPricingLoading: false
             });
-            return;
-          }
+          } catch (error) {
+            if (requestId !== syncPricingRequestId) {
+              return;
+            }
 
-          set({
-            pricingError: "Unable to refresh cart pricing right now.",
-            isPricingLoading: false
-          });
-        }
+            if (error instanceof ApiError) {
+              if (error.code === "INVALID_COUPON") {
+                set({
+                  promoCode: null,
+                  promoDiscountPercent: 0
+                });
+              }
+              set({
+                pricingError: error.message,
+                isPricingLoading: false
+              });
+              return;
+            }
+
+            set({
+              pricingError: "Unable to refresh cart pricing right now.",
+              isPricingLoading: false
+            });
+          } finally {
+            if (inFlightPricingKey === pricingKey) {
+              inFlightPricingKey = null;
+              inFlightPricingPromise = null;
+            }
+          }
+        })();
+
+        inFlightPricingKey = pricingKey;
+        inFlightPricingPromise = pricingPromise;
+        return pricingPromise;
       },
       pushCartNotice: (message) =>
         set((state) => ({

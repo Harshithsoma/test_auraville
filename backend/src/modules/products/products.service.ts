@@ -1,8 +1,5 @@
-import { Prisma } from "@prisma/client";
 import { HttpError } from "../../utils/http-error";
 import { prisma } from "../../prisma/prisma.service";
-import { env } from "../../config/env";
-import { NotifyDeliveryError, sendBackInStockEmail } from "../../utils/notify-delivery";
 import type { ProductApiResponse, ProductListQuery, ProductListResult } from "./products.types";
 
 const PRODUCTS_LIST_CACHE_TTL_MS = 45_000;
@@ -19,26 +16,12 @@ export function invalidateProductsListCache(): void {
   productsListCache.clear();
 }
 
-function toAvailability(value: string): "available" | "coming-soon" {
-  return value === "coming_soon" ? "coming-soon" : "available";
+function variantIsPurchasable(variant: Pick<StorefrontVariantRecord, "isActive" | "stock">): boolean {
+  return variant.isActive && variant.stock > 0;
 }
 
-function toDbAvailability(value: "available" | "coming-soon"): "available" | "coming_soon" {
-  return value === "coming-soon" ? "coming_soon" : "available";
-}
-
-function toLaunchStatus(value?: string | null, legacyAvailability?: string | null): "active" | "coming-soon" {
-  if (value === "coming_soon") return "coming-soon";
-  if (!value && legacyAvailability === "coming_soon") return "coming-soon";
-  return "active";
-}
-
-function toDbLaunchStatus(value: "active" | "coming-soon"): "active" | "coming_soon" {
-  return value === "coming-soon" ? "coming_soon" : "active";
-}
-
-function hasPurchasableVariant(variants: Array<{ stock: number }>): boolean {
-  return variants.some((variant) => variant.stock > 0);
+function productHasInactiveVariant(product: Pick<StorefrontProductRecord, "variants">): boolean {
+  return product.variants.some((variant) => !variant.isActive);
 }
 
 type StorefrontVariantRecord = {
@@ -52,6 +35,7 @@ type StorefrontVariantRecord = {
   isFeatured: boolean;
   isBestSeller: boolean;
   sortOrder: number;
+  isActive: boolean;
 };
 
 type StorefrontProductRecord = {
@@ -84,10 +68,9 @@ type StorefrontProductRecord = {
 };
 
 function getVariantPriority(variant: StorefrontVariantRecord): number {
-  if (variant.stock > 0) {
-    return 0;
-  }
-  return 1;
+  if (variant.isActive && variant.stock > 0) return 0;
+  if (variant.isActive) return 1;
+  return 2;
 }
 
 function sortVariants(
@@ -95,8 +78,8 @@ function sortVariants(
   context: "default" | "featured" | "bestSeller"
 ): StorefrontVariantRecord[] {
   return [...variants].sort((a, b) => {
-    const aFlag = context === "featured" ? a.isFeatured : context === "bestSeller" ? a.isBestSeller : true;
-    const bFlag = context === "featured" ? b.isFeatured : context === "bestSeller" ? b.isBestSeller : true;
+    const aFlag = context === "featured" ? a.isFeatured && variantIsPurchasable(a) : context === "bestSeller" ? a.isBestSeller && variantIsPurchasable(a) : true;
+    const bFlag = context === "featured" ? b.isFeatured && variantIsPurchasable(b) : context === "bestSeller" ? b.isBestSeller && variantIsPurchasable(b) : true;
     const aFlagRank = aFlag ? 0 : 1;
     const bFlagRank = bFlag ? 0 : 1;
     if (aFlagRank !== bFlagRank) {
@@ -136,14 +119,14 @@ function mapProduct(
     discountPercent: variant.discountPercent,
     unit: variant.unit,
     stock: variant.stock,
+    isActive: variant.isActive,
     isFeatured: variant.isFeatured,
     isBestSeller: variant.isBestSeller,
     sortOrder: variant.sortOrder
   }));
-  const launchStatus = toLaunchStatus(product.launchStatus, product.availability);
-  const isLaunchActive = launchStatus === "active";
-  const hasFeaturedVariant = isLaunchActive && product.variants.some((variant) => variant.isFeatured && variant.stock > 0);
-  const hasBestSellerVariant = isLaunchActive && product.variants.some((variant) => variant.isBestSeller && variant.stock > 0);
+  const hasInactiveVariant = productHasInactiveVariant(product);
+  const hasFeaturedVariant = product.variants.some((variant) => variant.isFeatured && variantIsPurchasable(variant));
+  const hasBestSellerVariant = product.variants.some((variant) => variant.isBestSeller && variantIsPurchasable(variant));
 
   return {
     id: product.id,
@@ -165,13 +148,13 @@ function mapProduct(
     image: product.image,
     gallery,
     category: product.category.name,
-    availability: launchStatus === "coming-soon" ? "coming-soon" : toAvailability(product.availability),
-    launchStatus,
+    availability: hasInactiveVariant ? "coming-soon" : "available",
+    launchStatus: hasInactiveVariant ? "coming-soon" : "active",
     ...(product.releaseNote !== null ? { releaseNote: product.releaseNote } : {}),
     rating: typeof product.rating === "number" ? product.rating : Number(product.rating),
     reviewCount: product.reviewCount,
-    isFeatured: isLaunchActive && (hasFeaturedVariant || product.isFeatured),
-    isBestSeller: isLaunchActive && (hasBestSellerVariant || product.isBestSeller),
+    isFeatured: hasFeaturedVariant || product.isFeatured,
+    isBestSeller: hasBestSellerVariant || product.isBestSeller,
     isNew: product.isNew,
     ...(product.badgeLabel !== null ? { badgeLabel: product.badgeLabel } : {}),
     popularity: product.popularity,
@@ -297,15 +280,12 @@ export async function listProducts(query: ProductListQuery): Promise<ProductList
     }
   }
 
-  const launchStatusFilter = query.launchStatus
-    ? toDbLaunchStatus(query.launchStatus)
-    : query.availability === "coming-soon"
-      ? "coming_soon"
-      : query.availability === "available"
-        ? "active"
-        : query.featured === true || query.bestSeller === true
-          ? "active"
-          : undefined;
+  const lifecycleVariantFilter =
+    query.launchStatus === "coming-soon" || query.availability === "coming-soon"
+      ? { variants: { some: { isActive: false } } }
+      : query.availability === "available" || query.launchStatus === "active" || query.featured === true || query.bestSeller === true
+        ? { variants: { some: { isActive: true, stock: { gt: 0 } } } }
+        : {};
 
   const where = {
     isActive: true,
@@ -329,9 +309,8 @@ export async function listProducts(query: ProductListQuery): Promise<ProductList
         }
       : {}),
     ...(typeof query.isNew === "boolean" ? { isNew: query.isNew } : {}),
-    ...(query.availability ? { availability: toDbAvailability(query.availability) } : {}),
-    ...(launchStatusFilter ? { launchStatus: launchStatusFilter } : {}),
-    ...(variantFlagFilters.length > 0 ? { AND: variantFlagFilters } : {})
+    ...(variantFlagFilters.length > 0 ? { AND: variantFlagFilters } : {}),
+    ...lifecycleVariantFilter
   };
 
   const [total, products] = await Promise.all([
@@ -342,7 +321,6 @@ export async function listProducts(query: ProductListQuery): Promise<ProductList
         category: { select: { name: true } },
         images: { select: { url: true, position: true } },
         variants: {
-          where: { isActive: true },
           select: {
             frontendVariantId: true,
             label: true,
@@ -354,6 +332,7 @@ export async function listProducts(query: ProductListQuery): Promise<ProductList
             isFeatured: true,
             isBestSeller: true,
             sortOrder: true,
+            isActive: true,
             createdAt: true
           },
           orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
@@ -390,7 +369,6 @@ export async function getProductBySlug(slug: string): Promise<ProductApiResponse
       category: { select: { name: true } },
       images: { select: { url: true, position: true } },
       variants: {
-        where: { isActive: true },
         select: {
           frontendVariantId: true,
           label: true,
@@ -402,6 +380,7 @@ export async function getProductBySlug(slug: string): Promise<ProductApiResponse
           isFeatured: true,
           isBestSeller: true,
           sortOrder: true,
+          isActive: true,
           createdAt: true
         },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
@@ -414,255 +393,4 @@ export async function getProductBySlug(slug: string): Promise<ProductApiResponse
   }
 
   return mapProduct(product as unknown as StorefrontProductRecord);
-}
-
-function maskEmail(email: string): string {
-  const [localPart, domain] = email.split("@");
-  if (!localPart || !domain) {
-    return "***";
-  }
-
-  const visiblePrefix = localPart.slice(0, 2);
-  return `${visiblePrefix}${"*".repeat(Math.max(localPart.length - 2, 1))}@${domain}`;
-}
-
-const notifyConfirmationMessage = "We'll notify you when this product becomes available.";
-
-function isUniqueConstraintError(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
-}
-
-export async function registerProductNotifyRequest(params: {
-  productId: string;
-  user: { id: string; email: string };
-}): Promise<{ message: string }> {
-  const normalizedEmail = params.user.email.trim().toLowerCase();
-
-  const product = await prisma.product.findUnique({
-    where: {
-      id: params.productId
-    },
-    select: {
-      id: true,
-      isActive: true,
-      availability: true,
-      launchStatus: true,
-      variants: {
-        where: {
-          isActive: true,
-          stock: {
-            gt: 0
-          }
-        },
-        select: {
-          id: true,
-          stock: true
-        },
-        take: 1
-      }
-    }
-  });
-
-  if (!product || !product.isActive) {
-    throw new HttpError(404, "Product not found", undefined, "PRODUCT_NOT_FOUND");
-  }
-
-  const launchStatus = toLaunchStatus(product.launchStatus, product.availability);
-  if (launchStatus === "active" && hasPurchasableVariant(product.variants)) {
-    throw new HttpError(409, "Product is already in stock", undefined, "PRODUCT_ALREADY_IN_STOCK");
-  }
-
-  const existingActiveForUser = await prisma.productNotifyRequest.findFirst({
-    where: {
-      productId: params.productId,
-      userId: params.user.id,
-      isActive: true
-    },
-    select: {
-      id: true
-    },
-    orderBy: [{ requestedAt: "desc" }, { createdAt: "desc" }]
-  });
-
-  if (existingActiveForUser) {
-    return {
-      message: notifyConfirmationMessage
-    };
-  }
-
-  const existingActiveForEmail = await prisma.productNotifyRequest.findFirst({
-    where: {
-      productId: params.productId,
-      email: normalizedEmail,
-      isActive: true
-    },
-    select: {
-      id: true,
-      userId: true
-    },
-    orderBy: [{ requestedAt: "desc" }, { createdAt: "desc" }]
-  });
-
-  if (existingActiveForEmail) {
-    if (existingActiveForEmail.userId !== params.user.id) {
-      try {
-        await prisma.productNotifyRequest.update({
-          where: { id: existingActiveForEmail.id },
-          data: { userId: params.user.id }
-        });
-      } catch (error) {
-        if (!isUniqueConstraintError(error)) {
-          throw error;
-        }
-      }
-    }
-
-    return {
-      message: notifyConfirmationMessage
-    };
-  }
-
-  const existingInactiveForUser = await prisma.productNotifyRequest.findFirst({
-    where: {
-      productId: params.productId,
-      userId: params.user.id,
-      isActive: false
-    },
-    select: {
-      id: true
-    },
-    orderBy: [{ requestedAt: "desc" }, { createdAt: "desc" }]
-  });
-
-  const existingInactive =
-    existingInactiveForUser ??
-    (await prisma.productNotifyRequest.findFirst({
-    where: {
-      productId: params.productId,
-      email: normalizedEmail,
-      isActive: false
-    },
-    select: {
-      id: true
-    },
-    orderBy: [{ requestedAt: "desc" }, { createdAt: "desc" }]
-  }));
-
-  try {
-    if (existingInactive) {
-      await prisma.productNotifyRequest.update({
-        where: {
-          id: existingInactive.id
-        },
-        data: {
-          isActive: true,
-          userId: params.user.id,
-          email: normalizedEmail,
-          requestedAt: new Date(),
-          notifiedAt: null
-        }
-      });
-    } else {
-      await prisma.productNotifyRequest.create({
-        data: {
-          productId: params.productId,
-          userId: params.user.id,
-          email: normalizedEmail,
-          isActive: true
-        }
-      });
-    }
-  } catch (error) {
-    if (!isUniqueConstraintError(error)) {
-      throw error;
-    }
-  }
-
-  return {
-    message: notifyConfirmationMessage
-  };
-}
-
-export async function dispatchBackInStockNotifications(productId: string): Promise<void> {
-  const product = await prisma.product.findUnique({
-    where: {
-      id: productId
-    },
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      image: true,
-      isActive: true,
-      availability: true,
-      launchStatus: true,
-      variants: {
-        where: {
-          isActive: true,
-          stock: {
-            gt: 0
-          }
-        },
-        select: {
-          id: true,
-          stock: true
-        },
-        take: 1
-      }
-    }
-  });
-
-  const launchStatus = product ? toLaunchStatus(product.launchStatus, product.availability) : "active";
-  if (!product || !product.isActive || launchStatus !== "active" || !hasPurchasableVariant(product.variants)) {
-    return;
-  }
-
-  const pendingRequests = await prisma.productNotifyRequest.findMany({
-    where: {
-      productId: product.id,
-      isActive: true,
-      notifiedAt: null
-    },
-    select: {
-      id: true,
-      email: true
-    }
-  });
-
-  if (pendingRequests.length === 0) {
-    return;
-  }
-
-  const productUrl = `${env.FRONTEND_URL.replace(/\/+$/, "")}/product/${product.slug}`;
-
-  for (const request of pendingRequests) {
-    try {
-      await sendBackInStockEmail({
-        email: request.email,
-        productName: product.name,
-        productImage: product.image,
-        productUrl
-      });
-
-      await prisma.productNotifyRequest.update({
-        where: {
-          id: request.id
-        },
-        data: {
-          isActive: false,
-          notifiedAt: new Date()
-        }
-      });
-    } catch (error) {
-      if (env.NODE_ENV !== "test") {
-        const code = error instanceof NotifyDeliveryError ? error.code : "NOTIFY_SEND_FAILED";
-        // eslint-disable-next-line no-console
-        console.error("Back-in-stock email send failed", {
-          productId: product.id,
-          code,
-          recipient: maskEmail(request.email)
-        });
-      }
-    }
-  }
 }

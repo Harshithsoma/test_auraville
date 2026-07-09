@@ -121,6 +121,29 @@ export function ProductMediaGallery({ name, image, gallery }: ProductMediaGaller
             src={activeImage}
           />
         </div>
+
+        {hasMultipleImages ? (
+          <div className="pointer-events-none absolute inset-y-0 left-3 right-3 z-20 hidden items-center justify-between sm:flex">
+            <button
+              aria-label="Show previous product image"
+              className="focus-ring pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/90 text-lg font-semibold text-[var(--leaf-deep)] shadow-sm transition hover:bg-white active:scale-95"
+              type="button"
+              onClick={goToPrevious}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              ‹
+            </button>
+            <button
+              aria-label="Show next product image"
+              className="focus-ring pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/90 text-lg font-semibold text-[var(--leaf-deep)] shadow-sm transition hover:bg-white active:scale-95"
+              type="button"
+              onClick={goToNext}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              ›
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-4 grid grid-cols-4 gap-2 sm:gap-3" role="list" aria-label="Product thumbnails">

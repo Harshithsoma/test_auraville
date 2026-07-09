@@ -341,10 +341,6 @@ export const commerceApi = {
     bySlug: <TResponse>(slug: string) =>
       request<TResponse>(`/products/${encodeURIComponent(slug)}`, {
         cache: "no-store"
-      }),
-    notifyMe: <TResponse>(productId: string) =>
-      request<TResponse>(`/products/${encodeURIComponent(productId)}/notify-me`, {
-        method: "POST"
       })
   },
   categories: {

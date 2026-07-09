@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Product } from "@/types/product";
@@ -8,12 +7,9 @@ import { PriceWithCompare } from "@/components/ui/price";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { useCartStore } from "@/stores/cart-store";
 import { selectContextDisplayVariant } from "@/components/product/card-variant";
-import { useNotifyMe } from "@/hooks/use-notify-me";
-import { isComingSoonProduct } from "@/lib/product-lifecycle";
+import { isVariantActive } from "@/lib/product-lifecycle";
 
 export function BestSellerCard({ product, priority = false }: { product: Product; priority?: boolean }) {
-  const isComingSoon = isComingSoonProduct(product);
-  const [status, setStatus] = useState("");
   const items = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
@@ -23,22 +19,19 @@ export function BestSellerCard({ product, priority = false }: { product: Product
   const pushCartNotice = useCartStore((state) => state.pushCartNotice);
 
   const { variant, isOutOfStock, compareAtPrice } = selectContextDisplayVariant(product, "bestSeller");
-  const { notify, isSubmitting: isNotifySubmitting } = useNotifyMe({
-    onSuccess: (message) => setStatus(message),
-    onError: (message) => setStatus(message)
-  });
   const cartItem = variant
     ? items.find((item) => item.productId === product.id && item.variantId === variant.id)
     : undefined;
   const quantity = cartItem?.quantity ?? 0;
   const displayPrice = variant?.price ?? product.price;
   const availableStock = variant ? getAvailableStock(product.id, variant.id) ?? variant.stock ?? null : null;
-  const canPurchase = !isComingSoon && Boolean(variant) && !isOutOfStock;
+  const variantIsActive = isVariantActive(variant);
+  const canPurchase = variant ? variantIsActive && (availableStock ?? variant.stock ?? 0) > 0 : false;
   const marketingBadge = product.badgeLabel?.trim() ?? "";
-  const badgeText = isComingSoon ? "Coming Soon" : !canPurchase ? "Out of Stock" : marketingBadge || null;
+  const badgeText = !variantIsActive ? "Coming Soon" : !canPurchase ? "Out of Stock" : marketingBadge || null;
 
   function addToCart(openCart = false) {
-    if (isComingSoon || !variant) return;
+    if (!variant || !variantIsActive) return;
     if (isOutOfStock) {
       pushCartNotice("No more quantity available.");
       return;
@@ -100,7 +93,7 @@ export function BestSellerCard({ product, priority = false }: { product: Product
           {canPurchase ? (
             <PriceWithCompare compareAtPrice={compareAtPrice} currency={product.currency} value={displayPrice} />
           ) : (
-            <p className="font-bold">{isComingSoon ? "Coming Soon" : "Out of Stock"}</p>
+            <p className="font-bold">{!variantIsActive ? "Coming Soon" : "Out of Stock"}</p>
           )}
         </div>
         <div className="mt-0.5 min-h-4 sm:mt-1">
@@ -156,25 +149,13 @@ export function BestSellerCard({ product, priority = false }: { product: Product
             )
           ) : (
             <button
-              className="focus-ring mt-2.5 inline-flex h-9 w-full items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 text-xs font-semibold text-[var(--leaf-deep)] sm:mt-3 sm:h-10 sm:text-sm"
+              className="focus-ring mt-2.5 inline-flex h-9 w-full cursor-not-allowed items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 text-xs font-semibold text-[var(--leaf-deep)] sm:mt-3 sm:h-10 sm:text-sm"
               type="button"
-              disabled={isNotifySubmitting}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                void notify({ id: product.id, slug: product.slug });
-              }}
+              disabled
             >
-              {isNotifySubmitting ? "Saving..." : "Notify Me"}
+              {!variantIsActive ? "Coming Soon" : "Out of Stock"}
             </button>
           )}
-          <div className="mt-2 min-h-4">
-            {status ? (
-              <p className="text-[11px] font-medium text-[var(--leaf-deep)]" aria-live="polite">
-                {status}
-              </p>
-            ) : null}
-          </div>
         </div>
       </div>
     </article>

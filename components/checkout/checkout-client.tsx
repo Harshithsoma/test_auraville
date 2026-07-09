@@ -430,7 +430,7 @@ export default function CheckoutClient() {
   const [savedAddresses, setSavedAddresses] = useState<UserAddress[]>([]);
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-  const [useNewAddress, setUseNewAddress] = useState(true);
+  const [useNewAddress, setUseNewAddress] = useState(false);
   const [saveAddressForLater, setSaveAddressForLater] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);

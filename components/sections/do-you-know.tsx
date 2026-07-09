@@ -110,7 +110,6 @@ export function DoYouKnowSection({
   const isSectionInView = useSectionInView(sectionRef);
 
   const clampedIndex = Math.min(active, maxIndex);
-  const centerIndex = clampedIndex + Math.floor(visibleCards / 2);
 
   useEffect(
     () => () => {
@@ -210,12 +209,9 @@ export function DoYouKnowSection({
             }}
           >
             {renderedCards.map((card, index) => {
-              const isCenter = visibleCards >= 3 && index === Math.min(centerIndex, renderedCards.length - 1);
               return (
                 <div
-                  className={`min-w-0 shrink-0 basis-1/2 px-2 transition-[transform,opacity] duration-300 md:px-2.5 lg:basis-1/3 xl:basis-1/4 ${
-                    isCenter ? "opacity-100 lg:scale-[1.02]" : "opacity-95 lg:scale-[0.98]"
-                  }`}
+                  className="min-w-0 shrink-0 basis-1/2 px-2 transition-opacity duration-300 md:px-2.5 lg:basis-1/3 xl:basis-1/4"
                   key={`${card.title}-${index}`}
                   onClickCapture={(event) => {
                     if (suppressClickRef.current) {

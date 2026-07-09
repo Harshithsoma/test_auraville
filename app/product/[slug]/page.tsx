@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { ProductJsonLd } from "@/components/product/product-json-ld";
 import { ProductMediaGallery } from "@/components/product/product-media-gallery";
@@ -20,7 +21,7 @@ type ProductPageProps = {
 export const dynamic = "force-dynamic";
 const isProduction = process.env.NODE_ENV === "production";
 
-async function getProduct(slug: string): Promise<Product | null> {
+const getProduct = cache(async function getProduct(slug: string): Promise<Product | null> {
   try {
     const response = await fetchProductBySlug(slug);
     return response.data;
@@ -33,7 +34,7 @@ async function getProduct(slug: string): Promise<Product | null> {
     }
     return null;
   }
-}
+});
 
 async function getRelated(product: Product): Promise<Product[]> {
   try {
