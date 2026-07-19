@@ -1977,7 +1977,7 @@ type AdminOrderRecord = {
   gst: number;
   shipping: number;
   total: number;
-  status: "pending" | "confirmed" | "packed" | "shipped" | "delivered" | "cancelled" | "payment_failed";
+  status: "pending" | "confirmed" | "packed" | "shipped" | "out_for_delivery" | "delivered" | "cancelled" | "payment_failed";
   fulfillmentStage: "order_placed" | "processing" | "shipped" | "out_for_delivery" | "delivered";
   createdAt: Date;
   payment: {
@@ -2000,11 +2000,32 @@ type AdminOrderRecord = {
   }>;
 };
 
+function deriveFulfillmentStageFromOrderStatus(
+  status: AdminOrderRecord["status"]
+): AdminOrderRecord["fulfillmentStage"] {
+  switch (status) {
+    case "packed":
+      return "processing";
+    case "shipped":
+      return "shipped";
+    case "out_for_delivery":
+      return "out_for_delivery";
+    case "delivered":
+      return "delivered";
+    case "pending":
+    case "confirmed":
+    case "cancelled":
+    case "payment_failed":
+    default:
+      return "order_placed";
+  }
+}
+
 function mapAdminOrderSummary(order: AdminOrderRecord): AdminOrderSummaryResponse {
   return {
     id: order.id,
     status: order.status,
-    fulfillmentStage: order.fulfillmentStage,
+    fulfillmentStage: deriveFulfillmentStageFromOrderStatus(order.status),
     createdAt: order.createdAt.toISOString(),
     customer: {
       userId: order.userId,
@@ -2040,11 +2061,11 @@ function assertOrderStatusTransition(params: {
     throw new HttpError(400, "Unsafe status transition", { from, to }, "INVALID_STATUS_TRANSITION");
   }
 
-  if (from === "cancelled" && (to === "shipped" || to === "delivered")) {
+  if (from === "cancelled" && (to === "shipped" || to === "out_for_delivery" || to === "delivered")) {
     throw new HttpError(400, "Unsafe status transition", { from, to }, "INVALID_STATUS_TRANSITION");
   }
 
-  if (from === "payment_failed" && (to === "shipped" || to === "delivered")) {
+  if (from === "payment_failed" && (to === "shipped" || to === "out_for_delivery" || to === "delivered")) {
     throw new HttpError(400, "Unsafe status transition", { from, to }, "INVALID_STATUS_TRANSITION");
   }
 }
@@ -2219,7 +2240,7 @@ export async function adminGetOrderById(
 export async function adminPatchOrderStatus(params: {
   route: AdminPatchOrderStatusValidatedInput["params"];
   payload: AdminPatchOrderStatusValidatedInput["body"];
-}): Promise<{ data: { id: string; status: AdminOrderRecord["status"] } }> {
+}): Promise<{ data: { id: string; status: AdminOrderRecord["status"]; fulfillmentStage: AdminOrderRecord["fulfillmentStage"] } }> {
   const order = await prisma.order.findUnique({
     where: { id: params.route.id },
     select: {
@@ -2240,11 +2261,13 @@ export async function adminPatchOrderStatus(params: {
   const updated = await prisma.order.update({
     where: { id: params.route.id },
     data: {
-      status: params.payload.status
+      status: params.payload.status,
+      fulfillmentStage: deriveFulfillmentStageFromOrderStatus(params.payload.status)
     },
     select: {
       id: true,
-      status: true
+      status: true,
+      fulfillmentStage: true
     }
   });
 
@@ -2263,7 +2286,8 @@ export async function adminPatchOrderStatus(params: {
   return {
     data: {
       id: updated.id,
-      status: updated.status
+      status: updated.status,
+      fulfillmentStage: updated.fulfillmentStage
     }
   };
 }
@@ -2272,10 +2296,13 @@ export async function adminPatchOrderFulfillmentStage(params: {
   route: AdminPatchOrderFulfillmentStageValidatedInput["params"];
   payload: AdminPatchOrderFulfillmentStageValidatedInput["body"];
 }): Promise<{ data: { id: string; fulfillmentStage: AdminOrderRecord["fulfillmentStage"] } }> {
+  void params.payload;
+
   const order = await prisma.order.findUnique({
     where: { id: params.route.id },
     select: {
-      id: true
+      id: true,
+      status: true
     }
   });
 
@@ -2283,21 +2310,10 @@ export async function adminPatchOrderFulfillmentStage(params: {
     throw new HttpError(404, "Order not found", undefined, "ORDER_NOT_FOUND");
   }
 
-  const updated = await prisma.order.update({
-    where: { id: params.route.id },
-    data: {
-      fulfillmentStage: params.payload.fulfillmentStage
-    },
-    select: {
-      id: true,
-      fulfillmentStage: true
-    }
-  });
-
   return {
     data: {
-      id: updated.id,
-      fulfillmentStage: updated.fulfillmentStage
+      id: order.id,
+      fulfillmentStage: deriveFulfillmentStageFromOrderStatus(order.status)
     }
   };
 }

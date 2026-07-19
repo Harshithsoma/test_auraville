@@ -35,16 +35,46 @@ export type ProductsListQuery = {
   sort?: "popular" | "price-asc" | "price-desc" | "newest";
 };
 
+const inFlightProductListRequests = new Map<string, Promise<ProductsListResponse>>();
+const inFlightProductDetailRequests = new Map<string, Promise<ProductResponse>>();
+
+function productListRequestKey(query?: ProductsListQuery): string {
+  if (!query) return "{}";
+  const entries = Object.entries(query)
+    .filter((entry): entry is [string, string | number | boolean] => entry[1] !== undefined)
+    .sort(([left], [right]) => left.localeCompare(right));
+  return JSON.stringify(entries);
+}
+
 export async function fetchProducts(query?: ProductsListQuery): Promise<ProductsListResponse> {
-  const response = await commerceApi.products.list<ProductsListResponse>(query);
-  return {
-    ...response,
-    data: sortStorefrontProducts(response.data)
-  };
+  const key = productListRequestKey(query);
+  const existing = inFlightProductListRequests.get(key);
+  if (existing) return existing;
+
+  const request = commerceApi.products.list<ProductsListResponse>(query)
+    .then((response) => ({
+      ...response,
+      data: sortStorefrontProducts(response.data)
+    }))
+    .finally(() => {
+      inFlightProductListRequests.delete(key);
+    });
+
+  inFlightProductListRequests.set(key, request);
+  return request;
 }
 
 export async function fetchProductBySlug(slug: string): Promise<ProductResponse> {
-  return commerceApi.products.bySlug<ProductResponse>(slug);
+  const key = slug.trim().toLowerCase();
+  const existing = inFlightProductDetailRequests.get(key);
+  if (existing) return existing;
+
+  const request = commerceApi.products.bySlug<ProductResponse>(slug).finally(() => {
+    inFlightProductDetailRequests.delete(key);
+  });
+
+  inFlightProductDetailRequests.set(key, request);
+  return request;
 }
 
 export async function fetchCategories(): Promise<CategoriesResponse> {

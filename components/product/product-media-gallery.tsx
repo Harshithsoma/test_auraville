@@ -98,35 +98,37 @@ export function ProductMediaGallery({ name, image, gallery }: ProductMediaGaller
 
   return (
     <section aria-label={`${name} image gallery`}>
-      <div className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-white soft-shadow">
-        <div className="absolute inset-x-0 top-0 z-10 h-20 bg-gradient-to-b from-white/50 to-transparent" />
-        <div
-          aria-label={hasMultipleImages ? "Swipe left or right to change product image" : undefined}
-          className="relative aspect-[4/4.35] touch-pan-y sm:aspect-[4/4] lg:aspect-[5/4]"
-          role={hasMultipleImages ? "group" : undefined}
-          tabIndex={hasMultipleImages ? 0 : -1}
-          onKeyDown={handleKeyDown}
-          onPointerCancel={() => {
-            pointerStartRef.current = null;
-          }}
-          onPointerDown={handlePointerDown}
-          onPointerUp={handlePointerEnd}
-        >
-          <Image
-            alt={name}
-            className="object-cover"
-            fill
-            priority
-            sizes="(min-width: 1024px) 54vw, 100vw"
-            src={activeImage}
-          />
+      <div className={hasMultipleImages ? "relative sm:px-7" : undefined}>
+        <div className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-white soft-shadow">
+          <div className="absolute inset-x-0 top-0 z-10 h-20 bg-gradient-to-b from-white/50 to-transparent" />
+          <div
+            aria-label={hasMultipleImages ? "Swipe left or right to change product image" : undefined}
+            className="relative aspect-[4/4.35] touch-pan-y sm:aspect-[4/4] lg:aspect-[5/4]"
+            role={hasMultipleImages ? "group" : undefined}
+            tabIndex={hasMultipleImages ? 0 : -1}
+            onKeyDown={handleKeyDown}
+            onPointerCancel={() => {
+              pointerStartRef.current = null;
+            }}
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerEnd}
+          >
+            <Image
+              alt={name}
+              className="object-cover"
+              fill
+              priority
+              sizes="(min-width: 1024px) 54vw, 100vw"
+              src={activeImage}
+            />
+          </div>
         </div>
 
         {hasMultipleImages ? (
-          <div className="pointer-events-none absolute inset-y-0 left-3 right-3 z-20 hidden items-center justify-between sm:flex">
+          <div className="pointer-events-none absolute inset-y-0 left-0 right-0 z-20 hidden items-center justify-between sm:flex">
             <button
               aria-label="Show previous product image"
-              className="focus-ring pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/90 text-lg font-semibold text-[var(--leaf-deep)] shadow-sm transition hover:bg-white active:scale-95"
+              className="focus-ring pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-2xl font-semibold leading-none text-[var(--leaf-deep)] shadow-sm transition hover:bg-white active:scale-95"
               type="button"
               onClick={goToPrevious}
               onPointerDown={(event) => event.stopPropagation()}
@@ -135,7 +137,7 @@ export function ProductMediaGallery({ name, image, gallery }: ProductMediaGaller
             </button>
             <button
               aria-label="Show next product image"
-              className="focus-ring pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/90 text-lg font-semibold text-[var(--leaf-deep)] shadow-sm transition hover:bg-white active:scale-95"
+              className="focus-ring pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-2xl font-semibold leading-none text-[var(--leaf-deep)] shadow-sm transition hover:bg-white active:scale-95"
               type="button"
               onClick={goToNext}
               onPointerDown={(event) => event.stopPropagation()}

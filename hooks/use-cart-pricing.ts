@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useCartStore } from "@/stores/cart-store";
 
-const PRICING_SYNC_DEBOUNCE_MS = 90;
+const PRICING_SYNC_DEBOUNCE_MS = 40;
 
 type CartSummary = {
   originalSubtotal: number;

@@ -12,6 +12,7 @@ import type { Product } from "@/types/product";
 
 const SUGGESTION_LIMIT = 7;
 const SEARCH_DEBOUNCE_MS = 100;
+const SEARCH_IDLE_PRELOAD_DELAY_MS = 1800;
 
 function SearchIcon() {
   return (
@@ -50,6 +51,11 @@ export function HeaderSearch({ className = "" }: HeaderSearchProps) {
     setSuggestions([]);
     setErrorMessage(null);
     setIsLoading(false);
+  }, []);
+
+  const warmSearchIndex = useCallback(() => {
+    if (getSearchIndex()?.length) return;
+    void preloadSearchIndex().catch(() => undefined);
   }, []);
 
   const loadSuggestions = useCallback(async (searchText: string) => {
@@ -133,8 +139,11 @@ export function HeaderSearch({ className = "" }: HeaderSearchProps) {
   }, [closeSearch]);
 
   useEffect(() => {
-    void preloadSearchIndex();
-  }, []);
+    const timer = window.setTimeout(warmSearchIndex, SEARCH_IDLE_PRELOAD_DELAY_MS);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [warmSearchIndex]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -297,6 +306,8 @@ export function HeaderSearch({ className = "" }: HeaderSearchProps) {
         aria-label="Search products"
         className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--line)] bg-white text-[var(--foreground)] transition active:scale-95 hover:border-[var(--leaf)] hover:text-[var(--leaf-deep)] sm:h-11 sm:w-11"
         type="button"
+        onFocus={warmSearchIndex}
+        onPointerEnter={warmSearchIndex}
         onClick={() => {
           if (isOpen) {
             closeSearch();

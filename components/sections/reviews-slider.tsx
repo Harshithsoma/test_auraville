@@ -504,7 +504,7 @@ export function ReviewsSlider({
             <>
               <button
                 aria-label="Show previous reviews"
-                className="focus-ring absolute left-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-lg text-[var(--leaf-deep)] shadow-sm transition active:scale-95"
+                className="focus-ring absolute left-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-2xl leading-none text-[var(--leaf-deep)] shadow-sm transition active:scale-95"
                 type="button"
                 onClick={() => shiftOffset(-1)}
               >
@@ -512,7 +512,7 @@ export function ReviewsSlider({
               </button>
               <button
                 aria-label="Show next reviews"
-                className="focus-ring absolute right-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-lg text-[var(--leaf-deep)] shadow-sm transition active:scale-95"
+                className="focus-ring absolute right-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-2xl leading-none text-[var(--leaf-deep)] shadow-sm transition active:scale-95"
                 type="button"
                 onClick={() => shiftOffset(1)}
               >

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cache } from "react";
+import { cache, Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ProductJsonLd } from "@/components/product/product-json-ld";
 import { ProductMediaGallery } from "@/components/product/product-media-gallery";
@@ -58,6 +58,27 @@ async function getRelated(product: Product): Promise<Product[]> {
   return [];
 }
 
+async function RelatedProductsSection({ product }: { product: Product }) {
+  const relatedProducts = await getRelated(product);
+
+  if (relatedProducts.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="mt-16 sm:mt-20" aria-labelledby="related-products">
+      <h2 id="related-products" className="text-2xl font-semibold sm:text-3xl">
+        More from the palmyra shelf
+      </h2>
+      <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {relatedProducts.map((relatedProduct) => (
+          <ProductCard key={relatedProduct.id} product={relatedProduct} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
   const product = await getProduct(slug);
@@ -107,7 +128,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound();
   }
 
-  const relatedProducts = await getRelated(product);
   const parentBreadcrumb = product.isBestSeller
     ? { name: "Best Selling", href: "/best-selling" }
     : { name: "Products", href: "/products" };
@@ -129,18 +149,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
         <ProductDetailAsideClient product={product} />
       </div>
 
-      {relatedProducts.length > 0 ? (
-        <section className="mt-16 sm:mt-20" aria-labelledby="related-products">
-          <h2 id="related-products" className="text-2xl font-semibold sm:text-3xl">
-            More from the palmyra shelf
-          </h2>
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {relatedProducts.map((relatedProduct) => (
-              <ProductCard key={relatedProduct.id} product={relatedProduct} />
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <Suspense fallback={null}>
+        <RelatedProductsSection product={product} />
+      </Suspense>
     </div>
   );
 }

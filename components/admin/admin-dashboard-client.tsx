@@ -7,7 +7,7 @@ import { formatPrice } from "@/components/ui/price";
 
 type AdminOrderSummary = {
   id: string;
-  status: "pending" | "confirmed" | "packed" | "shipped" | "delivered" | "cancelled" | "payment_failed";
+  status: "pending" | "confirmed" | "packed" | "shipped" | "out_for_delivery" | "delivered" | "cancelled" | "payment_failed";
   pricing: {
     total: number;
   };
@@ -59,6 +59,7 @@ const SUCCESSFUL_ORDER_STATUSES = new Set([
   "confirmed",
   "packed",
   "shipped",
+  "out_for_delivery",
   "delivered"
 ]);
 

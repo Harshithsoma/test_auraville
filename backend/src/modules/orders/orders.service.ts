@@ -126,7 +126,7 @@ export async function listUserOrders(params: {
       id: string;
       email: string;
       total: number;
-      status: "pending" | "confirmed" | "packed" | "shipped" | "delivered" | "cancelled" | "payment_failed";
+      status: "pending" | "confirmed" | "packed" | "shipped" | "out_for_delivery" | "delivered" | "cancelled" | "payment_failed";
       fulfillmentStage: "order_placed" | "processing" | "shipped" | "out_for_delivery" | "delivered";
           createdAt: Date;
           items: Array<{

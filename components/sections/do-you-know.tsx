@@ -263,7 +263,7 @@ export function DoYouKnowSection({
           <>
             <button
               aria-label="Show previous post cards"
-              className="focus-ring absolute -left-3 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:-left-5"
+              className="focus-ring absolute -left-3 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-2xl leading-none text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:-left-5"
               disabled={active <= 0}
               type="button"
               onClick={() => setActive((current) => Math.max(0, current - 1))}
@@ -272,7 +272,7 @@ export function DoYouKnowSection({
             </button>
             <button
               aria-label="Show next post cards"
-              className="focus-ring absolute -right-3 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-lg text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:-right-5"
+              className="focus-ring absolute -right-3 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-2xl leading-none text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:-right-5"
               disabled={active >= maxIndex}
               type="button"
               onClick={() => setActive((current) => Math.min(maxIndex, current + 1))}

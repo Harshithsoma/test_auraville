@@ -108,38 +108,114 @@ const ORDER_TRACKING_STAGES: Array<{ key: OrderFulfillmentStage; label: string }
   { key: "delivered", label: "Delivered" }
 ];
 
-function formatOrderStatus(value: string): string {
-  return value.replace(/_/g, " ");
+type DerivedTrackingState = {
+  stage: OrderFulfillmentStage;
+  headline: string;
+  firstLabel: string;
+  isFailed: boolean;
+  isStopped: boolean;
+};
+
+function isPendingOrderExpired(order: BackendOrder): boolean {
+  if (order.status !== "pending") return false;
+  const createdAt = new Date(order.createdAt).getTime();
+  if (Number.isNaN(createdAt)) return false;
+  return Date.now() - createdAt > 60 * 60 * 1000;
+}
+
+function deriveTrackingState(order: BackendOrder): DerivedTrackingState {
+  if (order.status === "payment_failed" || isPendingOrderExpired(order)) {
+    return {
+      stage: "order_placed",
+      headline: "Order Failed",
+      firstLabel: "Order Failed",
+      isFailed: true,
+      isStopped: true
+    };
+  }
+
+  if (order.status === "pending") {
+    return {
+      stage: "order_placed",
+      headline: "Order Pending",
+      firstLabel: "Order Pending",
+      isFailed: false,
+      isStopped: false
+    };
+  }
+
+  if (order.status === "cancelled") {
+    return {
+      stage: "order_placed",
+      headline: "Order Cancelled",
+      firstLabel: "Order Cancelled",
+      isFailed: false,
+      isStopped: true
+    };
+  }
+
+  const stageByStatus: Partial<Record<string, OrderFulfillmentStage>> = {
+    confirmed: "order_placed",
+    packed: "processing",
+    shipped: "shipped",
+    out_for_delivery: "out_for_delivery",
+    delivered: "delivered"
+  };
+  const stage = stageByStatus[order.status] ?? order.fulfillmentStage ?? "order_placed";
+  const currentLabel = ORDER_TRACKING_STAGES.find((item) => item.key === stage)?.label ?? "Order Placed";
+
+  return {
+    stage,
+    headline: currentLabel,
+    firstLabel: "Order Placed",
+    isFailed: false,
+    isStopped: false
+  };
 }
 
 function OrderTrackingProgress({ order }: { order: BackendOrder }) {
-  const currentStage = order.fulfillmentStage ?? "order_placed";
+  const tracking = deriveTrackingState(order);
   const currentIndex = Math.max(
     0,
-    ORDER_TRACKING_STAGES.findIndex((stage) => stage.key === currentStage)
+    ORDER_TRACKING_STAGES.findIndex((stage) => stage.key === tracking.stage)
   );
-  const isStopped = order.status === "cancelled" || order.status === "payment_failed";
 
   return (
-    <div className="mt-4 rounded-2xl border border-[var(--line)] bg-[var(--background)] p-4">
+    <div
+      className={`mt-4 rounded-2xl border p-4 ${
+        tracking.isFailed
+          ? "border-[#efb7b0] bg-[#fff7f7]"
+          : "border-[var(--line)] bg-[var(--background)]"
+      }`}
+    >
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">Order tracking</p>
-          <p className="mt-1 text-sm font-semibold text-[var(--leaf-deep)]">
-            {isStopped ? `Order ${formatOrderStatus(order.status)}` : ORDER_TRACKING_STAGES[Math.max(currentIndex, 0)]?.label}
+          <p className={`mt-1 text-sm font-semibold ${tracking.isFailed ? "text-[var(--coral)]" : "text-[var(--leaf-deep)]"}`}>
+            {tracking.headline}
           </p>
         </div>
-        {isStopped ? (
-          <span className="rounded-full border border-[#e7c9c6] bg-[#fff7f7] px-3 py-1 text-xs font-semibold text-[var(--coral)]">
-            Stopped
+        {tracking.isStopped ? (
+          <span
+            className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+              tracking.isFailed
+                ? "border-[#efb7b0] bg-white text-[var(--coral)]"
+                : "border-[var(--line)] bg-white text-[var(--muted)]"
+            }`}
+          >
+            {tracking.isFailed ? "Failed" : "Stopped"}
           </span>
         ) : null}
       </div>
 
-      <ol className="mt-4 grid gap-3 sm:grid-cols-5" aria-label="Order progress stages">
+      <ol
+        className={`mt-4 grid gap-3 sm:grid-cols-5 ${tracking.isFailed ? "opacity-55 blur-[0.2px] grayscale" : ""}`}
+        aria-label="Order progress stages"
+      >
         {ORDER_TRACKING_STAGES.map((stage, index) => {
-          const isDone = !isStopped && index < currentIndex;
-          const isCurrent = !isStopped && index === currentIndex;
+          const isDone = !tracking.isStopped && index < currentIndex;
+          const isCurrent = !tracking.isStopped && index === currentIndex;
+          const label = index === 0 ? tracking.firstLabel : stage.label;
           return (
             <li
               className={`rounded-xl border px-3 py-3 text-xs font-semibold transition ${
@@ -154,14 +230,14 @@ function OrderTrackingProgress({ order }: { order: BackendOrder }) {
               <span className="mb-2 flex h-6 w-6 items-center justify-center rounded-full border bg-white text-[11px]">
                 {isDone ? "✓" : index + 1}
               </span>
-              {stage.label}
+              {label}
             </li>
           );
         })}
       </ol>
 
       <p className="mt-3 text-xs text-[var(--muted)]">
-        Tracking is updated manually by Auraville support for now.
+        Tracking updates automatically from Auraville order status.
       </p>
     </div>
   );
@@ -508,8 +584,14 @@ export function OrdersClient() {
                 }).format(new Date(order.createdAt))}
               </p>
             </div>
-            <span className="w-fit rounded-full bg-[var(--mint)] px-3 py-1 text-sm font-bold capitalize text-[var(--leaf-deep)]">
-              {formatOrderStatus(order.status)}
+            <span
+              className={`w-fit rounded-full px-3 py-1 text-sm font-bold capitalize ${
+                deriveTrackingState(order).isFailed
+                  ? "bg-[#fff1f0] text-[var(--coral)]"
+                  : "bg-[var(--mint)] text-[var(--leaf-deep)]"
+              }`}
+            >
+              {deriveTrackingState(order).headline}
             </span>
           </div>
           <OrderTrackingProgress order={order} />

@@ -61,11 +61,11 @@ export function BestSellerCard({ product, priority = false }: { product: Product
 
   return (
     <article className="flex h-[430px] flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99] sm:h-[440px] md:h-full md:min-h-0">
-      <Link className="focus-ring block rounded-lg transition active:opacity-90" href={`/product/${product.slug}`}>
+      <Link className="focus-ring group block rounded-lg transition active:opacity-90" href={`/product/${product.slug}`}>
         <div className="relative aspect-[4/4.2] overflow-hidden bg-[var(--mint)]">
           <Image
             alt={product.name}
-            className="object-cover"
+            className="object-cover transition-transform duration-500 ease-out md:group-hover:scale-[1.035]"
             fill
             priority={priority}
             sizes="(min-width: 1280px) 21vw, (min-width: 768px) 28vw, (min-width: 480px) 46vw, 90vw"
