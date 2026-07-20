@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../prisma/prisma.service";
 import { calculateVariantCompareAtUnitPrice } from "../../utils/pricing";
 import { HttpError } from "../../utils/http-error";
@@ -34,7 +35,10 @@ export function normalizePromoCode(code: string | undefined): string | undefined
   return normalized.length > 0 ? normalized : undefined;
 }
 
-export async function enrichCartItems(items: CartPriceItemInput[]): Promise<ValidatedCartItem[]> {
+export async function enrichCartItems(
+  items: CartPriceItemInput[],
+  db: Prisma.TransactionClient | typeof prisma = prisma
+): Promise<ValidatedCartItem[]> {
   if (items.length === 0) {
     throw new HttpError(400, "Cart cannot be empty");
   }
@@ -50,7 +54,7 @@ export async function enrichCartItems(items: CartPriceItemInput[]): Promise<Vali
 
   const uniqueProductIds = [...new Set(items.map((item) => item.productId))];
   const [products, variants] = await Promise.all([
-    prisma.product.findMany({
+    db.product.findMany({
       where: { id: { in: uniqueProductIds } },
       select: {
         id: true,
@@ -60,7 +64,7 @@ export async function enrichCartItems(items: CartPriceItemInput[]): Promise<Vali
         isActive: true
       }
     }),
-    prisma.productVariant.findMany({
+    db.productVariant.findMany({
       where: { productId: { in: uniqueProductIds } },
       select: {
         id: true,

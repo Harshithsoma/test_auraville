@@ -87,6 +87,8 @@ model User {
   refreshTokens RefreshToken[]
   couponUsages  CouponUsage[]
   notifyRequests ProductNotifyRequest[]
+  cartItems     UserCartItem[]
+  cartMergeOperations UserCartMergeOperation[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -289,6 +291,7 @@ model ProductVariant {
 
   product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
+  cartItems UserCartItem[]
 
   @@unique([productId, frontendVariantId])
   @@index([productId])
@@ -297,6 +300,39 @@ model ProductVariant {
   @@index([isFeatured])
   @@index([isBestSeller])
   @@index([sortOrder])
+}
+
+model UserCartItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  variantId String
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [productId, variantId], references: [productId, frontendVariantId], onDelete: Cascade)
+
+  @@unique([userId, productId, variantId])
+  @@index([userId])
+  @@index([productId, variantId])
+  @@index([updatedAt])
+}
+
+model UserCartMergeOperation {
+  id          String    @id @default(cuid())
+  userId      String
+  mergeId     String
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mergeId])
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model ProductImage {

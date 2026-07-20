@@ -794,12 +794,20 @@ export default function CheckoutClient() {
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature
             });
-            clearCart();
+
+            let cartRefreshWarning: string | undefined;
+            try {
+              await clearCart();
+            } catch {
+              cartRefreshWarning = "Your order was placed, but we could not refresh your cart. Please reload.";
+            }
+
             sessionStorage.setItem(
               "auraville-last-order-reference",
               JSON.stringify({
                 id: order.id,
-                total: orderResponse.data.pricing.total
+                total: orderResponse.data.pricing.total,
+                cartRefreshWarning
               })
             );
             resetPaymentState();

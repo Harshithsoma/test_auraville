@@ -45,3 +45,22 @@ export type CartPriceResponse = {
     summary: CartPriceSummary;
   };
 };
+
+export type AccountCartItem = {
+  productId: string;
+  variantId: string;
+  quantity: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AccountCartResponse = {
+  data: {
+    items: AccountCartItem[];
+  };
+};
+
+export type AccountCartMergeRequest = {
+  mergeId: string;
+  items: CartPriceItemInput[];
+};

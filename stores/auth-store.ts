@@ -7,6 +7,7 @@ import {
   setAccessToken,
   setAuthInvalidationHandler
 } from "@/services/api";
+import { useCartStore } from "@/stores/cart-store";
 
 export type AuthUser = {
   id: string;
@@ -37,6 +38,7 @@ let hydrationPromise: Promise<void> | null = null;
 function resetAuthStateFromInvalidSession() {
   setAccessToken(null);
   clearCsrfToken();
+  useCartStore.getState().switchToGuestCart();
   useAuthStore.setState({ user: null, hasHydrated: true, isHydrating: false });
 }
 
@@ -46,6 +48,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   hasHydrated: false,
   completeAuth: ({ user, accessToken }) => {
     setAccessToken(accessToken);
+    void useCartStore.getState().activateAccountCart(user.id);
     set({ user, hasHydrated: true, isHydrating: false });
   },
   hydrateSession: async () => {
@@ -59,9 +62,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       try {
         const response = await commerceApi.auth.refresh<AuthResponse>();
         setAccessToken(response.data.accessToken);
+        await useCartStore.getState().activateAccountCart(response.data.user.id);
         set({ user: response.data.user, hasHydrated: true, isHydrating: false });
       } catch {
         setAccessToken(null);
+        useCartStore.getState().switchToGuestCart();
         set({ user: null, hasHydrated: true, isHydrating: false });
       }
     })().finally(() => {
@@ -78,6 +83,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } finally {
       setAccessToken(null);
       clearCsrfToken();
+      useCartStore.getState().switchToGuestCart();
       set({ user: null, hasHydrated: true, isHydrating: false });
     }
   }

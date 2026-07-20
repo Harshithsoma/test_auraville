@@ -10,6 +10,7 @@ import { formatPrice } from "@/components/ui/price";
 type LastOrderReference = {
   id: string;
   total?: number;
+  cartRefreshWarning?: string;
 };
 
 type OrderDetailResponse = {
@@ -112,6 +113,11 @@ export function OrderSuccessClient() {
       <p className="mt-4 text-base leading-7 text-[var(--muted)]">
         Payment verification is complete. We will send dispatch updates to your email.
       </p>
+      {fallbackReference?.cartRefreshWarning ? (
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {fallbackReference.cartRefreshWarning}
+        </p>
+      ) : null}
       <div className="mt-8 rounded-lg bg-[var(--mint)] p-5 text-left">
         <h2 className="font-semibold">Order summary</h2>
         <p className="mt-2 text-sm text-[var(--muted)]">Reference: {referenceId}</p>

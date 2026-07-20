@@ -53,6 +53,20 @@ type CartPriceResponse = {
   data: CartPricingData;
 };
 
+type AccountCartItem = {
+  productId: string;
+  variantId: string;
+  quantity: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type AccountCartResponse = {
+  data: {
+    items: AccountCartItem[];
+  };
+};
+
 type CouponValidateResponse = {
   data: {
     ok: true;
@@ -64,8 +78,14 @@ type CouponValidateResponse = {
   };
 };
 
+type CartMode = "guest" | "account";
+
 type CartState = {
   items: CartItem[];
+  mode: CartMode;
+  accountCartUserId: string | null;
+  pendingAccountMergeId: string | null;
+  isAccountCartSyncing: boolean;
   isDrawerOpen: boolean;
   cartNotice: string | null;
   cartNoticeKey: number;
@@ -82,9 +102,11 @@ type CartState = {
   applyPromoCode: (code: string) => Promise<{ ok: boolean; message: string }>;
   clearPromoCode: () => Promise<void>;
   syncPricing: () => Promise<void>;
+  activateAccountCart: (userId: string) => Promise<void>;
+  switchToGuestCart: () => void;
   pushCartNotice: (message: string) => void;
   consumeCartNotice: () => void;
-  clearCart: () => void;
+  clearCart: () => Promise<void>;
   openDrawer: () => void;
   closeDrawer: () => void;
 };
@@ -95,6 +117,13 @@ type PersistedCartState = {
   items: PersistedCartItem[];
   promoCode: string | null;
   promoDiscountPercent: number;
+  pendingAccountMergeId?: string | null;
+};
+
+type CartIdentityItem = {
+  productId: string;
+  variantId: string;
+  quantity: number;
 };
 
 function normalizePersistedCartItem(item: Partial<CartItem>): CartItem | null {
@@ -123,10 +152,6 @@ function normalizePersistedCartItem(item: Partial<CartItem>): CartItem | null {
 function itemKey(item: Pick<CartItem, "productId" | "variantId">) {
   return `${item.productId}:${item.variantId}`;
 }
-
-let syncPricingRequestId = 0;
-let inFlightPricingKey: string | null = null;
-let inFlightPricingPromise: Promise<void> | null = null;
 
 function getPricingKey(items: CartItem[], promoCode: string | null): string {
   const requestItems = items
@@ -159,10 +184,124 @@ function pricingMatchesCart(pricing: CartPricingData | null, items: CartItem[], 
   });
 }
 
+function toCartIdentityItem(item: Pick<CartItem, "productId" | "variantId" | "quantity">): CartIdentityItem {
+  return {
+    productId: item.productId,
+    variantId: item.variantId,
+    quantity: item.quantity
+  };
+}
+
+function createMergeId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `merge-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function accountItemsToCartItems(accountItems: AccountCartItem[], currentItems: CartItem[]): CartItem[] {
+  const currentByKey = new Map(currentItems.map((item) => [itemKey(item), item]));
+
+  return accountItems.map((item) => {
+    const existing = currentByKey.get(`${item.productId}:${item.variantId}`);
+    const parsedUpdatedAt = Date.parse(item.updatedAt);
+
+    return {
+      productId: item.productId,
+      variantId: item.variantId,
+      quantity: item.quantity,
+      lastAddedAt: existing?.lastAddedAt ?? (Number.isFinite(parsedUpdatedAt) ? parsedUpdatedAt : undefined),
+      slug: existing?.slug ?? "",
+      name: existing?.name ?? "Cart item",
+      image: existing?.image ?? "",
+      variantLabel: existing?.variantLabel ?? "",
+      unitPrice: existing?.unitPrice ?? 0
+    };
+  });
+}
+
+function applyAccountCartResponse(response: AccountCartResponse) {
+  useCartStore.setState((state) => ({
+    items: accountItemsToCartItems(response.data.items, state.items),
+    pricing: null,
+    pricingError: null,
+    isPricingLoading: false,
+    isAccountCartSyncing: false,
+    promoCode: response.data.items.length === 0 ? null : state.promoCode,
+    promoDiscountPercent: response.data.items.length === 0 ? 0 : state.promoDiscountPercent
+  }));
+}
+
+const accountMutationQueues = new Map<string, Promise<void>>();
+
+async function waitForAccountCartMutations() {
+  const pending = [...accountMutationQueues.values()];
+  if (pending.length > 0) {
+    await Promise.allSettled(pending);
+  }
+}
+
+async function reloadAccountCartAfterMutation() {
+  const { mode } = useCartStore.getState();
+  if (mode !== "account") return;
+
+  try {
+    const response = await commerceApi.cart.items<AccountCartResponse>();
+    applyAccountCartResponse(response);
+  } catch {
+    useCartStore.setState({ isAccountCartSyncing: false });
+  }
+}
+
+function enqueueAccountCartMutation(
+  queueKey: string,
+  request: () => Promise<AccountCartResponse>,
+  fallbackMessage: string
+): Promise<void> {
+  const { mode } = useCartStore.getState();
+  if (mode !== "account") return Promise.resolve();
+
+  useCartStore.setState({ isAccountCartSyncing: true });
+
+  const previous = accountMutationQueues.get(queueKey) ?? Promise.resolve();
+  const operation = previous
+    .catch(() => undefined)
+    .then(async () => {
+      if (useCartStore.getState().mode !== "account") return;
+
+      try {
+        await request();
+        useCartStore.setState({ isAccountCartSyncing: false });
+      } catch (error) {
+        const message = error instanceof ApiError ? error.message : fallbackMessage;
+        useCartStore.setState({ pricingError: message, isAccountCartSyncing: false });
+        await reloadAccountCartAfterMutation();
+      }
+    });
+
+  accountMutationQueues.set(queueKey, operation);
+  void operation.finally(() => {
+    if (accountMutationQueues.get(queueKey) === operation) {
+      accountMutationQueues.delete(queueKey);
+    }
+  });
+
+  return operation;
+}
+
+let syncPricingRequestId = 0;
+let inFlightPricingKey: string | null = null;
+let inFlightPricingPromise: Promise<void> | null = null;
+
 export const useCartStore = create<CartState>()(
   persist<CartState, [], [], PersistedCartState>(
     (set, get) => ({
       items: [],
+      mode: "guest",
+      accountCartUserId: null,
+      pendingAccountMergeId: null,
+      isAccountCartSyncing: false,
       isDrawerOpen: false,
       cartNotice: null,
       cartNoticeKey: 0,
@@ -178,7 +317,7 @@ export const useCartStore = create<CartState>()(
         );
         return typeof pricingItem?.stock === "number" ? pricingItem.stock : null;
       },
-      addItem: (item) =>
+      addItem: (item) => {
         set((state) => {
           const existing = state.items.find((cartItem) => itemKey(cartItem) === itemKey(item));
           const currentQuantity = existing?.quantity ?? 0;
@@ -213,6 +352,7 @@ export const useCartStore = create<CartState>()(
           if (!existing) {
             return {
               items: [...state.items, timestampedItem],
+              pricing: null,
               cartNotice: message,
               cartNoticeKey: state.cartNoticeKey + 1,
               cartNoticePending: true
@@ -229,12 +369,20 @@ export const useCartStore = create<CartState>()(
                   }
                 : cartItem
             ),
+            pricing: null,
             cartNotice: message,
             cartNoticeKey: state.cartNoticeKey + 1,
             cartNoticePending: true
           };
-        }),
-      removeItem: (productId, variantId) =>
+        });
+
+        void enqueueAccountCartMutation(
+          itemKey(item),
+          () => commerceApi.cart.addItem<AccountCartResponse, CartIdentityItem>(toCartIdentityItem(item)),
+          "Unable to update account cart right now."
+        );
+      },
+      removeItem: (productId, variantId) => {
         set((state) => {
           const nextItems = state.items.filter(
             (cartItem) => itemKey(cartItem) !== `${productId}:${variantId}`
@@ -248,10 +396,19 @@ export const useCartStore = create<CartState>()(
             pricingError: null,
             promoCode: isEmpty ? null : state.promoCode,
             promoDiscountPercent: isEmpty ? 0 : state.promoDiscountPercent,
-            pricing: isEmpty ? null : state.pricing
+            pricing: null
           };
-        }),
-      updateQuantity: (productId, variantId, quantity) =>
+        });
+
+        void enqueueAccountCartMutation(
+          `${productId}:${variantId}`,
+          () => commerceApi.cart.removeItem<AccountCartResponse, { productId: string; variantId: string }>({ productId, variantId }),
+          "Unable to remove item from account cart right now."
+        );
+      },
+      updateQuantity: (productId, variantId, quantity) => {
+        let nextQuantityForServer = Math.max(1, quantity);
+
         set((state) => {
           const itemToUpdate = state.items.find(
             (cartItem) => itemKey(cartItem) === `${productId}:${variantId}`
@@ -268,6 +425,8 @@ export const useCartStore = create<CartState>()(
           const hitStockLimit =
             typeof stockFromPricing === "number" && requestedQuantity > stockFromPricing;
 
+          nextQuantityForServer = nextQuantity;
+
           return {
             items: state.items.map((cartItem) =>
               itemKey(cartItem) === `${productId}:${variantId}`
@@ -283,9 +442,21 @@ export const useCartStore = create<CartState>()(
                 : null,
             cartNoticeKey: hitStockLimit || isIncrease ? state.cartNoticeKey + 1 : state.cartNoticeKey,
             cartNoticePending: hitStockLimit || isIncrease,
-            pricingError: null
+            pricingError: null,
+            pricing: null
           };
-        }),
+        });
+
+        void enqueueAccountCartMutation(
+          `${productId}:${variantId}`,
+          () => commerceApi.cart.updateItem<AccountCartResponse, CartIdentityItem>({
+            productId,
+            variantId,
+            quantity: nextQuantityForServer
+          }),
+          "Unable to update account cart quantity right now."
+        );
+      },
       applyPromoCode: async (code) => {
         const { items } = get();
         const normalizedCode = code.trim().toUpperCase();
@@ -318,7 +489,8 @@ export const useCartStore = create<CartState>()(
             promoCode: normalizedCode,
             promoDiscountPercent:
               response.data.discountType === "PERCENT" ? response.data.discountValue : 0,
-            pricingError: null
+            pricingError: null,
+            pricing: null
           });
           await get().syncPricing();
           return { ok: true, message: response.data.message };
@@ -333,7 +505,8 @@ export const useCartStore = create<CartState>()(
         set({
           promoCode: null,
           promoDiscountPercent: 0,
-          pricingError: null
+          pricingError: null,
+          pricing: null
         });
         await get().syncPricing();
       },
@@ -423,6 +596,58 @@ export const useCartStore = create<CartState>()(
         inFlightPricingPromise = pricingPromise;
         return pricingPromise;
       },
+      activateAccountCart: async (userId) => {
+        const state = get();
+        if (state.mode === "account" && state.accountCartUserId === userId) {
+          return;
+        }
+
+        const guestItems = state.mode === "guest" ? state.items.map(toCartIdentityItem) : [];
+        const mergeId = guestItems.length > 0 ? state.pendingAccountMergeId ?? createMergeId() : null;
+        set({ pendingAccountMergeId: mergeId, isAccountCartSyncing: true, pricingError: null });
+
+        try {
+          const response = guestItems.length > 0 && mergeId
+            ? await commerceApi.cart.mergeItems<AccountCartResponse, { mergeId: string; items: CartIdentityItem[] }>({
+                mergeId,
+                items: guestItems
+              })
+            : await commerceApi.cart.items<AccountCartResponse>();
+
+          set((current) => ({
+            mode: "account",
+            accountCartUserId: userId,
+            pendingAccountMergeId: null,
+            items: accountItemsToCartItems(response.data.items, current.items),
+            pricing: null,
+            pricingError: null,
+            isPricingLoading: false,
+            isAccountCartSyncing: false,
+            promoCode: response.data.items.length === 0 ? null : current.promoCode,
+            promoDiscountPercent: response.data.items.length === 0 ? 0 : current.promoDiscountPercent
+          }));
+        } catch (error) {
+          set({
+            isAccountCartSyncing: false,
+            pricingError: error instanceof ApiError ? error.message : "Unable to load account cart right now."
+          });
+        }
+      },
+      switchToGuestCart: () =>
+        set({
+          mode: "guest",
+          accountCartUserId: null,
+          pendingAccountMergeId: null,
+          isAccountCartSyncing: false,
+          items: [],
+          promoCode: null,
+          promoDiscountPercent: 0,
+          pricing: null,
+          pricingError: null,
+          isPricingLoading: false,
+          cartNotice: null,
+          cartNoticePending: false
+        }),
       pushCartNotice: (message) =>
         set((state) => ({
           cartNotice: message,
@@ -434,7 +659,16 @@ export const useCartStore = create<CartState>()(
           cartNotice: null,
           cartNoticePending: false
         }),
-      clearCart: () =>
+      clearCart: async () => {
+        const shouldClearAccountCart = get().mode === "account";
+
+        if (shouldClearAccountCart) {
+          await waitForAccountCartMutations();
+          const response = await commerceApi.cart.clearItems<AccountCartResponse>();
+          applyAccountCartResponse(response);
+          return;
+        }
+
         set({
           items: [],
           promoCode: null,
@@ -444,21 +678,25 @@ export const useCartStore = create<CartState>()(
           isPricingLoading: false,
           cartNotice: null,
           cartNoticePending: false
-        }),
+        });
+      },
       openDrawer: () => set({ isDrawerOpen: true }),
       closeDrawer: () => set({ isDrawerOpen: false, cartNotice: null, cartNoticePending: false })
     }),
     {
       name: "auraville-cart",
       partialize: (state): PersistedCartState => ({
-        items: state.items.map((item) => ({
-          productId: item.productId,
-          variantId: item.variantId,
-          quantity: item.quantity,
-          lastAddedAt: item.lastAddedAt
-        })),
+        items: state.mode === "guest"
+          ? state.items.map((item) => ({
+              productId: item.productId,
+              variantId: item.variantId,
+              quantity: item.quantity,
+              lastAddedAt: item.lastAddedAt
+            }))
+          : [],
         promoCode: state.promoCode,
-        promoDiscountPercent: state.promoDiscountPercent
+        promoDiscountPercent: state.promoDiscountPercent,
+        pendingAccountMergeId: state.mode === "guest" ? state.pendingAccountMergeId : null
       }),
       merge: (persisted, current): CartState => {
         const persistedState = persisted as Partial<PersistedCartState> | undefined;
@@ -470,6 +708,10 @@ export const useCartStore = create<CartState>()(
 
         return {
           ...current,
+          mode: "guest",
+          accountCartUserId: null,
+          pendingAccountMergeId: persistedState?.pendingAccountMergeId ?? null,
+          isAccountCartSyncing: false,
           items: normalizedItems,
           promoCode: persistedState?.promoCode ?? current.promoCode,
           promoDiscountPercent: persistedState?.promoDiscountPercent ?? current.promoDiscountPercent

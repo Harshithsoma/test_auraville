@@ -351,6 +351,31 @@ export const commerceApi = {
       request<TResponse, TBody>("/cart/price", {
         method: "POST",
         body: payload
+      }),
+    items: <TResponse>() => request<TResponse>("/cart/items"),
+    addItem: <TResponse, TBody>(payload: TBody) =>
+      request<TResponse, TBody>("/cart/items", {
+        method: "POST",
+        body: payload
+      }),
+    updateItem: <TResponse, TBody>(payload: TBody) =>
+      request<TResponse, TBody>("/cart/items", {
+        method: "PATCH",
+        body: payload
+      }),
+    removeItem: <TResponse, TBody>(payload: TBody) =>
+      request<TResponse, TBody>("/cart/items/remove", {
+        method: "POST",
+        body: payload
+      }),
+    clearItems: <TResponse>() =>
+      request<TResponse>("/cart/items/clear", {
+        method: "POST"
+      }),
+    mergeItems: <TResponse, TBody>(payload: TBody) =>
+      request<TResponse, TBody>("/cart/items/merge", {
+        method: "POST",
+        body: payload
       })
   },
   coupons: {
