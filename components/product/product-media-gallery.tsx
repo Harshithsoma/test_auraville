@@ -9,6 +9,34 @@ type ProductMediaGalleryProps = {
   gallery: string[];
 };
 
+type CarouselArrowIconSize = "shelf" | "section" | "gallery";
+
+function CarouselArrowIcon({ direction, size }: { direction: "previous" | "next"; size: CarouselArrowIconSize }) {
+  const sizeClass =
+    size === "gallery"
+      ? "h-8 w-8"
+      : size === "section"
+        ? "h-7 w-7"
+        : "h-6 w-6 sm:h-7 sm:w-7";
+
+  return (
+    <span aria-hidden="true" className="pointer-events-none inline-flex h-full w-full items-center justify-center">
+      <svg
+        className={sizeClass}
+        fill="none"
+        focusable="false"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="3.25"
+        viewBox="0 0 24 24"
+      >
+        <path d={direction === "previous" ? "M15.5 4.75 8.25 12l7.25 7.25" : "m8.5 4.75 7.25 7.25-7.25 7.25"} />
+      </svg>
+    </span>
+  );
+}
+
 export function ProductMediaGallery({ name, image, gallery }: ProductMediaGalleryProps) {
   const images = useMemo(() => {
     const all = [image, ...gallery].filter(Boolean);
@@ -133,7 +161,7 @@ export function ProductMediaGallery({ name, image, gallery }: ProductMediaGaller
               onClick={goToPrevious}
               onPointerDown={(event) => event.stopPropagation()}
             >
-              ‹
+              <CarouselArrowIcon direction="previous" size="gallery" />
             </button>
             <button
               aria-label="Show next product image"
@@ -142,7 +170,7 @@ export function ProductMediaGallery({ name, image, gallery }: ProductMediaGaller
               onClick={goToNext}
               onPointerDown={(event) => event.stopPropagation()}
             >
-              ›
+              <CarouselArrowIcon direction="next" size="gallery" />
             </button>
           </div>
         ) : null}

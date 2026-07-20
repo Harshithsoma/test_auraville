@@ -61,6 +61,34 @@ function isDragPointerType(pointerType: string): boolean {
   return pointerType === "touch" || pointerType === "pen";
 }
 
+type CarouselArrowIconSize = "shelf" | "section" | "gallery";
+
+function CarouselArrowIcon({ direction, size }: { direction: "previous" | "next"; size: CarouselArrowIconSize }) {
+  const sizeClass =
+    size === "gallery"
+      ? "h-8 w-8"
+      : size === "section"
+        ? "h-7 w-7"
+        : "h-6 w-6 sm:h-7 sm:w-7";
+
+  return (
+    <span aria-hidden="true" className="pointer-events-none inline-flex h-full w-full items-center justify-center">
+      <svg
+        className={sizeClass}
+        fill="none"
+        focusable="false"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="3.25"
+        viewBox="0 0 24 24"
+      >
+        <path d={direction === "previous" ? "M15.5 4.75 8.25 12l7.25 7.25" : "m8.5 4.75 7.25 7.25-7.25 7.25"} />
+      </svg>
+    </span>
+  );
+}
+
 export function BestSellersCarousel({ products }: { products: Product[] }) {
   const viewportWidth = useSyncExternalStore(subscribeToViewport, getViewportWidth, () => 0);
   const cardsPerView = getCardsPerView(viewportWidth);
@@ -204,8 +232,8 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
             type="button"
             onClick={() => setActive((current) => Math.max(0, Math.min(current, maxIndex) - 1))}
           >
-            ‹
-          </button>
+              <CarouselArrowIcon direction="previous" size="shelf" />
+            </button>
           <button
             aria-label="Show next best sellers"
             className="focus-ring absolute right-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white text-[1.9rem] font-bold leading-none text-[var(--leaf-deep)] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9"
@@ -213,8 +241,8 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
             type="button"
             onClick={() => setActive((current) => Math.min(maxIndex, Math.min(current, maxIndex) + 1))}
           >
-            ›
-          </button>
+              <CarouselArrowIcon direction="next" size="shelf" />
+            </button>
         </>
       ) : null}
     </div>

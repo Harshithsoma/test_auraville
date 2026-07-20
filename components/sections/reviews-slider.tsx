@@ -135,6 +135,34 @@ function mapBackendReviews(response: ReviewsListResponse): Review[] {
   }));
 }
 
+type CarouselArrowIconSize = "shelf" | "section" | "gallery";
+
+function CarouselArrowIcon({ direction, size }: { direction: "previous" | "next"; size: CarouselArrowIconSize }) {
+  const sizeClass =
+    size === "gallery"
+      ? "h-8 w-8"
+      : size === "section"
+        ? "h-7 w-7"
+        : "h-6 w-6 sm:h-7 sm:w-7";
+
+  return (
+    <span aria-hidden="true" className="pointer-events-none inline-flex h-full w-full items-center justify-center">
+      <svg
+        className={sizeClass}
+        fill="none"
+        focusable="false"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="3.25"
+        viewBox="0 0 24 24"
+      >
+        <path d={direction === "previous" ? "M15.5 4.75 8.25 12l7.25 7.25" : "m8.5 4.75 7.25 7.25-7.25 7.25"} />
+      </svg>
+    </span>
+  );
+}
+
 export function ReviewsSlider({
   title,
   subtitle,
@@ -504,20 +532,20 @@ export function ReviewsSlider({
             <>
               <button
                 aria-label="Show previous reviews"
-                className="focus-ring absolute left-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-2xl leading-none text-[var(--leaf-deep)] shadow-sm transition active:scale-95"
+                className="focus-ring absolute left-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-[1.9rem] font-bold leading-none text-[var(--leaf-deep)] shadow-sm transition active:scale-95"
                 type="button"
                 onClick={() => shiftOffset(-1)}
               >
-                ‹
-              </button>
+              <CarouselArrowIcon direction="previous" size="section" />
+            </button>
               <button
                 aria-label="Show next reviews"
-                className="focus-ring absolute right-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-2xl leading-none text-[var(--leaf-deep)] shadow-sm transition active:scale-95"
+                className="focus-ring absolute right-0 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-[1.9rem] font-bold leading-none text-[var(--leaf-deep)] shadow-sm transition active:scale-95"
                 type="button"
                 onClick={() => shiftOffset(1)}
               >
-                ›
-              </button>
+              <CarouselArrowIcon direction="next" size="section" />
+            </button>
             </>
           ) : null}
         </div>
