@@ -127,8 +127,8 @@ function deriveTrackingState(order: BackendOrder): DerivedTrackingState {
   if (order.status === "payment_failed" || isPendingOrderExpired(order)) {
     return {
       stage: "order_placed",
-      headline: "Order Failed",
-      firstLabel: "Order Failed",
+      headline: "Payment Failed",
+      firstLabel: "Order Placed",
       isFailed: true,
       isStopped: true
     };
@@ -137,18 +137,18 @@ function deriveTrackingState(order: BackendOrder): DerivedTrackingState {
   if (order.status === "pending") {
     return {
       stage: "order_placed",
-      headline: "Order Pending",
-      firstLabel: "Order Pending",
+      headline: "Payment Pending",
+      firstLabel: "Order Placed",
       isFailed: false,
-      isStopped: false
+      isStopped: true
     };
   }
 
   if (order.status === "cancelled") {
     return {
       stage: "order_placed",
-      headline: "Order Cancelled",
-      firstLabel: "Order Cancelled",
+      headline: "Cancelled",
+      firstLabel: "Order Placed",
       isFailed: false,
       isStopped: true
     };
@@ -191,7 +191,15 @@ function OrderTrackingProgress({ order }: { order: BackendOrder }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">Order tracking</p>
-          <p className={`mt-1 text-sm font-semibold ${tracking.isFailed ? "text-[var(--coral)]" : "text-[var(--leaf-deep)]"}`}>
+          <p
+            className={`mt-1 text-sm font-semibold ${
+              tracking.isFailed
+                ? "text-[var(--coral)]"
+                : tracking.isStopped
+                  ? "text-[var(--muted)]"
+                  : "text-[var(--leaf-deep)]"
+            }`}
+          >
             {tracking.headline}
           </p>
         </div>
@@ -203,13 +211,13 @@ function OrderTrackingProgress({ order }: { order: BackendOrder }) {
                 : "border-[var(--line)] bg-white text-[var(--muted)]"
             }`}
           >
-            {tracking.isFailed ? "Failed" : "Stopped"}
+            {tracking.headline}
           </span>
         ) : null}
       </div>
 
       <ol
-        className={`mt-4 grid gap-3 sm:grid-cols-5 ${tracking.isFailed ? "opacity-55 blur-[0.2px] grayscale" : ""}`}
+        className={`mt-4 grid gap-3 sm:grid-cols-5 ${tracking.isStopped ? "opacity-55 blur-[0.2px] grayscale" : ""}`}
         aria-label="Order progress stages"
       >
         {ORDER_TRACKING_STAGES.map((stage, index) => {
@@ -584,15 +592,6 @@ export function OrdersClient() {
                 }).format(new Date(order.createdAt))}
               </p>
             </div>
-            <span
-              className={`w-fit rounded-full px-3 py-1 text-sm font-bold capitalize ${
-                deriveTrackingState(order).isFailed
-                  ? "bg-[#fff1f0] text-[var(--coral)]"
-                  : "bg-[var(--mint)] text-[var(--leaf-deep)]"
-              }`}
-            >
-              {deriveTrackingState(order).headline}
-            </span>
           </div>
           <OrderTrackingProgress order={order} />
           <ul className="mt-4 space-y-3">

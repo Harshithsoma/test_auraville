@@ -128,7 +128,7 @@ export function ProductMediaGallery({ name, image, gallery }: ProductMediaGaller
           <div className="pointer-events-none absolute inset-y-0 left-0 right-0 z-20 hidden items-center justify-between sm:flex">
             <button
               aria-label="Show previous product image"
-              className="focus-ring pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-2xl font-semibold leading-none text-[var(--leaf-deep)] shadow-sm transition hover:bg-white active:scale-95"
+              className="focus-ring pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-[2rem] font-bold leading-none text-[var(--leaf-deep)] shadow-sm transition hover:bg-white active:scale-95"
               type="button"
               onClick={goToPrevious}
               onPointerDown={(event) => event.stopPropagation()}
@@ -137,7 +137,7 @@ export function ProductMediaGallery({ name, image, gallery }: ProductMediaGaller
             </button>
             <button
               aria-label="Show next product image"
-              className="focus-ring pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-2xl font-semibold leading-none text-[var(--leaf-deep)] shadow-sm transition hover:bg-white active:scale-95"
+              className="focus-ring pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-[2rem] font-bold leading-none text-[var(--leaf-deep)] shadow-sm transition hover:bg-white active:scale-95"
               type="button"
               onClick={goToNext}
               onPointerDown={(event) => event.stopPropagation()}

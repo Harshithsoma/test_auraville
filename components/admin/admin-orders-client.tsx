@@ -116,7 +116,7 @@ const orderStatuses: OrderStatus[] = [
 ];
 
 const orderStatusLabels: Record<OrderStatus, string> = {
-  pending: "Pending Payment",
+  pending: "Payment Pending",
   confirmed: "Confirmed",
   packed: "Packed",
   shipped: "Shipped",
@@ -134,6 +134,13 @@ const fulfillmentStageLabels: Record<OrderFulfillmentStage, string> = {
   out_for_delivery: "Out for Delivery",
   delivered: "Delivered"
 };
+
+function getCustomerTrackingLabel(order: Pick<AdminOrderDetail, "status" | "fulfillmentStage">): string {
+  if (order.status === "pending") return "Payment Pending";
+  if (order.status === "payment_failed") return "Payment Failed";
+  if (order.status === "cancelled") return "Cancelled";
+  return fulfillmentStageLabels[order.fulfillmentStage];
+}
 
 const defaultFilters: Filters = {
   status: "all",
@@ -622,7 +629,7 @@ export function AdminOrdersClient() {
 
                 <div className="rounded-lg border border-[var(--line)] bg-[var(--mint)] p-3 text-sm text-[var(--muted)]">
                   <p className="font-semibold text-[var(--leaf-deep)]">Customer tracking shown to shopper</p>
-                  <p className="mt-1">{fulfillmentStageLabels[detail.fulfillmentStage]}</p>
+                  <p className="mt-1">{getCustomerTrackingLabel(detail)}</p>
                 </div>
               </div>
             </div>

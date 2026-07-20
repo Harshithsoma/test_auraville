@@ -29,6 +29,7 @@ export function BestSellerCard({ product, priority = false }: { product: Product
   const canPurchase = variant ? variantIsActive && (availableStock ?? variant.stock ?? 0) > 0 : false;
   const marketingBadge = product.badgeLabel?.trim() ?? "";
   const badgeText = !variantIsActive ? "Coming Soon" : !canPurchase ? "Out of Stock" : marketingBadge || null;
+  const secondaryImage = product.gallery.find((media) => media && media !== product.image);
 
   function addToCart(openCart = false) {
     if (!variant || !variantIsActive) return;
@@ -65,12 +66,22 @@ export function BestSellerCard({ product, priority = false }: { product: Product
         <div className="relative aspect-[4/4.2] overflow-hidden bg-[var(--mint)]">
           <Image
             alt={product.name}
-            className="object-cover transition-transform duration-500 ease-out md:group-hover:scale-[1.035]"
+            className={`object-cover transition duration-500 ease-out ${secondaryImage ? "" : "md:group-hover:scale-[1.035]"}`}
             fill
             priority={priority}
             sizes="(min-width: 1280px) 21vw, (min-width: 768px) 28vw, (min-width: 480px) 46vw, 90vw"
             src={product.image}
           />
+          {secondaryImage ? (
+            <Image
+              alt=""
+              aria-hidden="true"
+              className="hidden object-cover opacity-0 transition-opacity duration-500 ease-out md:block md:group-hover:opacity-100"
+              fill
+              sizes="(min-width: 1280px) 21vw, (min-width: 768px) 28vw, (min-width: 480px) 46vw, 90vw"
+              src={secondaryImage}
+            />
+          ) : null}
           {badgeText ? (
             <span className="absolute left-2 top-2 rounded-md bg-[#1f2421] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-[#f4f1de]">
               {badgeText}

@@ -205,7 +205,7 @@ export function ProductShelfCarousel({
         <>
           <button
             aria-label="Show previous products"
-            className="focus-ring absolute left-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-2xl leading-none text-[var(--leaf-deep)] shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9"
+            className="focus-ring absolute left-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-[1.9rem] font-bold leading-none text-[var(--leaf-deep)] shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9"
             disabled={clampedIndex <= 0}
             type="button"
             onClick={() => setActive((current) => Math.max(0, Math.min(current, maxIndex) - 1))}
@@ -214,7 +214,7 @@ export function ProductShelfCarousel({
           </button>
           <button
             aria-label="Show next products"
-            className="focus-ring absolute right-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-2xl leading-none text-[var(--leaf-deep)] shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9"
+            className="focus-ring absolute right-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-[1.9rem] font-bold leading-none text-[var(--leaf-deep)] shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9"
             disabled={clampedIndex >= maxIndex}
             type="button"
             onClick={() => setActive((current) => Math.min(maxIndex, Math.min(current, maxIndex) + 1))}
