@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { ProductCard } from "@/components/product/product-card";
 import { fetchProducts } from "@/lib/catalog-api";
-import { sortStorefrontProducts } from "@/lib/storefront-product-order";
 import { absoluteUrl, defaultShareImageUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -39,7 +38,7 @@ export default async function BestSellingPage() {
       bestSeller: true,
       sort: "popular"
     });
-    bestSellers = sortStorefrontProducts(response.data);
+    bestSellers = response.data;
   } catch {
     // Keep empty state when API is unavailable to avoid stale storefront flags.
   }

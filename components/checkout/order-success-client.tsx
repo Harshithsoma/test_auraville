@@ -6,6 +6,12 @@ import { ApiError, commerceApi } from "@/services/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/components/ui/price";
+import {
+  OrderReceiptDetails,
+  type CustomerOrderPayment,
+  type CustomerOrderPricing,
+  type CustomerShippingAddress
+} from "@/components/orders/order-receipt-details";
 
 type LastOrderReference = {
   id: string;
@@ -27,13 +33,9 @@ type OrderDetailResponse = {
       unitPrice: number;
       quantity: number;
     }>;
-    pricing: {
-      subtotal: number;
-      promoDiscount: number;
-      gst: number;
-      shipping: number;
-      total: number;
-    };
+    pricing: CustomerOrderPricing;
+    shippingAddress: CustomerShippingAddress;
+    payment: CustomerOrderPayment;
     status: string;
     createdAt: string;
   };
@@ -136,9 +138,13 @@ export function OrderSuccessClient() {
                 </li>
               ))}
             </ul>
-            <p className="mt-5 border-t border-[var(--line)] pt-4 text-right font-semibold">
-              Total {formatPrice(orderDetail.pricing.total)}
-            </p>
+            <OrderReceiptDetails
+              className="mt-5"
+              orderStatus={orderDetail.status}
+              payment={orderDetail.payment}
+              pricing={orderDetail.pricing}
+              shippingAddress={orderDetail.shippingAddress}
+            />
           </>
         ) : fallbackReference?.total ? (
           <p className="mt-4 border-t border-[var(--line)] pt-4 text-right font-semibold">

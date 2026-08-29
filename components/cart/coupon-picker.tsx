@@ -30,6 +30,21 @@ type AvailableCouponsResponse = {
   data: AvailableCoupon[];
 };
 
+function formatCouponIneligibilityReason(reason: string | null): string | null {
+  if (!reason) return null;
+  const normalized = reason.trim();
+  if (!normalized) return null;
+
+  const reasonMap: Record<string, string> = {
+    "Not active": "This coupon is currently unavailable.",
+    Expired: "This coupon has expired.",
+    "Usage limit reached": "Coupon usage limit reached.",
+    "Already used": "Already used. This coupon can only be used once per customer."
+  };
+
+  return reasonMap[normalized] ?? normalized.replace(/\bRs\b/g, "₹");
+}
+
 export function CouponPicker({
   items,
   promoCode,
@@ -315,9 +330,11 @@ export function CouponPicker({
                   isPricingLoading ||
                   Boolean(activeCode);
 
-                // const reason = coupon.eligibilityReason;
                 const primaryDescription =
                   coupon.description?.trim() || coupon.displayText;
+                const ineligibilityReason = !coupon.isEligible
+                  ? formatCouponIneligibilityReason(coupon.eligibilityReason)
+                  : null;
                 // const metaParts: string[] = [];
                 // if (coupon.minOrderAmount && coupon.minOrderAmount > 0) {
                 //   metaParts.push(
@@ -343,9 +360,14 @@ export function CouponPicker({
                     key={coupon.code}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm font-semibold">{coupon.code}</p>
                         <p className="mt-1 text-xs">{primaryDescription}</p>
+                        {ineligibilityReason ? (
+                          <p className="mt-1.5 text-xs font-semibold text-[#a84843]">
+                            {ineligibilityReason}
+                          </p>
+                        ) : null}
                       </div>
                       <button
                         className="focus-ring inline-flex h-8 items-center justify-center rounded-lg border border-[var(--leaf)] px-3 text-xs font-semibold text-[var(--leaf-deep)] transition disabled:cursor-not-allowed disabled:opacity-50"

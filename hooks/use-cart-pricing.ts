@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { useCartStore } from "@/stores/cart-store";
+import { FREE_SHIPPING_THRESHOLD } from "@/lib/cart-pricing-config";
 
 const PRICING_SYNC_DEBOUNCE_MS = 40;
 
@@ -31,8 +32,8 @@ const EMPTY_SUMMARY: CartSummary = {
   shipping: 0,
   total: 0,
   totalSavings: 0,
-  freeShippingThreshold: 0,
-  remainingForFreeShipping: 0
+  freeShippingThreshold: FREE_SHIPPING_THRESHOLD,
+  remainingForFreeShipping: FREE_SHIPPING_THRESHOLD
 };
 
 export function useCartPricing() {

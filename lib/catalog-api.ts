@@ -36,6 +36,10 @@ export type ProductsListQuery = {
 };
 
 const inFlightProductListRequests = new Map<string, Promise<ProductsListResponse>>();
+
+function shouldApplyAvailabilitySort(sort: ProductsListQuery["sort"]): boolean {
+  return sort !== "price-asc" && sort !== "price-desc";
+}
 const inFlightProductDetailRequests = new Map<string, Promise<ProductResponse>>();
 
 function productListRequestKey(query?: ProductsListQuery): string {
@@ -54,7 +58,7 @@ export async function fetchProducts(query?: ProductsListQuery): Promise<Products
   const request = commerceApi.products.list<ProductsListResponse>(query)
     .then((response) => ({
       ...response,
-      data: sortStorefrontProducts(response.data)
+      data: shouldApplyAvailabilitySort(query?.sort) ? sortStorefrontProducts(response.data) : response.data
     }))
     .finally(() => {
       inFlightProductListRequests.delete(key);

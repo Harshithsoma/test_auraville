@@ -15,7 +15,7 @@ export async function FeaturedProducts() {
       sort: "popular",
       limit: 12
     });
-    featuredProducts = sortStorefrontProducts(response.data);
+    featuredProducts = response.data;
   } catch {
     // Keep bundled fallback for development only.
   }

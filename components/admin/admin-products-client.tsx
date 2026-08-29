@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, commerceApi } from "@/services/api";
+import { invalidateSearchIndex } from "@/lib/search-index-cache";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { formatPrice } from "@/components/ui/price";
@@ -728,6 +729,7 @@ export function AdminProductsClient() {
           ? `Product "${product.name}" activated successfully.`
           : `Product "${product.name}" deactivated successfully.`
       );
+      invalidateSearchIndex();
       if (editingProductId === product.id) {
         setFormState((current) => ({ ...current, isActive: nextActive }));
       }
@@ -815,6 +817,7 @@ export function AdminProductsClient() {
         }));
         setFormMessage(`Variant "${deleteDialog.variantLabel}" deleted permanently.`);
       }
+      invalidateSearchIndex();
 
       setDeleteDialog(null);
       setDeleteConfirmText("");
@@ -1125,6 +1128,7 @@ function buildProductPatchPayload(effectiveSlug: string) {
         setFormMessage("Product saved successfully.");
       }
 
+      invalidateSearchIndex();
       await loadProducts();
     } catch (error) {
       if (error instanceof ApiError) {
@@ -1360,6 +1364,7 @@ function buildProductPatchPayload(effectiveSlug: string) {
         setFormMessage("Variant saved successfully.");
       }
 
+      invalidateSearchIndex();
       await loadProducts();
     } catch (error) {
       updateVariant(variant.localKey, (current) => ({ ...current, isSaving: false }));
@@ -1410,6 +1415,7 @@ function buildProductPatchPayload(effectiveSlug: string) {
           ? `Variant "${variant.frontendVariantId}" deactivated.`
           : `Variant "${variant.frontendVariantId}" activated.`
       );
+      invalidateSearchIndex();
       await loadProducts();
     } catch (error) {
       updateVariant(variant.localKey, (current) => ({ ...current, isSaving: false }));

@@ -40,7 +40,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     });
     initialProducts = initialQuery
       ? rankSearchProducts(response.data, initialQuery, 24)
-      : sortProductsByName(sortStorefrontProducts(response.data));
+      : sortProductsByName(response.data);
   } catch {
     // Keep query-specific empty state if API is unavailable.
   }

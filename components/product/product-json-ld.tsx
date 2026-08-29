@@ -1,6 +1,6 @@
 import type { Product, ProductVariant } from "@/types/product";
 import { absoluteUrl, siteConfig } from "@/lib/site";
-import { isComingSoonProduct } from "@/lib/product-lifecycle";
+import { isVariantActive } from "@/lib/product-lifecycle";
 
 const seller = {
   "@type": "Organization",
@@ -9,12 +9,16 @@ const seller = {
 };
 
 function getAvailability(product: Product, variant?: ProductVariant) {
-  if (isComingSoonProduct(product)) {
+  if (variant && !isVariantActive(variant)) {
     return "https://schema.org/PreOrder";
   }
 
   if (typeof variant?.stock === "number" && variant.stock <= 0) {
     return "https://schema.org/OutOfStock";
+  }
+
+  if (!variant && product.availability === "coming-soon") {
+    return "https://schema.org/PreOrder";
   }
 
   return "https://schema.org/InStock";

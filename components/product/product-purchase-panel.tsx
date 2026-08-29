@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Price, PriceWithCompare } from "@/components/ui/price";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { getVariantCompareAtPrice, selectDefaultProductVariant, sortVariantsLogically } from "@/components/product/card-variant";
-import { isVariantActive } from "@/lib/product-lifecycle";
+import { isVariantActive, isVariantPurchasable } from "@/lib/product-lifecycle";
 
 type ProductPurchasePanelProps = {
   product: Product;
@@ -46,8 +46,10 @@ export function ProductPurchasePanel({
       return;
     }
 
-    const exists = sortedVariants.some((variant) => variant.id === selectedVariantId);
-    if (!exists && defaultVariant) {
+    const selectedCandidate = sortedVariants.find((variant) => variant.id === selectedVariantId);
+    const shouldUseDefault =
+      !selectedCandidate || (!isVariantPurchasable(selectedCandidate) && isVariantPurchasable(defaultVariant));
+    if (shouldUseDefault && defaultVariant) {
       onSelectedVariantIdChange(defaultVariant.id);
     }
   }, [defaultVariant, isControlled, onSelectedVariantIdChange, selectedVariantId, sortedVariants]);
@@ -139,7 +141,7 @@ export function ProductPurchasePanel({
     <div className="rounded-2xl border border-[var(--line)] bg-white p-4 shadow-[0_18px_45px_rgb(23_33_28_/_8%)] sm:p-5">
       <fieldset>
         <legend className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-          Select Variant
+          Choose pack size
         </legend>
         <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
           {sortedVariants.map((variant) => {
@@ -160,8 +162,9 @@ export function ProductPurchasePanel({
               >
                 <input
                   checked={isSelected}
+                  aria-label={`${variant.label}${!variantIsActive ? ", coming soon" : variantIsOut ? ", out of stock" : ", available"}${isSelected ? ", selected" : ""}`}
                   className="sr-only"
-                  disabled={!variantIsActive}
+                  disabled={!variantIsActive || variantIsOut}
                   name="variant"
                   type="radio"
                   value={variant.id}

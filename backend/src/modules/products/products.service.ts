@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { HttpError } from "../../utils/http-error";
 import { prisma } from "../../prisma/prisma.service";
 import type { ProductApiResponse, ProductListQuery, ProductListResult } from "./products.types";
@@ -20,8 +21,8 @@ function variantIsPurchasable(variant: Pick<StorefrontVariantRecord, "isActive" 
   return variant.isActive && variant.stock > 0;
 }
 
-function productHasInactiveVariant(product: Pick<StorefrontProductRecord, "variants">): boolean {
-  return product.variants.some((variant) => !variant.isActive);
+function productHasActiveVariant(product: Pick<StorefrontProductRecord, "variants">): boolean {
+  return product.variants.some((variant) => variant.isActive);
 }
 
 type StorefrontVariantRecord = {
@@ -36,6 +37,7 @@ type StorefrontVariantRecord = {
   isBestSeller: boolean;
   sortOrder: number;
   isActive: boolean;
+  createdAt: Date;
 };
 
 type StorefrontProductRecord = {
@@ -73,30 +75,51 @@ function getVariantPriority(variant: StorefrontVariantRecord): number {
   return 2;
 }
 
+function extractVariantQuantity(variant: StorefrontVariantRecord): number | null {
+  const value = `${variant.label} ${variant.unit}`.toLowerCase();
+  const match = value.match(/(?:pack|box)?\s*(?:of)?\s*(\d+(?:\.\d+)?)/i);
+  if (!match) return null;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function sortVariants(
   variants: StorefrontVariantRecord[],
   context: "default" | "featured" | "bestSeller"
 ): StorefrontVariantRecord[] {
   return [...variants].sort((a, b) => {
-    const aFlag = context === "featured" ? a.isFeatured && variantIsPurchasable(a) : context === "bestSeller" ? a.isBestSeller && variantIsPurchasable(a) : true;
-    const bFlag = context === "featured" ? b.isFeatured && variantIsPurchasable(b) : context === "bestSeller" ? b.isBestSeller && variantIsPurchasable(b) : true;
+    const aFlag =
+      context === "featured"
+        ? a.isFeatured && variantIsPurchasable(a)
+        : context === "bestSeller"
+          ? a.isBestSeller && variantIsPurchasable(a)
+          : true;
+    const bFlag =
+      context === "featured"
+        ? b.isFeatured && variantIsPurchasable(b)
+        : context === "bestSeller"
+          ? b.isBestSeller && variantIsPurchasable(b)
+          : true;
     const aFlagRank = aFlag ? 0 : 1;
     const bFlagRank = bFlag ? 0 : 1;
-    if (aFlagRank !== bFlagRank) {
-      return aFlagRank - bFlagRank;
-    }
+    if (aFlagRank !== bFlagRank) return aFlagRank - bFlagRank;
 
     const stockRankDelta = getVariantPriority(a) - getVariantPriority(b);
-    if (stockRankDelta !== 0) {
-      return stockRankDelta;
-    }
+    if (stockRankDelta !== 0) return stockRankDelta;
+
+    const quantityA = extractVariantQuantity(a);
+    const quantityB = extractVariantQuantity(b);
+    if (quantityA !== null && quantityB !== null && quantityA !== quantityB) return quantityA - quantityB;
+    if (quantityA !== null && quantityB === null) return -1;
+    if (quantityA === null && quantityB !== null) return 1;
 
     const sortOrderDelta = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
-    if (sortOrderDelta !== 0) {
-      return sortOrderDelta;
-    }
+    if (sortOrderDelta !== 0) return sortOrderDelta;
 
-    return 0;
+    const priceDelta = a.price - b.price;
+    if (priceDelta !== 0) return priceDelta;
+
+    return a.createdAt.getTime() - b.createdAt.getTime();
   });
 }
 
@@ -124,7 +147,7 @@ function mapProduct(
     isBestSeller: variant.isBestSeller,
     sortOrder: variant.sortOrder
   }));
-  const hasInactiveVariant = productHasInactiveVariant(product);
+  const hasActiveVariant = productHasActiveVariant(product);
   const hasFeaturedVariant = product.variants.some((variant) => variant.isFeatured && variantIsPurchasable(variant));
   const hasBestSellerVariant = product.variants.some((variant) => variant.isBestSeller && variantIsPurchasable(variant));
 
@@ -148,8 +171,8 @@ function mapProduct(
     image: product.image,
     gallery,
     category: product.category.name,
-    availability: hasInactiveVariant ? "coming-soon" : "available",
-    launchStatus: hasInactiveVariant ? "coming-soon" : "active",
+    availability: hasActiveVariant ? "available" : "coming-soon",
+    launchStatus: hasActiveVariant ? "active" : "coming-soon",
     ...(product.releaseNote !== null ? { releaseNote: product.releaseNote } : {}),
     rating: typeof product.rating === "number" ? product.rating : Number(product.rating),
     reviewCount: product.reviewCount,
@@ -213,6 +236,137 @@ function writeListCache(key: string, value: ProductListResult): void {
     expiresAt: Date.now() + PRODUCTS_LIST_CACHE_TTL_MS,
     value
   });
+}
+
+
+function isPriceSort(sort: ProductListQuery["sort"]): boolean {
+  return sort === "price-asc" || sort === "price-desc";
+}
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
+function buildProductListWhereSql(query: ProductListQuery): Prisma.Sql {
+  const conditions: Prisma.Sql[] = [Prisma.sql`p."isActive" = true`];
+
+  if (query.category) {
+    conditions.push(Prisma.sql`LOWER(c."name") = LOWER(${query.category})`);
+  }
+
+  if (query.search) {
+    const searchPattern = `%${escapeLikePattern(query.search)}%`;
+    conditions.push(Prisma.sql`(
+      p."name" ILIKE ${searchPattern} ESCAPE '\\'
+      OR p."tagline" ILIKE ${searchPattern} ESCAPE '\\'
+      OR p."description" ILIKE ${searchPattern} ESCAPE '\\'
+    )`);
+  }
+
+  if (typeof query.isNew === "boolean") {
+    conditions.push(Prisma.sql`p."isNew" = ${query.isNew}`);
+  }
+
+  if (typeof query.featured === "boolean") {
+    conditions.push(
+      query.featured
+        ? Prisma.sql`EXISTS (
+            SELECT 1 FROM "ProductVariant" vf
+            WHERE vf."productId" = p."id" AND vf."isActive" = true AND vf."isFeatured" = true AND vf."stock" > 0
+          )`
+        : Prisma.sql`NOT EXISTS (
+            SELECT 1 FROM "ProductVariant" vf
+            WHERE vf."productId" = p."id" AND vf."isActive" = true AND vf."isFeatured" = true AND vf."stock" > 0
+          )`
+    );
+  }
+
+  if (typeof query.bestSeller === "boolean") {
+    conditions.push(
+      query.bestSeller
+        ? Prisma.sql`EXISTS (
+            SELECT 1 FROM "ProductVariant" vb
+            WHERE vb."productId" = p."id" AND vb."isActive" = true AND vb."isBestSeller" = true AND vb."stock" > 0
+          )`
+        : Prisma.sql`NOT EXISTS (
+            SELECT 1 FROM "ProductVariant" vb
+            WHERE vb."productId" = p."id" AND vb."isActive" = true AND vb."isBestSeller" = true AND vb."stock" > 0
+          )`
+    );
+  }
+
+  if (query.launchStatus === "coming-soon" || query.availability === "coming-soon") {
+    conditions.push(Prisma.sql`EXISTS (
+      SELECT 1 FROM "ProductVariant" vl
+      WHERE vl."productId" = p."id" AND vl."isActive" = false
+    )`);
+  } else if (query.availability === "available" || query.launchStatus === "active" || query.featured === true || query.bestSeller === true) {
+    conditions.push(Prisma.sql`EXISTS (
+      SELECT 1 FROM "ProductVariant" va
+      WHERE va."productId" = p."id" AND va."isActive" = true AND va."stock" > 0
+    )`);
+  }
+
+  return Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`;
+}
+
+function variantContextRankSql(context: "default" | "featured" | "bestSeller"): Prisma.Sql {
+  if (context === "featured") {
+    return Prisma.sql`CASE WHEN pv."isFeatured" = true AND pv."isActive" = true AND pv."stock" > 0 THEN 0 ELSE 1 END`;
+  }
+
+  if (context === "bestSeller") {
+    return Prisma.sql`CASE WHEN pv."isBestSeller" = true AND pv."isActive" = true AND pv."stock" > 0 THEN 0 ELSE 1 END`;
+  }
+
+  return Prisma.sql`0`;
+}
+
+function priceSortSql(sort: ProductListQuery["sort"]): Prisma.Sql {
+  if (sort === "price-desc") {
+    return Prisma.sql`COALESCE(display_variant."price", p."price") DESC`;
+  }
+
+  return Prisma.sql`COALESCE(display_variant."price", p."price") ASC`;
+}
+
+async function getPriceSortedProductIds(
+  query: ProductListQuery,
+  context: "default" | "featured" | "bestSeller"
+): Promise<string[]> {
+  const offset = (query.page - 1) * query.limit;
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT p."id"
+    FROM "Product" p
+    INNER JOIN "Category" c ON c."id" = p."categoryId"
+    LEFT JOIN LATERAL (
+      SELECT pv."price"
+      FROM "ProductVariant" pv
+      WHERE pv."productId" = p."id"
+      ORDER BY
+        ${variantContextRankSql(context)},
+        CASE WHEN pv."isActive" = true AND pv."stock" > 0 THEN 0 WHEN pv."isActive" = true THEN 1 ELSE 2 END,
+        CASE WHEN substring(LOWER(pv."label" || ' ' || pv."unit") FROM '([0-9]+(\\.[0-9]+)?)') IS NULL THEN 1 ELSE 0 END,
+        substring(LOWER(pv."label" || ' ' || pv."unit") FROM '([0-9]+(\\.[0-9]+)?)')::numeric ASC NULLS LAST,
+        pv."sortOrder" ASC,
+        pv."price" ASC,
+        pv."createdAt" ASC
+      LIMIT 1
+    ) display_variant ON true
+    ${buildProductListWhereSql(query)}
+    ORDER BY
+      CASE
+        WHEN EXISTS (SELECT 1 FROM "ProductVariant" vp WHERE vp."productId" = p."id" AND vp."isActive" = true AND vp."stock" > 0) THEN 0
+        WHEN EXISTS (SELECT 1 FROM "ProductVariant" va WHERE va."productId" = p."id" AND va."isActive" = true) THEN 1
+        ELSE 2
+      END ASC,
+      ${priceSortSql(query.sort)},
+      p."createdAt" DESC,
+      p."id" ASC
+    LIMIT ${query.limit} OFFSET ${offset}
+  `);
+
+  return rows.map((row) => row.id);
 }
 
 export async function listProducts(query: ProductListQuery): Promise<ProductListResult> {
@@ -313,38 +467,75 @@ export async function listProducts(query: ProductListQuery): Promise<ProductList
     ...lifecycleVariantFilter
   };
 
-  const [total, products] = await Promise.all([
-    prisma.product.count({ where }),
-    prisma.product.findMany({
-      where,
-      include: {
-        category: { select: { name: true } },
-        images: { select: { url: true, position: true } },
-        variants: {
-          select: {
-            frontendVariantId: true,
-            label: true,
-            price: true,
-            compareAtPrice: true,
-            discountPercent: true,
-            unit: true,
-            stock: true,
-            isFeatured: true,
-            isBestSeller: true,
-            sortOrder: true,
-            isActive: true,
-            createdAt: true
-          },
-          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
-        }
-      },
-      orderBy: parseSort(query.sort),
-      skip: (query.page - 1) * query.limit,
-      take: query.limit
-    })
-  ]);
-
   const context = query.featured ? "featured" : query.bestSeller ? "bestSeller" : "default";
+  const totalPromise = prisma.product.count({ where });
+
+  const productsPromise = isPriceSort(query.sort)
+    ? getPriceSortedProductIds(query, context).then(async (productIds) => {
+        if (productIds.length === 0) {
+          return [];
+        }
+
+        const products = await prisma.product.findMany({
+          where: { id: { in: productIds } },
+          include: {
+            category: { select: { name: true } },
+            images: { select: { url: true, position: true } },
+            variants: {
+              select: {
+                frontendVariantId: true,
+                label: true,
+                price: true,
+                compareAtPrice: true,
+                discountPercent: true,
+                unit: true,
+                stock: true,
+                isFeatured: true,
+                isBestSeller: true,
+                sortOrder: true,
+                isActive: true,
+                createdAt: true
+              },
+              orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+            }
+          }
+        });
+        const productsById = new Map(products.map((product) => [product.id, product]));
+        return productIds.flatMap((productId) => {
+          const product = productsById.get(productId);
+          return product ? [product] : [];
+        });
+      })
+    : prisma.product.findMany({
+        where,
+        include: {
+          category: { select: { name: true } },
+          images: { select: { url: true, position: true } },
+          variants: {
+            select: {
+              frontendVariantId: true,
+              label: true,
+              price: true,
+              compareAtPrice: true,
+              discountPercent: true,
+              unit: true,
+              stock: true,
+              isFeatured: true,
+              isBestSeller: true,
+              sortOrder: true,
+              isActive: true,
+              createdAt: true
+            },
+            orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+          }
+        },
+        orderBy: parseSort(query.sort),
+        skip: (query.page - 1) * query.limit,
+        take: query.limit
+      });
+
+  const [total, products] = await Promise.all([totalPromise, productsPromise]);
+
   const result: ProductListResult = {
     data: products.map((product) => mapProduct(product as unknown as StorefrontProductRecord, context)),
     pagination: {

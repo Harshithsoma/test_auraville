@@ -34,6 +34,36 @@ export type OrderFulfillmentStageView =
   | "out_for_delivery"
   | "delivered";
 
+export type PaymentStatusView = "created" | "paid" | "failed" | "refunded";
+
+export type CustomerOrderPricingView = {
+  originalSubtotal: number;
+  subtotal: number;
+  baseSavings: number;
+  couponCode: string | null;
+  couponDiscount: number;
+  promoDiscount: number;
+  gst: number;
+  shipping: number;
+  total: number;
+};
+
+export type CustomerShippingAddressView = {
+  name: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2: string | null;
+  city: string;
+  state: string | null;
+  pincode: string;
+  country: string;
+};
+
+export type CustomerOrderPaymentView = {
+  provider: "Razorpay";
+  status: PaymentStatusView;
+} | null;
+
 export type OrdersListQuery = {
   page: number;
   limit: number;
@@ -44,6 +74,9 @@ export type OrdersListResponse = {
     id: string;
     email: string;
     items: OrderItemView[];
+    pricing: CustomerOrderPricingView;
+    shippingAddress: CustomerShippingAddressView;
+    payment: CustomerOrderPaymentView;
     total: number;
     status: OrderStatusView;
     fulfillmentStage: OrderFulfillmentStageView;
@@ -62,13 +95,9 @@ export type OrderDetailResponse = {
     id: string;
     email: string;
     items: OrderItemView[];
-    pricing: {
-      subtotal: number;
-      promoDiscount: number;
-      gst: number;
-      shipping: number;
-      total: number;
-    };
+    pricing: CustomerOrderPricingView;
+    shippingAddress: CustomerShippingAddressView;
+    payment: CustomerOrderPaymentView;
     status: OrderStatusView;
     fulfillmentStage: OrderFulfillmentStageView;
     createdAt: string;

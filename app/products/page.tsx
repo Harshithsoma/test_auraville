@@ -43,7 +43,7 @@ export default async function ProductsPage() {
       fetchCategories()
     ]);
 
-    initialProducts = sortStorefrontProducts(productsResponse.data);
+    initialProducts = productsResponse.data;
     initialTotalPages = productsResponse.pagination.totalPages;
     initialTotal = productsResponse.pagination.total;
 

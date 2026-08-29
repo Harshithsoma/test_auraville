@@ -8,6 +8,7 @@ const SEARCH_INDEX_LIMIT = 100;
 
 let searchIndexCache: Product[] | null = null;
 let preloadPromise: Promise<Product[]> | null = null;
+let searchIndexVersion = 0;
 
 function normalizeQuery(query: string): string {
   return query.trim().toLowerCase().replace(/\s+/g, " ");
@@ -15,6 +16,12 @@ function normalizeQuery(query: string): string {
 
 export function getSearchIndex(): Product[] | null {
   return searchIndexCache;
+}
+
+export function invalidateSearchIndex(): void {
+  searchIndexVersion += 1;
+  searchIndexCache = null;
+  preloadPromise = null;
 }
 
 export function preloadSearchIndex(): Promise<Product[]> {
@@ -27,17 +34,24 @@ export function preloadSearchIndex(): Promise<Product[]> {
     return preloadPromise;
   }
 
+  const requestVersion = searchIndexVersion;
   preloadPromise = fetchProducts({
     page: 1,
     limit: SEARCH_INDEX_LIMIT,
     sort: "popular"
   })
     .then((response) => {
+      if (requestVersion !== searchIndexVersion) {
+        return searchIndexCache ?? [];
+      }
+
       searchIndexCache = response.data;
       return response.data;
     })
     .finally(() => {
-      preloadPromise = null;
+      if (requestVersion === searchIndexVersion) {
+        preloadPromise = null;
+      }
     });
 
   return preloadPromise;

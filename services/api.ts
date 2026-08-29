@@ -397,7 +397,7 @@ export const commerceApi = {
   homepage: {
     list: <TResponse>() =>
       request<TResponse>("/homepage", {
-        next: { revalidate: 60 }
+        cache: "no-store"
       })
   },
   auth: {

@@ -78,7 +78,7 @@ function pickVariantByContext(product: Product, context: VariantContext): Produc
   }
 
   if (context === "comingSoon") {
-    return sortVariantsLogically(variants).find(isInactive) ?? ordered[0] ?? null;
+    return ordered.find(isInStock) ?? ordered.find(isActive) ?? ordered.find(isInactive) ?? null;
   }
 
   return ordered.find(isInStock) ?? ordered.find(isActive) ?? ordered[0] ?? null;

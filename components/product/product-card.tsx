@@ -2,11 +2,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import type { Product } from "@/types/product";
 import { PriceWithCompare } from "@/components/ui/price";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { useCartStore } from "@/stores/cart-store";
-import { selectCardDisplayVariant, selectContextDisplayVariant } from "@/components/product/card-variant";
+import {
+  getVariantCompareAtPrice,
+  selectCardDisplayVariant,
+  selectContextDisplayVariant,
+  sortVariantsLogically
+} from "@/components/product/card-variant";
+import { ProductVariantChips } from "@/components/product/product-variant-chips";
 import { isVariantActive } from "@/lib/product-lifecycle";
 
 type ProductCardProps = {
@@ -23,11 +30,18 @@ export function ProductCard({ product, priority = false, variantContext = "defau
   const removeItem = useCartStore((state) => state.removeItem);
   const getAvailableStock = useCartStore((state) => state.getAvailableStock);
   const pushCartNotice = useCartStore((state) => state.pushCartNotice);
-  const selection =
+  const sortedVariants = useMemo(() => sortVariantsLogically(product.variants), [product.variants]);
+  const initialSelection =
     variantContext === "default"
       ? selectCardDisplayVariant(product)
       : selectContextDisplayVariant(product, variantContext);
-  const { variant, isOutOfStock, compareAtPrice } = selection;
+  const [selectedVariantId, setSelectedVariantId] = useState(initialSelection.variant?.id ?? "");
+
+  const variant = useMemo(
+    () => sortedVariants.find((candidate) => candidate.id === selectedVariantId) ?? initialSelection.variant,
+    [initialSelection.variant, selectedVariantId, sortedVariants]
+  );
+  const compareAtPrice = variant ? getVariantCompareAtPrice(product, variant) : undefined;
   const cartItem = variant
     ? items.find((item) => item.productId === product.id && item.variantId === variant.id)
     : undefined;
@@ -39,14 +53,11 @@ export function ProductCard({ product, priority = false, variantContext = "defau
   const marketingBadge = product.badgeLabel?.trim() ?? "";
   const badgeText = !variantIsActive ? "Coming Soon" : !canPurchase ? "Out of Stock" : marketingBadge || null;
   const secondaryImage = product.gallery.find((media) => media && media !== product.image);
+  const hasMultipleVariants = sortedVariants.length > 1;
 
   function addToCart(openCart = false) {
     if (!variant || !variantIsActive) return;
-    if (isOutOfStock) {
-      pushCartNotice("No more quantity available.");
-      return;
-    }
-    if (typeof availableStock === "number" && availableStock <= 0) {
+    if (!canPurchase) {
       pushCartNotice("No more quantity available.");
       return;
     }
@@ -90,7 +101,7 @@ export function ProductCard({ product, priority = false, variantContext = "defau
   }
 
   return (
-    <article className="flex h-[430px] flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99] sm:h-[440px] md:h-full md:min-h-0">
+    <article className="flex h-[468px] flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99] sm:h-[478px] md:h-full md:min-h-0">
       <Link className="focus-ring group block rounded-lg transition active:opacity-90" href={`/product/${product.slug}`}>
         <div className="relative aspect-[4/4.2] overflow-hidden bg-[var(--mint)]">
           <Image
@@ -124,11 +135,19 @@ export function ProductCard({ product, priority = false, variantContext = "defau
           <h3 className="line-clamp-2 min-h-10 text-xs font-bold leading-5 sm:text-sm">{product.name}</h3>
         </Link>
         <div className="mt-1.5 flex min-h-[38px] flex-col items-start gap-1 text-[11px] text-[var(--muted)] sm:mt-2 sm:min-h-5 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:text-xs">
-          <span className="line-clamp-1 max-w-full">{variant?.label ?? "Pack"}</span>
+          <span className="line-clamp-1 max-w-full">{hasMultipleVariants ? "Pack size" : variant?.label ?? "Pack"}</span>
           <div className="shrink-0 scale-[0.92] origin-left sm:scale-100">
             <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
           </div>
         </div>
+        <ProductVariantChips
+          getAvailableStock={getAvailableStock}
+          productId={product.id}
+          productName={product.name}
+          selectedVariantId={variant?.id ?? selectedVariantId}
+          variants={sortedVariants}
+          onSelect={setSelectedVariantId}
+        />
         <div className="mt-1.5 min-h-[50px] text-[13px] sm:mt-2 sm:min-h-[44px] sm:text-base">
           {canPurchase ? (
             <PriceWithCompare

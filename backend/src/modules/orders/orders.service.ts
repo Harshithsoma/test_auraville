@@ -1,19 +1,50 @@
 import { prisma } from "../../prisma/prisma.service";
 import { HttpError } from "../../utils/http-error";
-import type { OrderDetailResponse, OrderItemView, OrdersListQuery, OrdersListResponse } from "./orders.types";
+import type {
+  CustomerOrderPaymentView,
+  CustomerOrderPricingView,
+  CustomerShippingAddressView,
+  OrderDetailResponse,
+  OrderItemView,
+  OrdersListQuery,
+  OrdersListResponse,
+  PaymentStatusView
+} from "./orders.types";
+
+type OrderItemRecord = {
+  id: string;
+  productId: string;
+  slug: string;
+  name: string;
+  image: string;
+  variantId: string;
+  variantLabel: string;
+  unitPrice: number;
+  quantity: number;
+};
+
+type OrderSnapshotRecord = {
+  name: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2: string | null;
+  city: string;
+  state: string | null;
+  pincode: string;
+  country: string;
+  originalSubtotal: number;
+  subtotal: number;
+  baseSavings: number;
+  couponCode: string | null;
+  couponDiscount: number;
+  gst: number;
+  shipping: number;
+  total: number;
+  payment: { status: PaymentStatusView } | null;
+};
 
 function mapOrderItems(
-  items: Array<{
-    id: string;
-    productId: string;
-    slug: string;
-    name: string;
-    image: string;
-    variantId: string;
-    variantLabel: string;
-    unitPrice: number;
-    quantity: number;
-  }>,
+  items: OrderItemRecord[],
   reviewsByOrderItemId: Map<string, { id: string; rating: number; subject: string | null; body: string }>
 ): OrderItemView[] {
   return items.map((item) => ({
@@ -38,6 +69,61 @@ function mapOrderItems(
   }));
 }
 
+function mapOrderPricing(order: OrderSnapshotRecord): CustomerOrderPricingView {
+  return {
+    originalSubtotal: order.originalSubtotal,
+    subtotal: order.subtotal,
+    baseSavings: order.baseSavings,
+    couponCode: order.couponCode,
+    couponDiscount: order.couponDiscount,
+    promoDiscount: order.couponDiscount,
+    gst: order.gst,
+    shipping: order.shipping,
+    total: order.total
+  };
+}
+
+function mapShippingAddress(order: OrderSnapshotRecord): CustomerShippingAddressView {
+  return {
+    name: order.name,
+    phone: order.phone,
+    addressLine1: order.addressLine1,
+    addressLine2: order.addressLine2,
+    city: order.city,
+    state: order.state,
+    pincode: order.pincode,
+    country: order.country
+  };
+}
+
+function mapPayment(payment: OrderSnapshotRecord["payment"]): CustomerOrderPaymentView {
+  return payment ? { provider: "Razorpay", status: payment.status } : null;
+}
+
+const orderSnapshotSelect = {
+  name: true,
+  phone: true,
+  addressLine1: true,
+  addressLine2: true,
+  city: true,
+  state: true,
+  pincode: true,
+  country: true,
+  originalSubtotal: true,
+  subtotal: true,
+  baseSavings: true,
+  couponCode: true,
+  couponDiscount: true,
+  gst: true,
+  shipping: true,
+  total: true,
+  payment: {
+    select: {
+      status: true
+    }
+  }
+} as const;
+
 export async function listUserOrders(params: {
   userId: string;
   query: OrdersListQuery;
@@ -55,10 +141,10 @@ export async function listUserOrders(params: {
       select: {
         id: true,
         email: true,
-        total: true,
         status: true,
         fulfillmentStage: true,
         createdAt: true,
+        ...orderSnapshotSelect,
         items: {
           select: {
             id: true,
@@ -122,39 +208,24 @@ export async function listUserOrders(params: {
   );
 
   return {
-    data: orders.map((order: {
-      id: string;
-      email: string;
-      total: number;
-      status: "pending" | "confirmed" | "packed" | "shipped" | "out_for_delivery" | "delivered" | "cancelled" | "payment_failed";
-      fulfillmentStage: "order_placed" | "processing" | "shipped" | "out_for_delivery" | "delivered";
-          createdAt: Date;
-          items: Array<{
-            id: string;
-            productId: string;
-            slug: string;
-            name: string;
-            image: string;
-            variantId: string;
-            variantLabel: string;
-            unitPrice: number;
-            quantity: number;
-          }>;
-        }) => ({
-          id: order.id,
-          email: order.email,
-          items: mapOrderItems(
-            order.items,
-            order.status === "delivered" ? reviewsByOrderItemId : new Map()
-          ).map((item) => ({
-            ...item,
-            canRate: order.status === "delivered"
-          })),
-          total: order.total,
-          status: order.status,
-          fulfillmentStage: order.fulfillmentStage,
-          createdAt: order.createdAt.toISOString()
-        })),
+    data: orders.map((order) => ({
+      id: order.id,
+      email: order.email,
+      items: mapOrderItems(
+        order.items,
+        order.status === "delivered" ? reviewsByOrderItemId : new Map()
+      ).map((item) => ({
+        ...item,
+        canRate: order.status === "delivered"
+      })),
+      pricing: mapOrderPricing(order as OrderSnapshotRecord),
+      shippingAddress: mapShippingAddress(order as OrderSnapshotRecord),
+      payment: mapPayment((order as OrderSnapshotRecord).payment),
+      total: order.total,
+      status: order.status,
+      fulfillmentStage: order.fulfillmentStage,
+      createdAt: order.createdAt.toISOString()
+    })),
     pagination: {
       page: query.page,
       limit: query.limit,
@@ -178,14 +249,10 @@ export async function getUserOrderById(params: {
     select: {
       id: true,
       email: true,
-      subtotal: true,
-      couponDiscount: true,
-      gst: true,
-      shipping: true,
-      total: true,
       status: true,
       fulfillmentStage: true,
       createdAt: true,
+      ...orderSnapshotSelect,
       items: {
         select: {
           id: true,
@@ -253,13 +320,9 @@ export async function getUserOrderById(params: {
         ...item,
         canRate: order.status === "delivered"
       })),
-      pricing: {
-        subtotal: order.subtotal,
-        promoDiscount: order.couponDiscount,
-        gst: order.gst,
-        shipping: order.shipping,
-        total: order.total
-      },
+      pricing: mapOrderPricing(order as OrderSnapshotRecord),
+      shippingAddress: mapShippingAddress(order as OrderSnapshotRecord),
+      payment: mapPayment((order as OrderSnapshotRecord).payment),
       status: order.status,
       fulfillmentStage: order.fulfillmentStage,
       createdAt: order.createdAt.toISOString()

@@ -195,12 +195,16 @@ export async function listAvailableCoupons(params: {
       eligibilityReason = "Usage limit reached";
     } else if (coupon.minOrderValue !== null && subtotal < coupon.minOrderValue) {
       isEligible = false;
-      eligibilityReason = `Minimum order Rs ${coupon.minOrderValue} required`;
+      const remainingAmount = coupon.minOrderValue - subtotal;
+      eligibilityReason = "Minimum order value ₹" + coupon.minOrderValue + ". Add ₹" + remainingAmount + " more to use this coupon.";
     } else if (coupon.usageLimitPerUser !== null && hasUsageScope) {
       const usageCount = usageByCouponId.get(coupon.id) ?? 0;
       if (usageCount >= coupon.usageLimitPerUser) {
         isEligible = false;
-        eligibilityReason = coupon.usageLimitPerUser === 1 ? "Already used" : "Usage limit reached";
+        eligibilityReason =
+          coupon.usageLimitPerUser === 1
+            ? "Already used. This coupon can only be used once per customer."
+            : "Coupon usage limit reached.";
       }
     }
 

@@ -6,13 +6,12 @@ import { ProductPurchasePanel } from "@/components/product/product-purchase-pane
 import { PriceWithCompare } from "@/components/ui/price";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { getVariantCompareAtPrice, selectDefaultProductVariant } from "@/components/product/card-variant";
-import { isComingSoonProduct } from "@/lib/product-lifecycle";
+import { getProductAvailabilityState, isVariantActive } from "@/lib/product-lifecycle";
 
 export function ProductDetailAsideClient({ product }: { product: Product }) {
   const defaultVariant = useMemo(() => selectDefaultProductVariant(product.variants), [product.variants]);
   const [selectedVariantId, setSelectedVariantId] = useState(defaultVariant?.id ?? "");
-  const isComingSoon = isComingSoonProduct(product);
-  const isAvailable = !isComingSoon;
+  const productAvailabilityState = getProductAvailabilityState(product);
 
   const selectedVariant = useMemo(() => {
     const byId = product.variants.find((variant) => variant.id === selectedVariantId);
@@ -20,13 +19,15 @@ export function ProductDetailAsideClient({ product }: { product: Product }) {
   }, [defaultVariant, product.variants, selectedVariantId]);
 
   const compareAtForVariant = selectedVariant ? getVariantCompareAtPrice(product, selectedVariant) : undefined;
-  const selectedIsOutOfStock = (selectedVariant?.stock ?? 0) <= 0;
-  const hasAnyStock = product.variants.some((variant) => (variant.stock ?? 0) > 0);
+  const selectedVariantIsActive = isVariantActive(selectedVariant);
+  const selectedIsOutOfStock = selectedVariantIsActive && (selectedVariant?.stock ?? 0) <= 0;
   const variantAvailabilityLabel = !selectedVariant
     ? "Unavailable"
-    : selectedIsOutOfStock
-      ? "Out of stock"
-      : "Available now";
+    : !selectedVariantIsActive
+      ? "Coming soon"
+      : selectedIsOutOfStock
+        ? "Out of stock"
+        : "Available now";
 
   return (
     <section className="space-y-5 lg:sticky lg:top-24 lg:h-fit" aria-labelledby="product-title">
@@ -39,24 +40,18 @@ export function ProductDetailAsideClient({ product }: { product: Product }) {
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <div className="text-xl sm:text-2xl">
-            {isAvailable && selectedVariant ? (
+            {selectedVariant ? (
               <PriceWithCompare
                 compareAtPrice={compareAtForVariant}
                 currency={product.currency}
                 value={selectedVariant.price}
               />
-            ) : isAvailable ? (
-              <p className="font-semibold">Unavailable</p>
             ) : (
-              <p className="font-semibold">Coming soon</p>
+              <p className="font-semibold">Unavailable</p>
             )}
           </div>
           <span className="rounded-full bg-[var(--mint)] px-3 py-1 text-xs font-bold uppercase tracking-wide text-[var(--leaf-deep)]">
-            {isAvailable
-              ? selectedVariant
-                ? variantAvailabilityLabel
-                : "Unavailable"
-              : product.releaseNote ?? "Coming soon"}
+            {variantAvailabilityLabel}
           </span>
           <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
         </div>
@@ -94,11 +89,11 @@ export function ProductDetailAsideClient({ product }: { product: Product }) {
 
         <p className="mt-5 text-sm leading-7 text-[var(--muted)] sm:text-base">{product.longDescription}</p>
 
-        {!isAvailable ? (
+        {productAvailabilityState === "coming-soon" ? (
           <p className="mt-4 text-sm text-[var(--muted)]">
             Recipe in development. Final price and pack sizes may change before launch.
           </p>
-        ) : !hasAnyStock ? (
+        ) : productAvailabilityState === "out-of-stock" ? (
           <p className="mt-4 text-sm font-semibold text-[var(--coral)]">
             All active variants are currently out of stock.
           </p>

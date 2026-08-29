@@ -1,19 +1,9 @@
 import type { Product } from "@/types/product";
-import { isComingSoonProduct } from "@/lib/product-lifecycle";
+import { getProductAvailabilityRank } from "@/lib/product-lifecycle";
 import { sortStorefrontProducts } from "@/lib/storefront-product-order";
 
 function normalizeQuery(query: string): string {
   return query.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function getAvailabilityRank(product: Product): number {
-  if (isComingSoonProduct(product)) {
-    return 2;
-  }
-  if (!product.variants || product.variants.length === 0) {
-    return 2;
-  }
-  return product.variants.some((variant) => (variant.stock ?? 0) > 0) ? 0 : 1;
 }
 
 function rankForDefault(products: Product[]): Product[] {
@@ -57,7 +47,7 @@ export function rankSearchProducts(products: Product[], query: string, limit?: n
           const scoreDelta = b.score - a.score;
           if (scoreDelta !== 0) return scoreDelta;
 
-          const availabilityDelta = getAvailabilityRank(a.product) - getAvailabilityRank(b.product);
+          const availabilityDelta = getProductAvailabilityRank(a.product) - getProductAvailabilityRank(b.product);
           if (availabilityDelta !== 0) return availabilityDelta;
 
           const tieDelta = getTieBreakerScore(b.product) - getTieBreakerScore(a.product);

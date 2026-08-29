@@ -8,6 +8,12 @@ import { useHasMounted } from "@/hooks/use-has-mounted";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { formatPrice } from "@/components/ui/price";
+import {
+  OrderReceiptDetails,
+  type CustomerOrderPayment,
+  type CustomerOrderPricing,
+  type CustomerShippingAddress
+} from "@/components/orders/order-receipt-details";
 
 type VerifiedReview = {
   reviewId: string;
@@ -34,6 +40,9 @@ type BackendOrder = {
   id: string;
   email: string;
   items: BackendOrderItem[];
+  pricing: CustomerOrderPricing;
+  shippingAddress: CustomerShippingAddress;
+  payment: CustomerOrderPayment;
   total: number;
   status: string;
   fulfillmentStage?: OrderFulfillmentStage | null;
@@ -758,9 +767,12 @@ export function OrdersClient() {
               );
             })}
           </ul>
-          <p className="mt-4 border-t border-[var(--line)] pt-4 text-right font-semibold">
-            Total {formatPrice(order.total)}
-          </p>
+          <OrderReceiptDetails
+            orderStatus={order.status}
+            payment={order.payment}
+            pricing={order.pricing}
+            shippingAddress={order.shippingAddress}
+          />
         </article>
       ))}
 
