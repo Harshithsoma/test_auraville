@@ -20,9 +20,15 @@ type ProductCardProps = {
   product: Product;
   priority?: boolean;
   variantContext?: "default" | "featured" | "bestSeller" | "comingSoon";
+  layout?: "grid" | "carousel";
 };
 
-export function ProductCard({ product, priority = false, variantContext = "default" }: ProductCardProps) {
+export function ProductCard({
+  product,
+  priority = false,
+  variantContext = "default",
+  layout = "grid"
+}: ProductCardProps) {
   const items = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
   const openDrawer = useCartStore((state) => state.openDrawer);
@@ -101,7 +107,14 @@ export function ProductCard({ product, priority = false, variantContext = "defau
   }
 
   return (
-    <article className="flex h-[468px] flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99] sm:h-[478px] md:h-full md:min-h-0">
+    <article
+      className={[
+        "flex flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99]",
+        layout === "carousel"
+          ? "h-[580px] sm:h-[630px] md:min-h-[630px]"
+          : "min-h-[500px] md:h-full md:min-h-0"
+      ].join(" ")}
+    >
       <Link className="focus-ring group block rounded-lg transition active:opacity-90" href={`/product/${product.slug}`}>
         <div className="relative aspect-[4/4.2] overflow-hidden bg-[var(--mint)]">
           <Image

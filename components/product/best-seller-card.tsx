@@ -67,7 +67,7 @@ export function BestSellerCard({ product, priority = false }: { product: Product
   }
 
   return (
-    <article className="flex h-[468px] flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99] sm:h-[478px] md:h-full md:min-h-0">
+    <article className="flex h-[600px] flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99] sm:h-[630px] sm:min-h-[630px]">
       <Link className="focus-ring group block rounded-lg transition active:opacity-90" href={`/product/${product.slug}`}>
         <div className="relative aspect-[4/4.2] overflow-hidden bg-[var(--mint)]">
           <Image

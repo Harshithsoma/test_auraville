@@ -80,7 +80,8 @@ function toSlides(items?: HomepageHeroSlide[]): Slide[] {
 export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroSlide[] }) {
   const slides = useMemo(() => toSlides(customSlides), [customSlides]);
   const slideCount = slides.length;
-  const loopSlides = [slides[slideCount - 1], ...slides, slides[0]];
+  const hasMultipleSlides = slideCount > 1;
+  const loopSlides = hasMultipleSlides ? [slides[slideCount - 1], ...slides, slides[0]] : slides;
 
   const [position, setPosition] = useState(1);
   const [dragOffset, setDragOffset] = useState(0);
@@ -128,6 +129,10 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
     function handleVisibilityChange() {
       const visible = document.visibilityState === "visible";
       setIsPageVisible(visible);
+      if (!hasMultipleSlides) {
+        setPosition(0);
+        return;
+      }
       if (visible) {
         setPosition((current) => {
           if (current <= 0 || current >= slideCount + 1) {
@@ -142,16 +147,16 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [slideCount]);
+  }, [hasMultipleSlides, slideCount]);
 
   useEffect(() => {
-    if (isDragging || !isTransitionEnabled || !isPageVisible) return;
+    if (!hasMultipleSlides || isDragging || !isTransitionEnabled || !isPageVisible) return;
     const timer = window.setInterval(() => {
       setPosition((current) => (((current - 1) % slideCount + slideCount) % slideCount) + 2);
     }, 5500);
 
     return () => window.clearInterval(timer);
-  }, [isDragging, isPageVisible, isTransitionEnabled, slideCount]);
+  }, [hasMultipleSlides, isDragging, isPageVisible, isTransitionEnabled, slideCount]);
 
   function silentJump(nextPosition: number) {
     setIsTransitionEnabled(false);
@@ -164,6 +169,10 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
   }
 
   function beginDrag(pointerId: number, clientX: number, target: HTMLDivElement) {
+    if (!hasMultipleSlides) {
+      dragMovedRef.current = false;
+      return;
+    }
     pointerIdRef.current = pointerId;
     startXRef.current = clientX;
     dragMovedRef.current = false;
@@ -173,7 +182,7 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
   }
 
   function moveDrag(pointerId: number, clientX: number) {
-    if (!isDragging || pointerIdRef.current !== pointerId) return;
+    if (!hasMultipleSlides || !isDragging || pointerIdRef.current !== pointerId) return;
     const nextOffset = clientX - startXRef.current;
     if (Math.abs(nextOffset) > 8) {
       dragMovedRef.current = true;
@@ -183,6 +192,13 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
 
   function endDrag(pointerId?: number, clientX?: number) {
     if (!isDragging) return;
+    if (!hasMultipleSlides) {
+      dragMovedRef.current = false;
+      setDragOffset(0);
+      setIsDragging(false);
+      pointerIdRef.current = null;
+      return;
+    }
     if (typeof pointerId === "number" && pointerIdRef.current !== pointerId) return;
 
     const finalOffset = typeof clientX === "number" ? clientX - startXRef.current : dragOffset;
@@ -199,6 +215,13 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
     setIsDragging(false);
     pointerIdRef.current = null;
   }
+
+  const renderPosition = hasMultipleSlides
+    ? position > 0 && position < slideCount + 1
+      ? position
+      : 1
+    : 0;
+  const renderDragOffset = hasMultipleSlides ? dragOffset : 0;
 
   return (
     <section className="relative overflow-hidden bg-[var(--leaf-deep)]">
@@ -224,11 +247,11 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
           style={{
             transform:
               viewportWidth > 0
-                ? `translate3d(${-(position * viewportWidth) + dragOffset}px, 0, 0)`
-                : `translate3d(calc(-${position * 100}% + ${dragOffset}px), 0, 0)`
+                ? `translate3d(${-(renderPosition * viewportWidth) + renderDragOffset}px, 0, 0)`
+                : `translate3d(calc(-${renderPosition * 100}% + ${renderDragOffset}px), 0, 0)`
           }}
           onTransitionEnd={(event) => {
-            if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
+            if (!hasMultipleSlides || event.target !== event.currentTarget || event.propertyName !== "transform") return;
 
             const current = positionRef.current;
             if (current >= slideCount + 1) {
@@ -256,7 +279,7 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
                   className="object-cover object-center select-none"
                   draggable={false}
                   fill
-                  priority={index === 1}
+                  priority={hasMultipleSlides ? index === 1 : index === 0}
                   sizes="100vw"
                   src={item.imageUrl}
                   style={{ objectPosition: item.objectPosition }}
@@ -268,7 +291,7 @@ export function HeroSlideshow({ slides: customSlides }: { slides?: HomepageHeroS
                   alt={item.title}
                   className="h-full w-full object-cover object-center select-none"
                   draggable={false}
-                  loading={index === 1 ? "eager" : "lazy"}
+                  loading={hasMultipleSlides ? (index === 1 ? "eager" : "lazy") : "eager"}
                   src={item.imageUrl}
                   style={{ objectPosition: item.objectPosition }}
                 />

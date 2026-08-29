@@ -11,6 +11,7 @@ type CouponPickerProps = {
   onApplyPromoCode: (code: string) => Promise<{ ok: boolean; message: string }>;
   onClearPromoCode: () => Promise<void>;
   compact?: boolean;
+  isContainerOpen?: boolean;
 };
 
 type AvailableCoupon = {
@@ -53,6 +54,7 @@ export function CouponPicker({
   onApplyPromoCode,
   onClearPromoCode,
   compact = false,
+  isContainerOpen,
 }: CouponPickerProps) {
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
@@ -119,6 +121,19 @@ export function CouponPicker({
       setPromoMessage("");
     }
   }, [promoCode]);
+
+  useEffect(() => {
+    if (isContainerOpen !== false) {
+      return;
+    }
+
+    setIsModalOpen(false);
+    setCoupons([]);
+    setCouponsError("");
+    setPromoError("");
+    setPromoMessage("");
+    setActiveCode(null);
+  }, [isContainerOpen]);
 
   useEffect(() => {
     if (items.length > 0) return;

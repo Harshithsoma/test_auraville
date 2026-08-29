@@ -106,8 +106,24 @@ function orderItemKey(orderId: string, orderItemId: string): string {
   return `${orderId}:${orderItemId}`;
 }
 
+function getVisibleOrderPages(currentPage: number, totalPages: number): number[] {
+  const pages = new Set<number>();
+  if (totalPages <= 0) return [];
+
+  pages.add(1);
+  pages.add(totalPages);
+  for (let page = currentPage - 1; page <= currentPage + 1; page += 1) {
+    if (page >= 1 && page <= totalPages) {
+      pages.add(page);
+    }
+  }
+
+  return Array.from(pages).sort((a, b) => a - b);
+}
+
 const REVIEW_SUBJECT_MAX_LENGTH = 80;
 const REVIEW_BODY_MAX_LENGTH = 300;
+const ORDERS_PAGE_SIZE = 10;
 
 const ORDER_TRACKING_STAGES: Array<{ key: OrderFulfillmentStage; label: string }> = [
   { key: "order_placed", label: "Order Placed" },
@@ -267,6 +283,13 @@ export function OrdersClient() {
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
 
   const [orders, setOrders] = useState<BackendOrder[]>([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<OrdersListResponse["pagination"]>({
+    page: 1,
+    limit: ORDERS_PAGE_SIZE,
+    total: 0,
+    totalPages: 0,
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [reviewMessage, setReviewMessage] = useState<string>("");
@@ -289,30 +312,34 @@ export function OrdersClient() {
     [orders],
   );
 
-  const loadOrders = useCallback(async () => {
-    if (!user) {
-      return;
-    }
-
-    setIsLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const response = await commerceApi.orders.list<OrdersListResponse>({
-        page: 1,
-        limit: 20,
-      });
-      setOrders(response.data);
-    } catch (error) {
-      if (error instanceof ApiError) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage("Unable to load orders right now.");
+  const loadOrders = useCallback(
+    async (targetPage: number) => {
+      if (!user) {
+        return;
       }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
+
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      try {
+        const response = await commerceApi.orders.list<OrdersListResponse>({
+          page: targetPage,
+          limit: ORDERS_PAGE_SIZE,
+        });
+        setOrders(response.data);
+        setPagination(response.pagination);
+      } catch (error) {
+        if (error instanceof ApiError) {
+          setErrorMessage(error.message);
+        } else {
+          setErrorMessage("Unable to load orders right now.");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [user],
+  );
 
   const loadPrompt = useCallback(async () => {
     if (!user) {
@@ -333,12 +360,22 @@ export function OrdersClient() {
     if (!user) {
       setOrders([]);
       setPendingPrompt(null);
+      setPagination({ page: 1, limit: ORDERS_PAGE_SIZE, total: 0, totalPages: 0 });
+      setPage(1);
       return;
     }
 
-    void loadOrders();
+    void loadOrders(page);
+  }, [loadOrders, page, user]);
+
+  useEffect(() => {
+    if (!user) {
+      setPendingPrompt(null);
+      return;
+    }
+
     void loadPrompt();
-  }, [loadOrders, loadPrompt, user]);
+  }, [loadPrompt, user]);
 
   function patchOrderItemReview(params: {
     orderId: string;
@@ -512,7 +549,7 @@ export function OrdersClient() {
           className="mt-6"
           type="button"
           onClick={() => {
-            void loadOrders();
+            void loadOrders(page);
           }}
         >
           Retry
@@ -521,7 +558,7 @@ export function OrdersClient() {
     );
   }
 
-  if (orders.length === 0) {
+  if (pagination.total === 0) {
     return (
       <section className="rounded-lg border border-[var(--line)] bg-white p-8 text-center">
         <h1 className="text-3xl font-semibold">No orders yet.</h1>
@@ -534,6 +571,8 @@ export function OrdersClient() {
       </section>
     );
   }
+
+  const visiblePages = getVisibleOrderPages(page, pagination.totalPages);
 
   return (
     <section className="space-y-4" aria-label="Your orders">
@@ -775,6 +814,53 @@ export function OrdersClient() {
           />
         </article>
       ))}
+
+      {pagination.totalPages > 1 ? (
+        <nav
+          aria-label="Orders pagination"
+          className="flex flex-wrap items-center justify-center gap-2 rounded-lg border border-[var(--line)] bg-white p-3 text-sm"
+        >
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={page <= 1 || isLoading}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+          >
+            Previous
+          </Button>
+          {visiblePages.map((pageNumber, index) => {
+            const previousPage = visiblePages[index - 1];
+            return (
+              <span className="flex items-center gap-2" key={pageNumber}>
+                {previousPage && pageNumber - previousPage > 1 ? (
+                  <span className="text-xs text-[var(--muted)]">...</span>
+                ) : null}
+                <button
+                  aria-current={pageNumber === page ? "page" : undefined}
+                  className={`focus-ring inline-flex h-9 min-w-9 items-center justify-center rounded-lg border px-3 font-semibold transition ${
+                    pageNumber === page
+                      ? "border-[var(--leaf)] bg-[var(--leaf)] text-white"
+                      : "border-[var(--line)] bg-white text-[var(--foreground)] hover:border-[var(--leaf)]"
+                  }`}
+                  disabled={isLoading}
+                  type="button"
+                  onClick={() => setPage(pageNumber)}
+                >
+                  {pageNumber}
+                </button>
+              </span>
+            );
+          })}
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={page >= pagination.totalPages || isLoading}
+            onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))}
+          >
+            Next
+          </Button>
+        </nav>
+      ) : null}
 
       {deliveredItemCount > 0 && reviewMessage ? (
         <p

@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { HOMEPAGE_DEFAULT_USP_LABELS } from "@/lib/homepage-defaults";
 
 const fallbackLabels =
@@ -44,6 +45,10 @@ export function UspFeatures({
           icon: defaultFeatures[index % defaultFeatures.length]?.icon ?? defaultFeatures[0].icon
         }))
       : defaultFeatures;
+  const desktopColumnCount = Math.min(Math.max(features.length, 1), 7);
+  const gridStyle = {
+    "--usp-desktop-columns": String(desktopColumnCount)
+  } as CSSProperties & Record<"--usp-desktop-columns", string>;
 
   return (
     <section className="bg-[var(--mint)] py-14 sm:py-16" aria-label="Product benefits">
@@ -52,7 +57,10 @@ export function UspFeatures({
           <h2 className="text-xl font-semibold text-[var(--leaf-deep)] sm:text-2xl">{title.trim()}</h2>
         </div>
       ) : null}
-      <div className="container-page flex snap-x gap-4 overflow-x-auto pb-1 sm:grid sm:grid-cols-5 sm:overflow-visible">
+      <div
+        className="container-page flex snap-x gap-4 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible md:grid-cols-4 lg:[grid-template-columns:repeat(var(--usp-desktop-columns),minmax(0,1fr))]"
+        style={gridStyle}
+      >
         {features.map((feature) => (
           <div
             className="flex min-w-[104px] snap-start flex-col items-center justify-center gap-2 rounded-lg bg-white px-3 py-4 text-center shadow-sm"

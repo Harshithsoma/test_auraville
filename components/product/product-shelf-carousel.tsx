@@ -222,7 +222,12 @@ export function ProductShelfCarousel({
                   }
                 }}
               >
-                <ProductCard priority={index < cardsPerView} product={product} variantContext={variantContext} />
+                <ProductCard
+                  layout="carousel"
+                  priority={index < cardsPerView}
+                  product={product}
+                  variantContext={variantContext}
+                />
               </div>
             ))}
           </div>

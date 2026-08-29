@@ -402,6 +402,7 @@ export function CartDrawer() {
               onApplyPromoCode={applyPromoCode}
               onClearPromoCode={clearPromoCode}
               compact
+              isContainerOpen={isDrawerOpen}
             />
           </div>
 

@@ -319,7 +319,7 @@ function variantContextRankSql(context: "default" | "featured" | "bestSeller"): 
     return Prisma.sql`CASE WHEN pv."isBestSeller" = true AND pv."isActive" = true AND pv."stock" > 0 THEN 0 ELSE 1 END`;
   }
 
-  return Prisma.sql`0`;
+  return Prisma.sql`CASE WHEN true THEN 0 ELSE 0 END`;
 }
 
 function priceSortSql(sort: ProductListQuery["sort"]): Prisma.Sql {
