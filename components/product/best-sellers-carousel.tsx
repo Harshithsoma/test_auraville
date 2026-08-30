@@ -206,7 +206,7 @@ export function BestSellersCarousel({ products }: { products: Product[] }) {
           >
             {products.map((product, index) => (
               <div
-                className="h-full min-w-0 shrink-0"
+                className="flex min-w-0 shrink-0"
                 key={product.id}
                 style={{ flexBasis: cardBasis, width: cardBasis }}
                 onClickCapture={(event) => {

@@ -110,13 +110,11 @@ export function ProductCard({
     <article
       className={[
         "flex flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99]",
-        layout === "carousel"
-          ? "h-[580px] sm:h-[630px] md:min-h-[630px]"
-          : "min-h-[500px] md:h-full md:min-h-0"
+        layout === "carousel" ? "h-full" : "h-full min-h-0"
       ].join(" ")}
     >
       <Link className="focus-ring group block rounded-lg transition active:opacity-90" href={`/product/${product.slug}`}>
-        <div className="relative aspect-[4/4.2] overflow-hidden bg-[var(--mint)]">
+        <div className="relative aspect-square overflow-hidden bg-[var(--mint)]">
           <Image
             alt={product.name}
             className={`object-cover transition duration-500 ease-out ${secondaryImage ? "" : "md:group-hover:scale-[1.035]"}`}
@@ -136,23 +134,27 @@ export function ProductCard({
             />
           ) : null}
           {badgeText ? (
-            <span className="absolute left-2 top-2 rounded-full bg-white px-2 py-1 text-[10px] font-bold uppercase text-[var(--leaf-deep)]">
+            <span className="absolute left-2 top-2 rounded-md bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-[0.04em] text-[var(--leaf-deep)]">
               {badgeText}
             </span>
           ) : null}
         </div>
       </Link>
 
-      <div className="mt-2.5 flex min-h-0 flex-1 flex-col border-t border-[var(--line)] px-2.5 pb-2.5 pt-2.5 sm:px-3 sm:pb-3 sm:pt-3">
+      <div className="flex min-h-0 flex-1 flex-col border-t border-[var(--line)] px-2.5 pb-2.5 pt-2.5 sm:px-3 sm:pb-3 sm:pt-3">
         <Link className="focus-ring block rounded-lg transition active:opacity-90" href={`/product/${product.slug}`}>
           <h3 className="line-clamp-2 min-h-10 text-xs font-bold leading-5 sm:text-sm">{product.name}</h3>
         </Link>
-        <div className="mt-1.5 flex min-h-[38px] flex-col items-start gap-1 text-[11px] text-[var(--muted)] sm:mt-2 sm:min-h-5 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:text-xs">
-          <span className="line-clamp-1 max-w-full">{hasMultipleVariants ? "Pack size" : variant?.label ?? "Pack"}</span>
-          <div className="shrink-0 scale-[0.92] origin-left sm:scale-100">
-            <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
-          </div>
+
+        <div className="mt-1.5 flex min-h-5 items-center justify-between gap-2 text-[11px] text-[var(--muted)] sm:mt-2 sm:text-xs">
+          <span className="line-clamp-1 min-w-0">{hasMultipleVariants ? "Pack size" : variant?.label ?? "Pack"}</span>
+          {product.reviewCount > 0 ? (
+            <div className="shrink-0 origin-right scale-[0.86] sm:scale-90">
+              <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
+            </div>
+          ) : null}
         </div>
+
         <ProductVariantChips
           getAvailableStock={getAvailableStock}
           productId={product.id}
@@ -161,18 +163,16 @@ export function ProductCard({
           variants={sortedVariants}
           onSelect={setSelectedVariantId}
         />
-        <div className="mt-1.5 min-h-[50px] text-[13px] sm:mt-2 sm:min-h-[44px] sm:text-base">
+
+        <div className="mt-2.5 text-[13px] sm:mt-3 sm:text-base">
           {canPurchase ? (
-            <PriceWithCompare
-              compareAtPrice={compareAtPrice}
-              currency={product.currency}
-              value={displayPrice}
-            />
+            <PriceWithCompare compareAtPrice={compareAtPrice} currency={product.currency} value={displayPrice} />
           ) : (
             <p className="font-bold">{!variantIsActive ? "Coming Soon" : "Out of Stock"}</p>
           )}
         </div>
-        <div className="mt-0.5 min-h-4 sm:mt-1">
+
+        <div className="mt-1 min-h-4">
           {canPurchase && typeof availableStock === "number" && availableStock > 0 && availableStock <= 5 ? (
             <p className="text-[11px] font-semibold text-[var(--coral)]">
               {availableStock === 1 ? "Only 1 left" : `Only ${availableStock} left`}
@@ -180,18 +180,18 @@ export function ProductCard({
           ) : null}
         </div>
 
-        <div className="mt-auto">
+        <div className="mt-auto pt-2">
           {canPurchase ? (
             quantity === 0 ? (
               <button
-                className="focus-ring mt-2.5 inline-flex h-9 w-full items-center justify-center rounded-lg border border-[var(--leaf)] bg-[var(--leaf)] px-3 text-xs font-semibold text-white transition active:scale-95 sm:mt-3 sm:h-10 sm:text-sm"
+                className="focus-ring inline-flex h-9 w-full items-center justify-center rounded-lg border border-[var(--leaf)] bg-[var(--leaf)] px-3 text-xs font-semibold text-white transition active:scale-95 sm:h-10 sm:text-sm"
                 type="button"
                 onClick={() => addToCart(true)}
               >
                 Add to Cart
               </button>
             ) : (
-              <div className="mt-2.5 inline-flex h-9 w-full items-center justify-between rounded-lg border border-[var(--line)] sm:mt-3 sm:h-10">
+              <div className="inline-flex h-9 w-full items-center justify-between rounded-lg border border-[var(--line)] sm:h-10">
                 <button
                   aria-label={`Decrease ${product.name} quantity`}
                   className="focus-ring h-full w-10 rounded-l-lg text-lg font-semibold text-[var(--leaf-deep)] transition active:scale-95"
@@ -216,7 +216,7 @@ export function ProductCard({
             )
           ) : (
             <button
-              className="focus-ring mt-2.5 inline-flex h-9 w-full cursor-not-allowed items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 text-xs font-semibold text-[var(--leaf-deep)] sm:mt-3 sm:h-10 sm:text-sm"
+              className="focus-ring inline-flex h-9 w-full cursor-not-allowed items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 text-xs font-semibold text-[var(--leaf-deep)] sm:h-10 sm:text-sm"
               type="button"
               disabled
             >

@@ -131,7 +131,7 @@ export function ProductMediaGallery({ name, image, gallery }: ProductMediaGaller
           <div className="absolute inset-x-0 top-0 z-10 h-20 bg-gradient-to-b from-white/50 to-transparent" />
           <div
             aria-label={hasMultipleImages ? "Swipe left or right to change product image" : undefined}
-            className="relative aspect-[4/4.35] touch-pan-y sm:aspect-[4/4] lg:aspect-[5/4]"
+            className="relative aspect-[4/3.45] touch-pan-y sm:aspect-[4/3.7] lg:aspect-[5/4]"
             role={hasMultipleImages ? "group" : undefined}
             tabIndex={hasMultipleImages ? 0 : -1}
             onKeyDown={handleKeyDown}
