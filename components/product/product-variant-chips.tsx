@@ -35,8 +35,12 @@ function getGridClass(variants: ProductVariant[], surface: "card" | "pdp") {
   const longLabels = hasLongLabels(variants);
 
   if (count <= 2) return "grid-cols-2";
+  if (surface === "card") {
+    if (count === 3) return "grid-cols-2 md:grid-cols-3";
+    if (count === 4) return "grid-cols-2 md:grid-cols-4";
+    return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5";
+  }
   if (count === 3) {
-    if (surface === "card") return longLabels ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3";
     if (longLabels) return "grid-cols-2 sm:grid-cols-3";
     return "grid-cols-3";
   }
@@ -51,7 +55,7 @@ function getChipClass(isSelected: boolean, state: VariantState, surface: "card" 
   const sizing =
     surface === "pdp"
       ? "min-h-11 rounded-lg px-3 py-2"
-      : "min-h-9 rounded-md px-0.5 py-1.5 sm:px-1.5";
+      : "min-h-9 rounded-md px-0.5 py-1.5 sm:px-1.5 md:px-0.5";
   const base = `focus-ring min-w-0 border text-center font-semibold leading-tight transition active:scale-95 ${sizing}`;
 
   if (isSelected && state === "available") {
@@ -84,7 +88,12 @@ export function ProductVariantChips({
     return null;
   }
 
-  const gapClass = surface === "card" ? "gap-1 sm:gap-1.5" : "gap-1.5 sm:gap-2";
+  const gapClass =
+    surface === "card"
+      ? sortedVariants.length > 4
+        ? "gap-1"
+        : "gap-1 sm:gap-1.5"
+      : "gap-1.5 sm:gap-2";
 
   return (
     <fieldset className={surface === "pdp" ? "mt-3" : "mt-2"}>
@@ -108,9 +117,15 @@ export function ProductVariantChips({
               type="button"
               onClick={() => onSelect(variant.id)}
             >
-              <span className={surface === "card"
-                  ? "block whitespace-normal text-[10px] leading-tight sm:text-[11px]"
-                  : "block whitespace-normal break-words text-sm leading-tight"}>
+              <span
+                className={
+                  surface === "card"
+                    ? sortedVariants.length > 4
+                      ? "block whitespace-normal text-[9px] leading-tight"
+                      : "block whitespace-normal text-[10px] leading-tight sm:text-[11px] md:text-[10px]"
+                    : "block whitespace-normal break-words text-sm leading-tight"
+                }
+              >
                 {variant.label}
               </span>
               {isDisabled ? (

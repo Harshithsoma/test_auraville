@@ -22,8 +22,7 @@ function getCardsPerView(viewportWidth: number) {
 }
 
 function getCardGap(viewportWidth: number) {
-  if (viewportWidth >= 1280) return 24;
-  if (viewportWidth >= 768) return 20;
+  if (viewportWidth >= 768) return 16;
   return 12;
 }
 

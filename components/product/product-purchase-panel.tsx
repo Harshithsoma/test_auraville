@@ -132,7 +132,7 @@ export function ProductPurchasePanel({
   }
 
   return (
-    <div className="mt-5 flex flex-col border-t border-[var(--line)] pt-5">
+    <div className="mt-4 flex flex-col border-t border-[var(--line)] pt-4 lg:mt-5 lg:pt-5">
       <div className="order-1 lg:order-2 lg:mt-5">
         <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">Price</p>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -144,7 +144,7 @@ export function ProductPurchasePanel({
             />
           </div>
           <span
-            className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${selectedVariantCanPurchase
+            className={`hidden rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wide lg:inline-flex ${selectedVariantCanPurchase
               ? "bg-[var(--mint)] text-[var(--leaf-deep)]"
               : "bg-[#fff2f0] text-[#9b5a50]"}`}
           >
@@ -152,24 +152,28 @@ export function ProductPurchasePanel({
           </span>
         </div>
         {product.reviewCount > 0 ? (
-          <div className="mt-2">
+          <div className="mt-2 hidden lg:block">
             <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
           </div>
         ) : null}
       </div>
 
-      <div className="order-2 mt-5 lg:order-1 lg:mt-0">
-        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">Pack size</p>
-        <ProductVariantChips
-          getAvailableStock={getAvailableStock}
-          productId={product.id}
-          productName={product.name}
-          selectedVariantId={selectedVariant.id}
-          surface="pdp"
-          variants={sortedVariants}
-          onSelect={setCurrentVariant}
-        />
-        <p className="mt-3 text-sm text-[var(--muted)]">
+      <div className="order-2 mt-4 lg:order-1 lg:mt-0">
+        {sortedVariants.length > 1 ? (
+          <>
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">Pack size</p>
+            <ProductVariantChips
+              getAvailableStock={getAvailableStock}
+              productId={product.id}
+              productName={product.name}
+              selectedVariantId={selectedVariant.id}
+              surface="pdp"
+              variants={sortedVariants}
+              onSelect={setCurrentVariant}
+            />
+          </>
+        ) : null}
+        <p className={`${sortedVariants.length > 1 ? "mt-2" : ""} text-sm text-[var(--muted)]`}>
           Selected: <span className="font-semibold text-[var(--foreground)]">{selectedVariant.label}</span>
           {selectedVariantCanPurchase &&
           typeof selectedVariantStock === "number" &&
@@ -178,15 +182,13 @@ export function ProductPurchasePanel({
             <span className="ml-2 font-semibold text-[var(--coral)]">
               {selectedVariantStock === 1 ? "Only 1 left" : `Only ${selectedVariantStock} left`}
             </span>
+          ) : !selectedVariantCanPurchase ? (
+            <span className="ml-2 font-semibold text-[var(--coral)]">{availabilityLabel}</span>
           ) : null}
         </p>
       </div>
 
-      <p className="order-3 mt-5 text-sm leading-7 text-[var(--muted)] sm:text-base lg:order-5">
-        {product.longDescription}
-      </p>
-
-      <div className="order-4 mt-5 grid grid-cols-[auto_minmax(0,1fr)] items-end gap-3 lg:order-3">
+      <div className="order-3 mt-4 grid grid-cols-[auto_minmax(0,1fr)] items-end gap-2.5 lg:mt-5 lg:gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">Quantity</p>
           <div className="mt-2">
@@ -221,12 +223,22 @@ export function ProductPurchasePanel({
 
       {status ? (
         <p
-          className="order-5 mt-3 text-sm font-semibold text-[var(--leaf-deep)] lg:order-4"
+          className="order-4 mt-3 text-sm font-semibold text-[var(--leaf-deep)]"
           role="status"
           aria-live="polite"
         >
           {status}
         </p>
+      ) : null}
+
+      <p className="order-5 mt-5 text-sm leading-6 text-[var(--muted)] sm:text-base sm:leading-7">
+        {product.longDescription}
+      </p>
+
+      {product.reviewCount > 0 ? (
+        <div className="order-6 mt-4 lg:hidden">
+          <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
+        </div>
       ) : null}
     </div>
   );

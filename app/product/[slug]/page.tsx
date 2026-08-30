@@ -133,7 +133,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     : { name: "Products", href: "/products" };
 
   return (
-    <div className="container-page py-8 sm:py-10 md:py-14">
+    <div className="container-page py-5 sm:py-10 md:py-14">
       <ProductJsonLd product={product} />
       <Breadcrumbs
         items={[
@@ -142,7 +142,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           { name: product.name, href: `/product/${product.slug}` }
         ]}
       />
-      <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(390px,0.78fr)] lg:gap-10">
+      <div className="grid gap-4 sm:gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(390px,0.78fr)] lg:gap-10">
         <section aria-labelledby="product-title" className="space-y-4">
           <ProductMediaGallery name={product.name} image={product.image} gallery={product.gallery} />
         </section>

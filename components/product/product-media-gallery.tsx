@@ -131,7 +131,7 @@ export function ProductMediaGallery({ name, image, gallery }: ProductMediaGaller
           <div className="absolute inset-x-0 top-0 z-10 h-20 bg-gradient-to-b from-white/50 to-transparent" />
           <div
             aria-label={hasMultipleImages ? "Swipe left or right to change product image" : undefined}
-            className="relative aspect-[4/3.45] touch-pan-y sm:aspect-[4/3.7] lg:aspect-[5/4]"
+            className="relative aspect-[4/3.25] touch-pan-y sm:aspect-[4/3.7] lg:aspect-[5/4]"
             role={hasMultipleImages ? "group" : undefined}
             tabIndex={hasMultipleImages ? 0 : -1}
             onKeyDown={handleKeyDown}
@@ -176,7 +176,7 @@ export function ProductMediaGallery({ name, image, gallery }: ProductMediaGaller
         ) : null}
       </div>
 
-      <div className="mt-4 grid grid-cols-4 gap-2 sm:gap-3" role="list" aria-label="Product thumbnails">
+      <div className="mt-3 flex gap-2 sm:mt-4 sm:grid sm:grid-cols-4 sm:gap-3" role="list" aria-label="Product thumbnails">
         {images.map((media, index) => {
           const isActive = index === activeIndex;
 
@@ -184,7 +184,7 @@ export function ProductMediaGallery({ name, image, gallery }: ProductMediaGaller
             <button
               aria-label={`Show image ${index + 1}`}
               aria-pressed={isActive}
-              className={`focus-ring relative aspect-square overflow-hidden rounded-xl border bg-white transition ${
+              className={`focus-ring relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border bg-white transition sm:aspect-square sm:h-auto sm:w-auto ${
                 isActive
                   ? "border-[var(--leaf)] ring-2 ring-[var(--mint)]"
                   : "border-[var(--line)] hover:border-[var(--leaf)]"

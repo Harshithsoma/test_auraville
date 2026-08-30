@@ -109,7 +109,7 @@ export function ProductCard({
   return (
     <article
       className={[
-        "flex flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99]",
+        "flex w-full flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-white transition active:scale-[0.99]",
         layout === "carousel" ? "h-full" : "h-full min-h-0"
       ].join(" ")}
     >
@@ -155,14 +155,16 @@ export function ProductCard({
           ) : null}
         </div>
 
-        <ProductVariantChips
-          getAvailableStock={getAvailableStock}
-          productId={product.id}
-          productName={product.name}
-          selectedVariantId={variant?.id ?? selectedVariantId}
-          variants={sortedVariants}
-          onSelect={setSelectedVariantId}
-        />
+        <div className="min-h-11 md:min-h-[61px] lg:min-h-[49px]">
+          <ProductVariantChips
+            getAvailableStock={getAvailableStock}
+            productId={product.id}
+            productName={product.name}
+            selectedVariantId={variant?.id ?? selectedVariantId}
+            variants={sortedVariants}
+            onSelect={setSelectedVariantId}
+          />
+        </div>
 
         <div className="mt-2.5 text-[13px] sm:mt-3 sm:text-base">
           {canPurchase ? (

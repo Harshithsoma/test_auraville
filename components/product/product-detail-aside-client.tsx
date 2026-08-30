@@ -13,12 +13,12 @@ export function ProductDetailAsideClient({ product }: { product: Product }) {
 
   return (
     <section className="lg:sticky lg:top-24 lg:h-fit" aria-labelledby="product-title">
-      <div className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[0_22px_65px_rgb(23_33_28_/_8%)] sm:p-6">
+      <div className="rounded-2xl border border-[var(--line)] bg-white p-4 shadow-[0_22px_65px_rgb(23_33_28_/_8%)] sm:p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--coral)]">{product.category}</p>
-        <h1 id="product-title" className="mt-2 text-3xl font-semibold leading-tight sm:text-4xl">
+        <h1 id="product-title" className="mt-1.5 text-2xl font-semibold leading-8 sm:mt-2 sm:text-4xl sm:leading-tight">
           {product.name}
         </h1>
-        <p className="mt-3 text-base leading-7 text-[var(--ink-soft)] sm:text-lg">{product.tagline}</p>
+        <p className="mt-2 text-sm leading-6 text-[var(--ink-soft)] sm:mt-3 sm:text-lg sm:leading-7">{product.tagline}</p>
 
         <ProductPurchasePanel
           product={product}
@@ -27,7 +27,7 @@ export function ProductDetailAsideClient({ product }: { product: Product }) {
         />
 
         {product.ingredients.length > 0 || product.benefits.length > 0 ? (
-          <div className="mt-6 grid gap-3 border-t border-[var(--line)] pt-6 sm:grid-cols-2">
+          <div className="mt-5 grid gap-3 border-t border-[var(--line)] pt-5 sm:mt-6 sm:grid-cols-2 sm:pt-6">
             {product.ingredients.length > 0 ? (
               <div className="rounded-xl border border-[var(--line)] bg-[var(--mint)]/35 p-3.5">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">Ingredients</h2>
