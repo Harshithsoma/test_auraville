@@ -1,70 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ApiError, commerceApi } from "@/services/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { Button } from "@/components/ui/button";
-import { Input, Textarea } from "@/components/ui/input";
 import { formatPrice } from "@/components/ui/price";
 import {
-  OrderReceiptDetails,
-  type CustomerOrderPayment,
-  type CustomerOrderPricing,
-  type CustomerShippingAddress
-} from "@/components/orders/order-receipt-details";
-
-type VerifiedReview = {
-  reviewId: string;
-  rating: number;
-  subject: string | null;
-  body: string;
-};
-
-type BackendOrderItem = {
-  id: string;
-  productId: string;
-  slug: string;
-  name: string;
-  image: string;
-  variantId: string;
-  variantLabel: string;
-  unitPrice: number;
-  quantity: number;
-  canRate: boolean;
-  verifiedReview: VerifiedReview | null;
-};
-
-type BackendOrder = {
-  id: string;
-  email: string;
-  items: BackendOrderItem[];
-  pricing: CustomerOrderPricing;
-  shippingAddress: CustomerShippingAddress;
-  payment: CustomerOrderPayment;
-  total: number;
-  status: string;
-  fulfillmentStage?: OrderFulfillmentStage | null;
-  createdAt: string;
-};
-
-type OrderFulfillmentStage =
-  | "order_placed"
-  | "processing"
-  | "shipped"
-  | "out_for_delivery"
-  | "delivered";
-
-type OrdersListResponse = {
-  data: BackendOrder[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-};
+  deriveTrackingState,
+  formatOrderDate,
+  getOrderItemCount,
+  getShippingPreview,
+  orderStatusTone,
+  type CustomerOrder,
+  type OrdersListResponse
+} from "@/components/orders/order-data";
+import { OrderItemThumbnail } from "@/components/orders/order-item-thumbnail";
 
 type VerifiedPromptResponse = {
   data: {
@@ -77,34 +29,7 @@ type VerifiedPromptResponse = {
   } | null;
 };
 
-type VerifiedRateResponse = {
-  data: {
-    reviewId: string;
-    message: string;
-  };
-};
-
-type VerifiedTextResponse = {
-  data: {
-    reviewId: string;
-    message: string;
-  };
-};
-
-type ActiveReviewEditor = {
-  orderId: string;
-  orderItemId: string;
-  productId: string;
-  productName: string;
-  reviewId: string | null;
-  selectedRating: number;
-  subject: string;
-  body: string;
-};
-
-function orderItemKey(orderId: string, orderItemId: string): string {
-  return `${orderId}:${orderItemId}`;
-}
+const ORDERS_PAGE_SIZE = 10;
 
 function getVisibleOrderPages(currentPage: number, totalPages: number): number[] {
   const pages = new Set<number>();
@@ -121,158 +46,135 @@ function getVisibleOrderPages(currentPage: number, totalPages: number): number[]
   return Array.from(pages).sort((a, b) => a - b);
 }
 
-const REVIEW_SUBJECT_MAX_LENGTH = 80;
-const REVIEW_BODY_MAX_LENGTH = 300;
-const ORDERS_PAGE_SIZE = 10;
-
-const ORDER_TRACKING_STAGES: Array<{ key: OrderFulfillmentStage; label: string }> = [
-  { key: "order_placed", label: "Order Placed" },
-  { key: "processing", label: "Processing" },
-  { key: "shipped", label: "Shipped" },
-  { key: "out_for_delivery", label: "Out for Delivery" },
-  { key: "delivered", label: "Delivered" }
-];
-
-type DerivedTrackingState = {
-  stage: OrderFulfillmentStage;
-  headline: string;
-  firstLabel: string;
-  isFailed: boolean;
-  isStopped: boolean;
-};
-
-function isPendingOrderExpired(order: BackendOrder): boolean {
-  if (order.status !== "pending") return false;
-  const createdAt = new Date(order.createdAt).getTime();
-  if (Number.isNaN(createdAt)) return false;
-  return Date.now() - createdAt > 60 * 60 * 1000;
-}
-
-function deriveTrackingState(order: BackendOrder): DerivedTrackingState {
-  if (order.status === "payment_failed" || isPendingOrderExpired(order)) {
-    return {
-      stage: "order_placed",
-      headline: "Payment Failed",
-      firstLabel: "Order Placed",
-      isFailed: true,
-      isStopped: true
-    };
+function SummaryIcon({ kind }: { kind: "items" | "total" | "shipping" }) {
+  if (kind === "shipping") {
+    return (
+      <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+        <path
+          d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Z"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.8"
+        />
+        <circle cx="12" cy="10" r="2" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    );
   }
 
-  if (order.status === "pending") {
-    return {
-      stage: "order_placed",
-      headline: "Payment Pending",
-      firstLabel: "Order Placed",
-      isFailed: false,
-      isStopped: true
-    };
+  if (kind === "total") {
+    return (
+      <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+        <path
+          d="M7 4h10v16H7zM9.5 8h5M9.5 11h5M9.5 14h3"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.8"
+        />
+      </svg>
+    );
   }
-
-  if (order.status === "cancelled") {
-    return {
-      stage: "order_placed",
-      headline: "Cancelled",
-      firstLabel: "Order Placed",
-      isFailed: false,
-      isStopped: true
-    };
-  }
-
-  const stageByStatus: Partial<Record<string, OrderFulfillmentStage>> = {
-    confirmed: "order_placed",
-    packed: "processing",
-    shipped: "shipped",
-    out_for_delivery: "out_for_delivery",
-    delivered: "delivered"
-  };
-  const stage = stageByStatus[order.status] ?? order.fulfillmentStage ?? "order_placed";
-  const currentLabel = ORDER_TRACKING_STAGES.find((item) => item.key === stage)?.label ?? "Order Placed";
-
-  return {
-    stage,
-    headline: currentLabel,
-    firstLabel: "Order Placed",
-    isFailed: false,
-    isStopped: false
-  };
-}
-
-function OrderTrackingProgress({ order }: { order: BackendOrder }) {
-  const tracking = deriveTrackingState(order);
-  const currentIndex = Math.max(
-    0,
-    ORDER_TRACKING_STAGES.findIndex((stage) => stage.key === tracking.stage)
-  );
 
   return (
-    <div
-      className={`mt-4 rounded-2xl border p-4 ${
-        tracking.isFailed
-          ? "border-[#efb7b0] bg-[#fff7f7]"
-          : "border-[var(--line)] bg-[var(--background)]"
-      }`}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">Order tracking</p>
-          <p
-            className={`mt-1 text-sm font-semibold ${
-              tracking.isFailed
-                ? "text-[var(--coral)]"
-                : tracking.isStopped
-                  ? "text-[var(--muted)]"
-                  : "text-[var(--leaf-deep)]"
-            }`}
-          >
-            {tracking.headline}
+    <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M6 8.5h12l-1 10H7l-1-10Zm3 0V7a3 3 0 0 1 6 0v1.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function OrderListCard({ order }: { order: CustomerOrder }) {
+  const tracking = deriveTrackingState(order);
+  const itemCount = getOrderItemCount(order);
+  const previewItems = order.items.filter((item) => Boolean(item.image)).slice(0, 3);
+  const detailHref = `/orders/${encodeURIComponent(order.id)}`;
+
+  return (
+    <article>
+      <Link
+        aria-label={`View details for order ${order.id}`}
+        className="focus-ring group grid grid-cols-[0.8fr_0.65fr_1.35fr] overflow-hidden rounded-xl border border-[var(--line)] bg-white p-4 shadow-[0_10px_35px_rgb(23_33_28_/_4%)] transition hover:border-[var(--leaf)] hover:shadow-[0_14px_40px_rgb(23_33_28_/_8%)] sm:p-5 lg:grid-cols-[1.35fr_1fr_0.65fr_1.45fr_auto] lg:items-center lg:p-0"
+        href={detailHref}
+      >
+        <div className="col-span-3 flex min-w-0 items-start justify-between gap-3 border-b border-[var(--line)] pb-4 lg:col-span-1 lg:block lg:border-b-0 lg:p-5">
+          <div className="min-w-0">
+            <h2 className="break-words text-base font-semibold leading-5 sm:text-lg">Order {order.id}</h2>
+            <p className="mt-1.5 text-xs text-[var(--muted)] sm:text-sm">{formatOrderDate(order.createdAt)}</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 lg:mt-3">
+            <span className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold sm:text-xs ${orderStatusTone(order)}`}>
+              {tracking.headline}
+            </span>
+            <svg
+              aria-hidden="true"
+              className="h-5 w-5 text-[var(--leaf-deep)] transition group-hover:translate-x-0.5 lg:hidden"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path d="m9 5 7 7-7 7" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+            </svg>
+          </div>
+        </div>
+
+        <div className="min-w-0 border-r border-[var(--line)] pt-4 pr-3 lg:border-l lg:py-5 lg:pl-5">
+          <div className="flex items-center gap-2 text-[var(--leaf-deep)]">
+            <SummaryIcon kind="items" />
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)] lg:normal-case lg:tracking-normal">Items</p>
+          </div>
+          <div className="mt-2 flex min-w-0 flex-col items-start gap-1 lg:flex-row lg:items-center lg:gap-1.5">
+            {previewItems.length > 0 ? (
+              <div className="flex shrink-0 -space-x-2">
+                {previewItems.map((item) => (
+                  <OrderItemThumbnail item={item} key={item.id} sizeClass="h-7 w-7" />
+                ))}
+              </div>
+            ) : null}
+            <span className="min-w-0 text-[11px] leading-4 text-[var(--ink-soft)] sm:text-xs lg:text-sm">
+              {itemCount} {itemCount === 1 ? "item" : "items"}
+            </span>
+          </div>
+        </div>
+
+        <div className="min-w-0 border-r border-[var(--line)] px-3 pt-4 lg:py-5 lg:pl-5">
+          <div className="flex items-center gap-2 text-[var(--leaf-deep)]">
+            <SummaryIcon kind="total" />
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)] lg:normal-case lg:tracking-normal">Total</p>
+          </div>
+          <p className="mt-2 break-words text-sm font-semibold sm:text-base">{formatPrice(order.pricing.total)}</p>
+        </div>
+
+        <div className="min-w-0 pt-4 pl-3 lg:border-r lg:border-[var(--line)] lg:py-5 lg:pl-5">
+          <div className="flex items-center gap-2 text-[var(--leaf-deep)]">
+            <SummaryIcon kind="shipping" />
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)] lg:normal-case lg:tracking-normal">Ship to</p>
+          </div>
+          <p className="mt-2 truncate text-xs font-semibold sm:text-sm lg:whitespace-normal">{order.shippingAddress.name}</p>
+          <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[var(--muted)] sm:text-xs">
+            {getShippingPreview(order.shippingAddress)}
           </p>
         </div>
-        {tracking.isStopped ? (
-          <span
-            className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-              tracking.isFailed
-                ? "border-[#efb7b0] bg-white text-[var(--coral)]"
-                : "border-[var(--line)] bg-white text-[var(--muted)]"
-            }`}
-          >
-            {tracking.headline}
+
+        <div className="hidden px-5 lg:flex lg:items-center lg:gap-3">
+          <span className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-semibold text-[var(--leaf-deep)] transition group-hover:border-[var(--leaf)]">
+            View details
           </span>
-        ) : null}
-      </div>
-
-      <ol
-        className={`mt-4 grid gap-3 sm:grid-cols-5 ${tracking.isStopped ? "opacity-55 blur-[0.2px] grayscale" : ""}`}
-        aria-label="Order progress stages"
-      >
-        {ORDER_TRACKING_STAGES.map((stage, index) => {
-          const isDone = !tracking.isStopped && index < currentIndex;
-          const isCurrent = !tracking.isStopped && index === currentIndex;
-          const label = index === 0 ? tracking.firstLabel : stage.label;
-          return (
-            <li
-              className={`rounded-xl border px-3 py-3 text-xs font-semibold transition ${
-                isDone
-                  ? "border-[var(--leaf)] bg-[var(--mint)] text-[var(--leaf-deep)]"
-                  : isCurrent
-                    ? "border-[var(--coral)] bg-[#fff7f1] text-[var(--coral)]"
-                    : "border-[var(--line)] bg-white text-[var(--muted)]"
-              }`}
-              key={stage.key}
-            >
-              <span className="mb-2 flex h-6 w-6 items-center justify-center rounded-full border bg-white text-[11px]">
-                {isDone ? "✓" : index + 1}
-              </span>
-              {label}
-            </li>
-          );
-        })}
-      </ol>
-
-      <p className="mt-3 text-xs text-[var(--muted)]">
-        Tracking updates automatically from Auraville order status.
-      </p>
-    </div>
+          <svg
+            aria-hidden="true"
+            className="h-5 w-5 text-[var(--leaf-deep)] transition group-hover:translate-x-0.5"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <path d="m9 5 7 7-7 7" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+          </svg>
+        </div>
+      </Link>
+    </article>
   );
 }
 
@@ -282,63 +184,38 @@ export function OrdersClient() {
   const isHydrating = useAuthStore((state) => state.isHydrating);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
 
-  const [orders, setOrders] = useState<BackendOrder[]>([]);
+  const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<OrdersListResponse["pagination"]>({
     page: 1,
     limit: ORDERS_PAGE_SIZE,
     total: 0,
-    totalPages: 0,
+    totalPages: 0
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [reviewMessage, setReviewMessage] = useState<string>("");
-  const [activeEditor, setActiveEditor] = useState<ActiveReviewEditor | null>(
-    null,
-  );
-  const [isSavingRating, setIsSavingRating] = useState(false);
-  const [isSavingText, setIsSavingText] = useState(false);
-  const [pendingPrompt, setPendingPrompt] =
-    useState<VerifiedPromptResponse["data"]>(null);
-
-  const deliveredItemCount = useMemo(
-    () =>
-      orders.reduce((count, order) => {
-        if (order.status !== "delivered") {
-          return count;
-        }
-        return count + order.items.length;
-      }, 0),
-    [orders],
-  );
+  const [pendingPrompt, setPendingPrompt] = useState<VerifiedPromptResponse["data"]>(null);
 
   const loadOrders = useCallback(
     async (targetPage: number) => {
-      if (!user) {
-        return;
-      }
+      if (!user) return;
 
       setIsLoading(true);
       setErrorMessage(null);
-
       try {
         const response = await commerceApi.orders.list<OrdersListResponse>({
           page: targetPage,
-          limit: ORDERS_PAGE_SIZE,
+          limit: ORDERS_PAGE_SIZE
         });
         setOrders(response.data);
         setPagination(response.pagination);
       } catch (error) {
-        if (error instanceof ApiError) {
-          setErrorMessage(error.message);
-        } else {
-          setErrorMessage("Unable to load orders right now.");
-        }
+        setErrorMessage(error instanceof ApiError ? error.message : "Unable to load orders right now.");
       } finally {
         setIsLoading(false);
       }
     },
-    [user],
+    [user]
   );
 
   const loadPrompt = useCallback(async () => {
@@ -348,8 +225,7 @@ export function OrdersClient() {
     }
 
     try {
-      const response =
-        await commerceApi.reviews.verifiedPrompt<VerifiedPromptResponse>();
+      const response = await commerceApi.reviews.verifiedPrompt<VerifiedPromptResponse>();
       setPendingPrompt(response.data);
     } catch {
       setPendingPrompt(null);
@@ -369,205 +245,43 @@ export function OrdersClient() {
   }, [loadOrders, page, user]);
 
   useEffect(() => {
-    if (!user) {
-      setPendingPrompt(null);
-      return;
-    }
-
     void loadPrompt();
-  }, [loadPrompt, user]);
-
-  function patchOrderItemReview(params: {
-    orderId: string;
-    orderItemId: string;
-    reviewId: string;
-    rating: number;
-    subject?: string;
-    body?: string;
-  }) {
-    setOrders((current) =>
-      current.map((order) => {
-        if (order.id !== params.orderId) {
-          return order;
-        }
-        return {
-          ...order,
-          items: order.items.map((item) => {
-            if (item.id !== params.orderItemId) {
-              return item;
-            }
-
-            return {
-              ...item,
-              verifiedReview: {
-                reviewId: params.reviewId,
-                rating: params.rating,
-                subject: params.subject ?? item.verifiedReview?.subject ?? null,
-                body: params.body ?? item.verifiedReview?.body ?? "",
-              },
-            };
-          }),
-        };
-      }),
-    );
-  }
-
-  async function submitRating(params: {
-    orderId: string;
-    orderItemId: string;
-    productId: string;
-    rating: number;
-  }) {
-    if (params.rating < 1 || params.rating > 5) {
-      setReviewMessage("Please select a rating before submitting.");
-      return null;
-    }
-
-    setIsSavingRating(true);
-    setReviewMessage("");
-
-    try {
-      const response = await commerceApi.reviews.verifiedRate<
-        VerifiedRateResponse,
-        {
-          orderId: string;
-          orderItemId: string;
-          productId: string;
-          rating: number;
-        }
-      >({
-        orderId: params.orderId,
-        orderItemId: params.orderItemId,
-        productId: params.productId,
-        rating: params.rating,
-      });
-
-      patchOrderItemReview({
-        orderId: params.orderId,
-        orderItemId: params.orderItemId,
-        reviewId: response.data.reviewId,
-        rating: params.rating,
-      });
-
-      setReviewMessage(response.data.message);
-      void loadPrompt();
-      return response.data.reviewId;
-    } catch (error) {
-      if (error instanceof ApiError) {
-        setReviewMessage(error.message);
-      } else {
-        setReviewMessage("Unable to save rating right now.");
-      }
-      return null;
-    } finally {
-      setIsSavingRating(false);
-    }
-  }
-
-  async function submitReviewText() {
-    if (!activeEditor?.reviewId) {
-      setReviewMessage("Save a star rating first.");
-      return;
-    }
-
-    if (!activeEditor.subject.trim() && !activeEditor.body.trim()) {
-      setReviewMessage("Write optional subject or review text before saving.");
-      return;
-    }
-
-    setIsSavingText(true);
-    setReviewMessage("");
-    try {
-      const response = await commerceApi.reviews.verifiedText<
-        VerifiedTextResponse,
-        { reviewId: string; subject?: string; body?: string }
-      >({
-        reviewId: activeEditor.reviewId,
-        subject: activeEditor.subject.trim() || undefined,
-        body: activeEditor.body.trim() || undefined,
-      });
-
-      patchOrderItemReview({
-        orderId: activeEditor.orderId,
-        orderItemId: activeEditor.orderItemId,
-        reviewId: activeEditor.reviewId,
-        rating: activeEditor.selectedRating,
-        subject: activeEditor.subject.trim() || undefined,
-        body: activeEditor.body.trim() || undefined,
-      });
-      setReviewMessage(response.data.message);
-      setActiveEditor(null);
-    } catch (error) {
-      if (error instanceof ApiError) {
-        setReviewMessage(error.message);
-      } else {
-        setReviewMessage("Unable to save review text right now.");
-      }
-    } finally {
-      setIsSavingText(false);
-    }
-  }
+  }, [loadPrompt]);
 
   if (!hasMounted || isHydrating || !hasHydrated) {
-    return (
-      <div className="rounded-lg border border-[var(--line)] bg-white p-8">
-        Loading orders...
-      </div>
-    );
+    return <div className="rounded-xl border border-[var(--line)] bg-white p-8">Loading orders...</div>;
   }
 
-  if (!user && hasHydrated) {
+  if (!user) {
     return (
-      <section className="rounded-lg border border-[var(--line)] bg-white p-8 text-center">
-        <h1 className="text-3xl font-semibold">Login to view orders.</h1>
-        <p className="mt-3 text-[var(--muted)]">
-          Past and pending orders are linked to your account email.
-        </p>
-        <Button className="mt-6" href="/auth?next=/orders">
-          Login
-        </Button>
+      <section className="rounded-xl border border-[var(--line)] bg-white p-8 text-center">
+        <h2 className="text-2xl font-semibold">Login to view orders.</h2>
+        <p className="mt-3 text-[var(--muted)]">Past and pending orders are linked to your account.</p>
+        <Button className="mt-6" href="/auth?next=/orders">Login</Button>
       </section>
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="rounded-lg border border-[var(--line)] bg-white p-8">
-        Loading your orders...
-      </div>
-    );
+  if (isLoading && orders.length === 0) {
+    return <div className="rounded-xl border border-[var(--line)] bg-white p-8">Loading your orders...</div>;
   }
 
-  if (errorMessage) {
+  if (errorMessage && orders.length === 0) {
     return (
-      <section className="rounded-lg border border-[var(--line)] bg-white p-8 text-center">
-        <h1 className="text-2xl font-semibold">
-          We could not load your orders.
-        </h1>
+      <section className="rounded-xl border border-[var(--line)] bg-white p-8 text-center">
+        <h2 className="text-2xl font-semibold">We could not load your orders.</h2>
         <p className="mt-3 text-[var(--muted)]">{errorMessage}</p>
-        <Button
-          className="mt-6"
-          type="button"
-          onClick={() => {
-            void loadOrders(page);
-          }}
-        >
-          Retry
-        </Button>
+        <Button className="mt-6" type="button" onClick={() => void loadOrders(page)}>Retry</Button>
       </section>
     );
   }
 
   if (pagination.total === 0) {
     return (
-      <section className="rounded-lg border border-[var(--line)] bg-white p-8 text-center">
-        <h1 className="text-3xl font-semibold">No orders yet.</h1>
-        <p className="mt-3 text-[var(--muted)]">
-          Your palmyra sprout orders will appear here after checkout.
-        </p>
-        <Button className="mt-6" href="/product/palmyra-sprout-energy-bar">
-          Shop best selling
-        </Button>
+      <section className="rounded-xl border border-[var(--line)] bg-white p-8 text-center">
+        <h2 className="text-2xl font-semibold">No orders yet.</h2>
+        <p className="mt-3 text-[var(--muted)]">Your palmyra sprout orders will appear here after checkout.</p>
+        <Button className="mt-6" href="/product/palmyra-sprout-energy-bar">Shop best selling</Button>
       </section>
     );
   }
@@ -575,250 +289,32 @@ export function OrdersClient() {
   const visiblePages = getVisibleOrderPages(page, pagination.totalPages);
 
   return (
-    <section className="space-y-4" aria-label="Your orders">
+    <section aria-label="Your orders">
       {pendingPrompt ? (
-        <article className="rounded-lg border border-[var(--line)] bg-[var(--mint)]/45 p-4">
-          <p className="text-sm font-semibold">
-            How was your {pendingPrompt.productName}?
-          </p>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Select your star rating first. Written feedback is optional.
-          </p>
-          <div className="mt-3 flex items-center gap-2">
-            {Array.from({ length: 5 }).map((_, idx) => {
-              const nextRating = idx + 1;
-              return (
-                <button
-                  aria-label={`Rate ${nextRating} stars`}
-                  className="focus-ring text-2xl leading-none text-[var(--gold)] transition hover:scale-105"
-                  disabled={isSavingRating}
-                  key={nextRating}
-                  type="button"
-                  onClick={() => {
-                    void submitRating({
-                      orderId: pendingPrompt.orderId,
-                      orderItemId: pendingPrompt.orderItemId,
-                      productId: pendingPrompt.productId,
-                      rating: nextRating,
-                    }).then((reviewId) => {
-                      if (!reviewId) {
-                        return;
-                      }
-                      setActiveEditor({
-                        orderId: pendingPrompt.orderId,
-                        orderItemId: pendingPrompt.orderItemId,
-                        productId: pendingPrompt.productId,
-                        productName: pendingPrompt.productName,
-                        reviewId,
-                        selectedRating: nextRating,
-                        subject: "",
-                        body: "",
-                      });
-                    });
-                  }}
-                >
-                  ★
-                </button>
-              );
-            })}
+        <Link
+          className="focus-ring mb-4 flex items-center justify-between gap-4 rounded-xl border border-[var(--line)] bg-[var(--mint)]/55 p-4 transition hover:border-[var(--leaf)]"
+          href={`/orders/${encodeURIComponent(pendingPrompt.orderId)}?review=${encodeURIComponent(pendingPrompt.orderItemId)}`}
+        >
+          <div>
+            <p className="text-sm font-semibold">How was your {pendingPrompt.productName}?</p>
+            <p className="mt-1 text-xs text-[var(--muted)]">Rate your verified purchase from its order details.</p>
           </div>
-        </article>
+          <span className="shrink-0 text-sm font-semibold text-[var(--leaf-deep)]">Rate product</span>
+        </Link>
       ) : null}
 
-      {orders.map((order) => (
-        <article
-          className="rounded-lg border border-[var(--line)] bg-white p-5"
-          key={order.id}
-        >
-          <div className="flex flex-col justify-between gap-3 border-b border-[var(--line)] pb-4 sm:flex-row sm:items-center">
-            <div>
-              <h2 className="text-lg font-semibold">Order {order.id}</h2>
-              <p className="mt-1 text-sm text-[var(--muted)]">
-                {new Intl.DateTimeFormat("en-IN", {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                }).format(new Date(order.createdAt))}
-              </p>
-            </div>
-          </div>
-          <OrderTrackingProgress order={order} />
-          <ul className="mt-4 space-y-3">
-            {order.items.map((item) => {
-              const itemKey = orderItemKey(order.id, item.id);
-              const isEditing =
-                activeEditor &&
-                orderItemKey(activeEditor.orderId, activeEditor.orderItemId) ===
-                  itemKey;
-              return (
-                <li
-                  className="rounded-lg border border-transparent p-2 -mx-2"
-                  key={`${order.id}-${item.id}`}
-                >
-                  <div className="flex justify-between gap-4 text-sm">
-                    <div>
-                      <Link
-                        className="focus-ring rounded-lg font-semibold"
-                        href={`/product/${item.slug}`}
-                      >
-                        {item.quantity} x {item.name} ({item.variantLabel})
-                      </Link>
-                      {item.canRate ? (
-                        <div className="mt-2 flex items-center gap-2">
-                          {item.verifiedReview ? (
-                            <span className="rounded bg-[var(--mint)] px-2 py-1 text-xs font-semibold text-[var(--leaf-deep)]">
-                              Rated {item.verifiedReview.rating}/5
-                            </span>
-                          ) : null}
-                          <button
-                            className="focus-ring text-xs font-semibold text-[var(--leaf-deep)] underline"
-                            type="button"
-                            onClick={() =>
-                              setActiveEditor({
-                                orderId: order.id,
-                                orderItemId: item.id,
-                                productId: item.productId,
-                                productName: item.name,
-                                reviewId: item.verifiedReview?.reviewId ?? null,
-                                selectedRating:
-                                  item.verifiedReview?.rating ?? 0,
-                                subject: item.verifiedReview?.subject ?? "",
-                                body: item.verifiedReview?.body ?? "",
-                              })
-                            }
-                          >
-                            {item.verifiedReview
-                              ? "Edit review"
-                              : "Rate product"}
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
-                    <span>{formatPrice(item.unitPrice * item.quantity)}</span>
-                  </div>
+      <div className="space-y-4">
+        {orders.map((order) => <OrderListCard key={order.id} order={order} />)}
+      </div>
 
-                  {isEditing ? (
-                    <div className="mt-3 rounded-lg border border-[var(--line)] bg-[var(--background)] p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                        Rating
-                      </p>
-                      <div className="mt-2 flex items-center gap-2">
-                        {Array.from({ length: 5 }).map((_, idx) => {
-                          const nextRating = idx + 1;
-                          return (
-                            <button
-                              aria-label={`Rate ${nextRating} stars`}
-                              className={`focus-ring text-3xl leading-none transition ${
-                                nextRating <= activeEditor.selectedRating
-                                  ? "text-[var(--gold)]"
-                                  : "text-[var(--line)]"
-                              }`}
-                              disabled={isSavingRating}
-                              key={nextRating}
-                              type="button"
-                              onClick={() => {
-                                setActiveEditor((current) =>
-                                  current
-                                    ? { ...current, selectedRating: nextRating }
-                                    : current,
-                                );
-                                void submitRating({
-                                  orderId: order.id,
-                                  orderItemId: item.id,
-                                  productId: item.productId,
-                                  rating: nextRating,
-                                }).then((reviewId) => {
-                                  if (!reviewId) return;
-                                  setActiveEditor((current) =>
-                                    current
-                                      ? { ...current, reviewId }
-                                      : current,
-                                  );
-                                });
-                              }}
-                            >
-                              ★
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                        Optional written review
-                      </p>
-                      <label className="mt-2 block">
-                        <span className="text-xs font-semibold">Subject</span>
-                        <Input
-                          className="mt-1"
-                          maxLength={REVIEW_SUBJECT_MAX_LENGTH}
-                          value={activeEditor.subject}
-                          onChange={(event) =>
-                            setActiveEditor((current) =>
-                              current
-                                ? { ...current, subject: event.target.value }
-                                : current,
-                            )
-                          }
-                        />
-                        <p className="mt-1 text-right text-[11px] text-[var(--muted)]">
-                          {activeEditor.subject.length}/
-                          {REVIEW_SUBJECT_MAX_LENGTH}
-                        </p>
-                      </label>
-                      <label className="mt-2 block">
-                        <span className="text-xs font-semibold">Review</span>
-                        <Textarea
-                          className="mt-1 min-h-24"
-                          maxLength={REVIEW_BODY_MAX_LENGTH}
-                          value={activeEditor.body}
-                          onChange={(event) =>
-                            setActiveEditor((current) =>
-                              current
-                                ? { ...current, body: event.target.value }
-                                : current,
-                            )
-                          }
-                        />
-                        <p className="mt-1 text-right text-[11px] text-[var(--muted)]">
-                          {activeEditor.body.length}/{REVIEW_BODY_MAX_LENGTH}
-                        </p>
-                      </label>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          disabled={isSavingText || !activeEditor.reviewId}
-                          onClick={() => {
-                            void submitReviewText();
-                          }}
-                        >
-                          {isSavingText ? "Saving..." : "Save review text"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() => setActiveEditor(null)}
-                        >
-                          Close
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-          <OrderReceiptDetails
-            orderStatus={order.status}
-            payment={order.payment}
-            pricing={order.pricing}
-            shippingAddress={order.shippingAddress}
-          />
-        </article>
-      ))}
+      <p className="mt-4 text-center text-xs text-[var(--muted)]">
+        Showing {orders.length} of {pagination.total} {pagination.total === 1 ? "order" : "orders"}
+      </p>
 
       {pagination.totalPages > 1 ? (
         <nav
           aria-label="Orders pagination"
-          className="flex flex-wrap items-center justify-center gap-2 rounded-lg border border-[var(--line)] bg-white p-3 text-sm"
+          className="mt-4 flex flex-wrap items-center justify-center gap-2 rounded-xl border border-[var(--line)] bg-white p-3 text-sm"
         >
           <Button
             type="button"
@@ -862,14 +358,8 @@ export function OrdersClient() {
         </nav>
       ) : null}
 
-      {deliveredItemCount > 0 && reviewMessage ? (
-        <p
-          className="text-sm font-semibold text-[var(--leaf-deep)]"
-          role="status"
-          aria-live="polite"
-        >
-          {reviewMessage}
-        </p>
+      {errorMessage ? (
+        <p className="mt-4 text-center text-sm font-semibold text-[var(--coral)]" role="status">{errorMessage}</p>
       ) : null}
     </section>
   );

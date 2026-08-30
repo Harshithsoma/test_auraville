@@ -83,7 +83,7 @@ export function ProductPurchasePanel({
 
   if (!selectedVariant) {
     return (
-      <div className="mt-5 border-t border-[var(--line)] pt-5">
+      <div className="rounded-xl border border-[var(--line)] bg-white p-4 lg:mt-5 lg:rounded-none lg:border-0 lg:border-t lg:bg-transparent lg:pt-5">
         <p className="text-sm font-semibold text-[var(--coral)]">Product unavailable right now.</p>
         <p className="mt-1 text-sm text-[var(--muted)]">
           This product has no purchasable variants currently. Please check back soon.
@@ -132,8 +132,8 @@ export function ProductPurchasePanel({
   }
 
   return (
-    <div className="mt-4 flex flex-col border-t border-[var(--line)] pt-4 lg:mt-5 lg:pt-5">
-      <div className="order-1 lg:order-2 lg:mt-5">
+    <div className="flex flex-col gap-3 lg:mt-5 lg:gap-0 lg:border-t lg:border-[var(--line)] lg:pt-5">
+      <section className="order-1 rounded-xl border border-[var(--line)] bg-[#fffaf0] p-4 lg:order-2 lg:mt-5 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
         <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">Price</p>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-2">
           <div className="text-2xl sm:text-3xl">
@@ -144,9 +144,11 @@ export function ProductPurchasePanel({
             />
           </div>
           <span
-            className={`hidden rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wide lg:inline-flex ${selectedVariantCanPurchase
-              ? "bg-[var(--mint)] text-[var(--leaf-deep)]"
-              : "bg-[#fff2f0] text-[#9b5a50]"}`}
+            className={`hidden rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wide lg:inline-flex ${
+              selectedVariantCanPurchase
+                ? "bg-[var(--mint)] text-[var(--leaf-deep)]"
+                : "bg-[#fff2f0] text-[#9b5a50]"
+            }`}
           >
             {availabilityLabel}
           </span>
@@ -156,9 +158,9 @@ export function ProductPurchasePanel({
             <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
           </div>
         ) : null}
-      </div>
+      </section>
 
-      <div className="order-2 mt-4 lg:order-1 lg:mt-0">
+      <section className="order-2 rounded-xl border border-[var(--line)] bg-white p-4 lg:order-1 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
         {sortedVariants.length > 1 ? (
           <>
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">Pack size</p>
@@ -172,8 +174,19 @@ export function ProductPurchasePanel({
               onSelect={setCurrentVariant}
             />
           </>
-        ) : null}
-        <p className={`${sortedVariants.length > 1 ? "mt-2" : ""} text-sm text-[var(--muted)]`}>
+        ) : (
+          <div className="lg:hidden">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">Pack size</p>
+            <div className="mt-3 rounded-lg border border-[var(--leaf)] bg-[var(--leaf)] px-3 py-3 text-center text-sm font-semibold text-white shadow-sm">
+              {selectedVariant.label}
+            </div>
+          </div>
+        )}
+        <p
+          className={`${
+            sortedVariants.length > 1 ? "mt-2" : "mt-2 lg:mt-0"
+          } text-sm text-[var(--muted)]`}
+        >
           Selected: <span className="font-semibold text-[var(--foreground)]">{selectedVariant.label}</span>
           {selectedVariantCanPurchase &&
           typeof selectedVariantStock === "number" &&
@@ -186,60 +199,56 @@ export function ProductPurchasePanel({
             <span className="ml-2 font-semibold text-[var(--coral)]">{availabilityLabel}</span>
           ) : null}
         </p>
-      </div>
+      </section>
 
-      <div className="order-3 mt-4 grid grid-cols-[auto_minmax(0,1fr)] items-end gap-2.5 lg:mt-5 lg:gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">Quantity</p>
-          <div className="mt-2">
-            {selectedVariantCanPurchase ? (
-              <QuantityStepper
-                value={effectiveQuantity}
-                max={typeof selectedVariantStock === "number" ? Math.max(1, selectedVariantStock) : undefined}
-                onChange={(nextValue) => {
-                  if (typeof selectedVariantStock === "number" && selectedVariantStock > 0) {
-                    setQuantity(Math.min(Math.max(1, nextValue), selectedVariantStock));
-                    return;
-                  }
-                  setQuantity(Math.max(1, nextValue));
-                }}
-              />
-            ) : (
-              <span className="inline-flex h-11 items-center rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 text-xs font-semibold text-[var(--leaf-deep)]">
-                {selectedVariantIsActive ? "Sold Out" : "Coming Soon"}
-              </span>
-            )}
-          </div>
-        </div>
-        <Button
-          className="h-11 w-full px-3 py-2.5 text-sm font-bold tracking-wide sm:text-base"
-          disabled={!selectedVariantCanPurchase || !hasAnyInStockVariant}
-          type="button"
-          onClick={addToCart}
-        >
-          {selectedVariantCanPurchase ? "Add to Cart" : selectedVariantIsActive ? "Sold Out" : "Coming Soon"}
-        </Button>
-      </div>
-
-      {status ? (
-        <p
-          className="order-4 mt-3 text-sm font-semibold text-[var(--leaf-deep)]"
-          role="status"
-          aria-live="polite"
-        >
-          {status}
+      <section className="order-3 rounded-xl border border-[var(--line)] bg-white p-4 lg:order-5 lg:mt-5 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)] lg:hidden">
+          Description
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-[var(--muted)] lg:mt-0 lg:text-base lg:leading-7">
+          {product.longDescription}
         </p>
-      ) : null}
+      </section>
 
-      <p className="order-5 mt-5 text-sm leading-6 text-[var(--muted)] sm:text-base sm:leading-7">
-        {product.longDescription}
-      </p>
-
-      {product.reviewCount > 0 ? (
-        <div className="order-6 mt-4 lg:hidden">
-          <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
+      <section className="order-4 rounded-xl border border-[var(--line)] bg-[var(--rose)]/25 p-4 lg:order-3 lg:mt-5 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
+        <div className="grid grid-cols-[minmax(112px,0.72fr)_minmax(0,1.45fr)] items-end gap-2.5 lg:grid-cols-[auto_minmax(0,1fr)] lg:gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">Quantity</p>
+            <div className="mt-2">
+              {selectedVariantCanPurchase ? (
+                <QuantityStepper
+                  value={effectiveQuantity}
+                  max={typeof selectedVariantStock === "number" ? Math.max(1, selectedVariantStock) : undefined}
+                  onChange={(nextValue) => {
+                    if (typeof selectedVariantStock === "number" && selectedVariantStock > 0) {
+                      setQuantity(Math.min(Math.max(1, nextValue), selectedVariantStock));
+                      return;
+                    }
+                    setQuantity(Math.max(1, nextValue));
+                  }}
+                />
+              ) : (
+                <span className="inline-flex h-11 items-center rounded-lg border border-[var(--line)] bg-[var(--mint)] px-3 text-xs font-semibold text-[var(--leaf-deep)]">
+                  {selectedVariantIsActive ? "Sold Out" : "Coming Soon"}
+                </span>
+              )}
+            </div>
+          </div>
+          <Button
+            className="h-11 w-full px-2 py-2.5 text-sm font-bold tracking-wide sm:px-3 sm:text-base"
+            disabled={!selectedVariantCanPurchase || !hasAnyInStockVariant}
+            type="button"
+            onClick={addToCart}
+          >
+            {selectedVariantCanPurchase ? "Add to Cart" : selectedVariantIsActive ? "Sold Out" : "Coming Soon"}
+          </Button>
         </div>
-      ) : null}
+        {status ? (
+          <p className="mt-3 text-sm font-semibold text-[var(--leaf-deep)]" role="status" aria-live="polite">
+            {status}
+          </p>
+        ) : null}
+      </section>
     </div>
   );
 }

@@ -36,11 +36,11 @@ type OrderReceiptDetailsProps = {
   className?: string;
 };
 
-function formatDiscount(value: number): string {
+export function formatDiscount(value: number): string {
   return value > 0 ? `-${formatPrice(value)}` : formatPrice(0);
 }
 
-function paymentStatusLabel(payment: CustomerOrderPayment, orderStatus: string): string {
+export function paymentStatusLabel(payment: CustomerOrderPayment, orderStatus: string): string {
   if (payment?.status === "paid") return "Paid";
   if (payment?.status === "failed") return "Payment Failed";
   if (payment?.status === "refunded") return "Refunded";
@@ -51,12 +51,20 @@ function paymentStatusLabel(payment: CustomerOrderPayment, orderStatus: string):
   return "Paid";
 }
 
-function totalLabel(payment: CustomerOrderPayment, orderStatus: string): string {
+export function totalLabel(payment: CustomerOrderPayment, orderStatus: string): string {
   const successfulStatuses = new Set(["confirmed", "packed", "shipped", "out_for_delivery", "delivered"]);
   if (payment?.status === "paid" || (!payment && successfulStatuses.has(orderStatus))) {
     return "Total Paid";
   }
   return "Order Total";
+}
+
+export function getOrderSummaryValues(pricing: CustomerOrderPricing) {
+  const itemsSubtotal = pricing.baseSavings > 0 ? pricing.originalSubtotal : pricing.subtotal;
+  const couponDiscount = pricing.couponDiscount ?? pricing.promoDiscount ?? 0;
+  const couponLabel = pricing.couponCode ? `Coupon (${pricing.couponCode})` : "Coupon discount";
+
+  return { itemsSubtotal, couponDiscount, couponLabel };
 }
 
 export function OrderReceiptDetails({
@@ -66,9 +74,7 @@ export function OrderReceiptDetails({
   orderStatus,
   className = ""
 }: OrderReceiptDetailsProps) {
-  const itemsSubtotal = pricing.baseSavings > 0 ? pricing.originalSubtotal : pricing.subtotal;
-  const couponDiscount = pricing.couponDiscount ?? pricing.promoDiscount ?? 0;
-  const couponLabel = pricing.couponCode ? `Coupon (${pricing.couponCode})` : "Coupon discount";
+  const { itemsSubtotal, couponDiscount, couponLabel } = getOrderSummaryValues(pricing);
 
   return (
     <section className={`mt-4 border-t border-[var(--line)] pt-4 ${className}`} aria-label="Order receipt details">

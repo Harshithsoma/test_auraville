@@ -3,8 +3,8 @@ import { OrdersClient } from "@/components/orders/orders-client";
 import { absoluteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Orders",
-  description: "View your current and past Auraville orders.",
+  title: "My Orders",
+  description: "View and track your Auraville orders.",
   alternates: {
     canonical: absoluteUrl("/orders")
   },
@@ -16,13 +16,12 @@ export const metadata: Metadata = {
 
 export default function OrdersPage() {
   return (
-    <div className="container-page py-12 md:py-16">
-      <div className="mb-10 max-w-2xl">
-        <p className="text-sm font-semibold uppercase text-[var(--coral)]">Orders</p>
-        <h1 className="mt-4 text-4xl font-semibold leading-tight sm:text-5xl">
-          Current and past orders.
-        </h1>
-      </div>
+    <div className="container-page py-8 sm:py-10 md:py-14">
+      <header className="mb-6 sm:mb-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--coral)]">Your account</p>
+        <h1 className="mt-2 text-3xl font-semibold leading-tight sm:text-4xl">My Orders</h1>
+        <p className="mt-1.5 text-sm text-[var(--muted)] sm:text-base">View and track all your orders.</p>
+      </header>
       <OrdersClient />
     </div>
   );
